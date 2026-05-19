@@ -1,6 +1,9 @@
 # Aretino Chant
 
 A text format for Gregorian chant, plus a JavaScript parser and SVG renderer.
+Based on the practical Gregorian notation promoted by László Dobszay and Janka Szendrei.
+
+<img width="682" height="244" alt="image" src="https://github.com/user-attachments/assets/246f8196-105d-4a30-a807-0d97c1e21c2e" />
 
 ## Install
 
@@ -19,8 +22,6 @@ const svg = renderAretino(ast);
 
 ## Documentation
 
-- [Format specification](./docs/format.md)
-- [Cheatsheet](./docs/cheatsheet.md)
 - [Felhasználói útmutató (HU)](./docs/hu/user-guide.md)
 
 ## License

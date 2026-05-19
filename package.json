@@ -1,0 +1,34 @@
+{
+  "name": "@aretino-chant/core",
+  "version": "0.1.0",
+  "description": "A text format for Gregorian chant — parser and SVG renderer.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "README.md", "LICENSE", "NOTICE"],
+  "sideEffects": false,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "gregorian",
+    "chant",
+    "music-notation",
+    "liturgical",
+    "svg"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretino-chant/aretino-chant.git"
+  },
+  "homepage": "https://github.com/aretino-chant/aretino-chant#readme",
+  "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}

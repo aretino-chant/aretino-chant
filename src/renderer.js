@@ -46,7 +46,7 @@ function wrapSrc(item, svg, cls) {
 const HIGHLIGHT_STYLE = `<style>.aretino-active [fill]:not([fill="none"]):not(.aretino-cursor-bg){fill:#ea580c}.aretino-active [stroke]:not([stroke="none"]):not(.aretino-cursor-bg){stroke:#ea580c}</style>`;
 
 export function renderAretino(source, options = {}) {
-    const ast = parseAretino(source);
+    const ast = typeof source === 'string' ? parseAretino(source) : source;
     const canvasWidth = options.canvasWidth || 1920;
     const canvasHeight = options.canvasHeight || null;
     const staffScale = Math.max(0.1, (options.staffSize ?? 100) / 100);

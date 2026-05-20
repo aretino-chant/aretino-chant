@@ -24,6 +24,44 @@ const svg = renderAretino(ast);
 
 - See the [aretino-chant.github.io](https://aretino-chant.github.io)
 
+## Development
+
+### Run the test page
+
+Start a local dev server with an interactive test page:
+
+```bash
+npm run dev
+```
+
+Then open the URL printed in the terminal (typically `http://localhost:5173`).
+
+### Run tests
+
+```bash
+npm test
+```
+
+### Release a new version
+
+1. Update the version number in `package.json` (follow [semver](https://semver.org)):
+   ```bash
+   npm version patch   # 0.1.0 → 0.1.1  (bug fixes)
+   npm version minor   # 0.1.0 → 0.2.0  (new features)
+   npm version major   # 0.1.0 → 1.0.0  (breaking changes)
+   ```
+   This also creates a git commit and tag automatically.
+
+2. Push the commit and tag:
+   ```bash
+   git push && git push --tags
+   ```
+
+3. Publish to the npm registry:
+   ```bash
+   npm publish --access public
+   ```
+
 ## License
 
 - Source code: [MPL-2.0](./LICENSE)

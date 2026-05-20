@@ -185,7 +185,10 @@ export function renderAretino(source, options = {}) {
         // Reserve extra advance after a neume whose syllable is wider than the
         // neume's natural trailing slack, so the next neume isn't overlapped.
         if (alignSyllables) {
-            const minGap = ctx.lyricSize * 0.18;
+            // Inter-word gap reserved between neumes must match the gap the
+            // lyric layout actually renders (a real space character), so the
+            // note spacing follows the widened word break.
+            const minGap = measureTextWidth(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
             const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
             const ligInfo = [];
             let li = 0;
@@ -1281,7 +1284,11 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     }
     const fontSize = ctx.lyricSize;
     const fontFamily = ctx.lyricFont;
-    const minGap = fontSize * 0.18;
+    // Minimum gap between syllables of different words: the font's real space
+    // character, so an implicit word break is spaced exactly like an explicit
+    // ~ (which renders a literal space). A fixed fraction of the font size
+    // (e.g. 0.18em) is narrower than a true space and reads as too tight.
+    const minGap = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
     // A hyphen occupies the width of an 'n' character; if the gap between
     // syllables is smaller than that, there is no room to render it.
     const hyphenSpaceW = measureTextWidth('.', fontSize, fontFamily);

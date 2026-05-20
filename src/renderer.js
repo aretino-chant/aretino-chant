@@ -29,14 +29,14 @@ const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
 
 const MM_PER_INCH = 25.4;
 const DEFAULT_DPI = 96;
-// True (print) staff-space size for prepared choral scores: 1.5 mm,
-// i.e. a 6 mm four-space staff. This is the *physical* size; on-screen
+// True (print) staff-space size for prepared choral scores,
+// This is the *physical* size; on-screen
 // magnification for editing is a separate `zoom` (see below).
 const DEFAULT_STAFF_SPACE_MM = 1.75;
 // Default line-break width (≈18 cm). Determines where lines wrap; it is a
 // logical/physical measure and is unaffected by `zoom`.
 const DEFAULT_PAGE_WIDTH_MM = 180;
-// Default lyric font size in typographic points (≈4.2 mm at 12pt).
+// Default lyric font size in typographic points
 const DEFAULT_LYRIC_SIZE_PT = 10;
 
 function ss(ctx, n) {

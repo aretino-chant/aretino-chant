@@ -969,7 +969,8 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
                     noteParts.push(drawMora(ctx, p.cx, p.cy, onLine));
                 } else if (mod === 'ictus') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
-                    noteParts.push(drawIctus(ctx, p.cx, p.cy, onLine));
+                    const below = p.note.modifiers.includes('episema');
+                    noteParts.push(drawIctus(ctx, p.cx, p.cy, onLine, below));
                 } else if (mod === 'liquescens') {
                     noteParts.push(drawLiquescens(ctx, p.cx, p.cy, 'down'));
                 }

@@ -5,4 +5,8 @@ export default defineConfig({
     server: {
         open: true,
     },
+    test: {
+        root: '.',
+        include: ['test/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+    },
 });

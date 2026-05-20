@@ -274,9 +274,11 @@ export function drawEpisemaSpan(ctx, x1, x2, cy, onLine = false) {
     return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 
-export function drawIctus(ctx, cx, cy, onLine = false) {
+export function drawIctus(ctx, cx, cy, onLine = false, below = false) {
     const h = ss(ctx, METRICS.ictusHeight);
-    const topY = cy - (onLine ? ctx.staffSpace * 1.75 : ctx.staffSpace * 1.25);
+    const topY = below
+        ? cy + ctx.staffSpace * (onLine ? 1.25 : 0.75)
+        : cy - (onLine ? ctx.staffSpace * 1.75 : ctx.staffSpace * 1.25);
     const sw = stroke(ctx, METRICS.ictusStroke, METRICS.ictusStrokeMinPx);
     return `<line x1="${cx}" y1="${topY}" x2="${cx}" y2="${topY + h}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }

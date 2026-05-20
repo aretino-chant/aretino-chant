@@ -27,8 +27,17 @@ import {
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
 
-// One staff space in pixels at 100% staffSize.
-const BASE_STAFF_SPACE_PX = 16;
+const MM_PER_INCH = 25.4;
+const DEFAULT_DPI = 96;
+// True (print) staff-space size for prepared choral scores: 1.5 mm,
+// i.e. a 6 mm four-space staff. This is the *physical* size; on-screen
+// magnification for editing is a separate `zoom` (see below).
+const DEFAULT_STAFF_SPACE_MM = 1.75;
+// Default line-break width (≈18 cm). Determines where lines wrap; it is a
+// logical/physical measure and is unaffected by `zoom`.
+const DEFAULT_PAGE_WIDTH_MM = 180;
+// Default lyric font size in typographic points (≈4.2 mm at 12pt).
+const DEFAULT_LYRIC_SIZE_PT = 10;
 
 function ss(ctx, n) {
     return n * ctx.staffSpace;
@@ -47,9 +56,25 @@ const HIGHLIGHT_STYLE = `<style>.aretino-active [fill]:not([fill="none"]):not(.a
 
 export function renderAretino(source, options = {}) {
     const ast = typeof source === 'string' ? parseAretino(source) : source;
-    const canvasWidth = options.canvasWidth || 1920;
+
+    // --- Sizing model -----------------------------------------------------
+    // Everything is laid out in *logical units* where 1 unit = 1 px at the
+    // given dpi with zoom = 1. Physical sizes (mm) map to logical units via
+    // dpi; `zoom` then magnifies the *rendered* SVG without touching layout,
+    // so line-breaking and proportions stay identical at any zoom.
+    const dpi = options.dpi ?? DEFAULT_DPI;
+    const pxPerMm = dpi / MM_PER_INCH;
+    const zoom = Math.max(0.1, options.zoom ?? 1);
+
+    // staffSpace drives every musical symbol and advance (via METRICS).
+    const staffSpacePx = Math.max(0.1, options.staffSpaceMm ?? DEFAULT_STAFF_SPACE_MM) * pxPerMm;
+
+    // Layout width = the width lines are broken to. Logical/physical only;
+    // `width` (px) takes precedence over `widthMm`. Independent of zoom.
+    const width = options.width != null
+        ? options.width
+        : Math.round((options.widthMm ?? DEFAULT_PAGE_WIDTH_MM) * pxPerMm);
     const canvasHeight = options.canvasHeight || null;
-    const staffScale = Math.max(0.1, (options.staffSize ?? 100) / 100);
     const noteSpacing = Math.max(0.5, options.noteSpacing ?? 1);
     const lyricFont = options.lyricFont || DEFAULT_FONT;
     const hideRepeatClef = !!options.hideRepeatClef;
@@ -58,7 +83,7 @@ export function renderAretino(source, options = {}) {
     // Everything else (margins, advances, glyph dimensions) is a multiple of
     // it via METRICS.
     const ctx = {
-        staffSpace: BASE_STAFF_SPACE_PX * staffScale,
+        staffSpace: staffSpacePx,
     };
     ctx.pitchStep = ctx.staffSpace / 2;
     ctx.staffHeight = (METRICS.staffLineCount - 1) * ctx.staffSpace;
@@ -71,12 +96,10 @@ export function renderAretino(source, options = {}) {
     ctx.staffGap = Math.max(0, ss(ctx, options.staffGap ?? METRICS.staffGap));
     ctx.lyricDistance = ss(ctx, METRICS.lyricDistance);
     ctx.lyricFont = lyricFont;
-    // lyricSize is in typographic points; convert to SVG user units for the virtual canvas.
-    // Scale proportionally to canvas width but clamp the ratio so lyrics stay readable on small screens.
-    const lyricPt = Math.max(6, options.lyricSize ?? 12);
-    const lyricScale = Math.max(0.75, canvasWidth / 750);
-    ctx.lyricSize = lyricPt * (96 / 72) * lyricScale;
-    ctx.canvasWidth = canvasWidth;
+    // Lyric font size in typographic points (default 12pt), converted to
+    // logical units via dpi. Set independently of staff space and layout width.
+    const lyricPt = Math.max(1, options.lyricSize ?? DEFAULT_LYRIC_SIZE_PT);
+    ctx.lyricSize = lyricPt * dpi / 72;
 
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
     const indentText = hasIndent ? (ast.header['indent'] ?? ast.header['behúzás'] ?? '') : '';
@@ -103,19 +126,19 @@ export function renderAretino(source, options = {}) {
         if (title) {
             const fontSize = ctx.lyricSize * 1.6;
             y += fontSize;
-            parts.push(`<text x="${canvasWidth / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${escapeText(title)}</text>`);
+            parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${escapeText(title)}</text>`);
             y += fontSize * 0.4;
         }
         const caption = ast.header['caption'] || ast.header['felirat'];
         if (caption) {
             const fontSize = ctx.lyricSize * 0.95;
             y += fontSize;
-            parts.push(`<text x="${canvasWidth - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${escapeText(caption)}</text>`);
+            parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${escapeText(caption)}</text>`);
             y += fontSize * 0.4;
         }
     }
 
-    const staffRightX = canvasWidth - ctx.rightMargin;
+    const staffRightX = width - ctx.rightMargin;
 
     for (const sec of sections) {
         const items = flattenItems(sec.tokens);
@@ -449,7 +472,14 @@ export function renderAretino(source, options = {}) {
     }
 
     const totalHeight = canvasHeight || Math.max(contentBottom, y + ctx.staffSpace, 100);
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasWidth} ${totalHeight}" preserveAspectRatio="xMidYMin meet" width="100%" style="display:block">${HIGHLIGHT_STYLE}${parts.join('')}</svg>`;
+    // viewBox is the logical layout space; the intrinsic width/height are the
+    // physical pixel size magnified by `zoom`. Emitting concrete dimensions
+    // (rather than width="100%") means a staff space renders at its true
+    // physical size regardless of container width. Consumers that want
+    // shrink-to-fit can add `max-width:100%;height:auto` in CSS.
+    const renderW = Math.round(width * zoom);
+    const renderH = Math.round(totalHeight * zoom);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${HIGHLIGHT_STYLE}${parts.join('')}</svg>`;
 }
 
 function trailingClef(items, fallback) {

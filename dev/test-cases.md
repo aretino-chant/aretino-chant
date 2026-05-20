@@ -166,3 +166,15 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 ```
 
 ---
+
+## Fixed Width (Non-Responsive)
+
+This block lays out to a fixed physical width of 18 cm — its line breaks stay
+put no matter how wide the editor is, unlike the responsive blocks above:
+
+```aretino fixed width=18cm
+(g2) h h h g h j i g h. (z) h h h h g e e d. (Z) g g g h g f e d.
+w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
+```
+
+---

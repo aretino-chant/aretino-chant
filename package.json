@@ -7,9 +7,15 @@
   "exports": {
     ".": "./src/index.js"
   },
-  "files": ["src", "README.md", "LICENSE", "NOTICE"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "sideEffects": false,
   "scripts": {
+    "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -29,6 +35,8 @@
   "license": "MPL-2.0",
   "author": "Bertalan Fodor",
   "devDependencies": {
+    "marked": "^18.0.4",
+    "vite": "^5.4.21",
     "vitest": "^2.0.0"
   }
 }

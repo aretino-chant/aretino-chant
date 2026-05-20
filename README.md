@@ -22,7 +22,7 @@ const svg = renderAretino(ast);
 
 ## Documentation
 
-- [Felhasználói útmutató (HU)](./docs/hu/user-guide.md)
+- See the [aretino-chant.github.io](https://aretino-chant.github.io)
 
 ## License
 

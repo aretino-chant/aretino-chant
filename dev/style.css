@@ -1,0 +1,142 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    background: #f8f7f5;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background: #2c2c2c;
+    color: #eee;
+    padding: 1rem 2rem;
+}
+
+header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+header p {
+    margin: 0;
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
+header code {
+    background: rgba(255,255,255,0.15);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+/* Prose */
+main h1, main h2, main h3, main h4 {
+    margin-top: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+main h2 {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.3rem;
+}
+
+main p {
+    line-height: 1.6;
+    margin: 0.5rem 0 1rem;
+}
+
+main hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 2rem 0;
+}
+
+main code {
+    background: #eee;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+main pre {
+    background: #2c2c2c;
+    color: #ccc;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.875rem;
+}
+
+main pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* Aretino interactive block */
+.aretino-block {
+    margin: 1rem 0 1.5rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.aretino-preview {
+    padding: 0.75rem 1rem;
+    min-height: 60px;
+    border-bottom: 1px solid #e0e0e0;
+    overflow-x: auto;
+}
+
+.aretino-preview svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.aretino-editor {
+    display: block;
+    width: 100%;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0.6rem 1rem;
+    border: none;
+    outline: none;
+    resize: vertical;
+    background: #fafaf9;
+    color: #1a1a1a;
+    tab-size: 2;
+    min-height: 2.5rem;
+    field-sizing: content;
+}
+
+.aretino-editor:focus {
+    background: #fffff8;
+    box-shadow: inset 0 0 0 2px #a78c5e;
+}
+
+.aretino-error {
+    padding: 0.5rem 1rem;
+    background: #fff0f0;
+    color: #c00;
+    font-family: monospace;
+    font-size: 0.85rem;
+    border-top: 1px solid #f0c0c0;
+}

@@ -306,6 +306,7 @@ export function renderAretino(source, options = {}) {
 
         let ligOffset = 0;
         let globalBarlineIdx = 0;
+        let sectionContentBottom = y;
 
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
@@ -455,6 +456,7 @@ export function renderAretino(source, options = {}) {
                 // only add descender clearance, not another full line height.
                 const lastLyricBottom = lyricY - ctx.lyricSize * 1.4 + ctx.lyricSize * 0.3;
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
+                sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
@@ -463,12 +465,21 @@ export function renderAretino(source, options = {}) {
                 }
                 const lastLyricBottom = lyricY - ctx.lyricSize * 1.4 + ctx.lyricSize * 0.3;
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
+                sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;
             } else {
                 y = staffBottomY + ctx.staffGap;
+                sectionContentBottom = y;
                 contentBottom = Math.max(contentBottom, y);
             }
         });
+
+        if (sec.verses && sec.verses.length > 0) {
+            const verseResult = renderVerseLines(ctx, sec.verses, ctx.leftMargin, staffRightX, sectionContentBottom);
+            parts.push(verseResult.svg);
+            y = verseResult.bottom + ctx.staffGap;
+            contentBottom = Math.max(contentBottom, verseResult.bottom);
+        }
 
         currentClef = trailingClef(items, currentClef);
         currentKeySig = trailingKeySig(items, currentKeySig);
@@ -511,7 +522,7 @@ function groupSections(lines) {
     let pending = null;
 
     function flushPending() {
-        if (pending && (pending.tokens.length > 0 || pending.lyrics.length > 0)) {
+        if (pending && (pending.tokens.length > 0 || pending.lyrics.length > 0 || pending.verses.length > 0)) {
             sections.push(pending);
         }
         pending = null;
@@ -523,12 +534,14 @@ function groupSections(lines) {
             continue;
         }
         if (!pending) {
-            pending = { tokens: [], lyrics: [] };
+            pending = { tokens: [], lyrics: [], verses: [] };
         }
         if (item.type === 'music') {
             pending.tokens.push(...item.tokens);
         } else if (item.type === 'lyrics') {
             pending.lyrics.push(item.text);
+        } else if (item.type === 'verse') {
+            pending.verses.push(item.lines);
         }
     }
     flushPending();
@@ -1387,4 +1400,121 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
     }
     return parts.join('');
+}
+
+// Collapses a flat array of {ch, bold, italic, underline, color} into segments,
+// merging consecutive chars with identical formatting.
+function charsToSegments(chars) {
+    const segs = [];
+    for (const c of chars) {
+        const last = segs[segs.length - 1];
+        if (last && last.bold === c.bold && last.italic === c.italic &&
+                last.underline === c.underline && last.color === c.color) {
+            last.text += c.ch;
+        } else {
+            segs.push({ text: c.ch, bold: c.bold, italic: c.italic, underline: c.underline, color: c.color });
+        }
+    }
+    return segs;
+}
+
+// Wraps one verse input line into display lines that fit within availW.
+// Continuation display lines (after wrapping) start at contX and use contAvailW.
+// Returns an array of { x, segments }.
+function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSize, fontFamily) {
+    // ~ is unbreakable space in verse lines
+    const processed = lineText.replace(/~/g, ' ');
+    const allSegs = parseFormattingToSegments(processed);
+
+    // Build flat per-char array with formatting metadata
+    const chars = [];
+    for (const seg of allSegs) {
+        for (const ch of seg.text) {
+            chars.push({ ch, bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
+        }
+    }
+
+    // Split into words at breakable (regular ASCII) spaces; NBSP stays within words
+    const words = [];
+    let wordChars = [];
+    for (const c of chars) {
+        if (c.ch === ' ') {
+            if (wordChars.length > 0) { words.push(wordChars); wordChars = []; }
+        } else {
+            wordChars.push(c);
+        }
+    }
+    if (wordChars.length > 0) words.push(wordChars);
+
+    const spaceW = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
+    const displayLines = [];
+    let lineChars = [];
+    let lineWidth = 0;
+    let currentX = firstX;
+    let currentAvailW = firstAvailW;
+
+    for (const word of words) {
+        const wordText = word.map(c => c.ch).join('');
+        const wordW = measureTextWidth(wordText, fontSize, fontFamily);
+        if (lineChars.length === 0) {
+            lineChars = [...word];
+            lineWidth = wordW;
+        } else if (lineWidth + spaceW + wordW > currentAvailW) {
+            displayLines.push({ x: currentX, segments: charsToSegments(lineChars) });
+            lineChars = [...word];
+            lineWidth = wordW;
+            currentX = contX;
+            currentAvailW = contAvailW;
+        } else {
+            lineChars.push({ ch: ' ', bold: false, italic: false, underline: false, color: null });
+            lineChars.push(...word);
+            lineWidth += spaceW + wordW;
+        }
+    }
+    if (lineChars.length > 0) {
+        displayLines.push({ x: currentX, segments: charsToSegments(lineChars) });
+    }
+    if (displayLines.length === 0) {
+        displayLines.push({ x: currentX, segments: [] });
+    }
+    return displayLines;
+}
+
+// Renders all W: verse blocks for a section.
+// verses: array of string[] (each inner array is one W: block's input lines)
+// Returns { svg, bottom } where bottom is the y-coordinate of the last line's baseline.
+function renderVerseLines(ctx, verses, leftX, rightX, startY) {
+    const fontSize = ctx.lyricSize;
+    const fontFamily = ctx.lyricFont;
+    // 110% line height within a verse, 130% baseline distance between verse blocks.
+    const lineHeight = fontSize * 1.1;
+    const verseGap = fontSize * 1.3;
+    const indentX = leftX + fontSize * 2;
+    const parts = [];
+
+    let y = startY;
+    let firstDisplayLine = true;
+
+    for (let vi = 0; vi < verses.length; vi++) {
+        let firstLineOfVerse = true;
+        const inputLines = verses[vi];
+        for (let li = 0; li < inputLines.length; li++) {
+            const isFirstInput = li === 0;
+            const firstX = isFirstInput ? leftX : indentX;
+            const firstAvailW = rightX - firstX;
+            const contAvailW = rightX - indentX;
+            const displayLines = wrapVerseText(inputLines[li], firstX, indentX, firstAvailW, contAvailW, fontSize, fontFamily);
+            for (const dl of displayLines) {
+                // First display line of a new verse block uses verseGap (130%);
+                // all other lines (within-verse or auto-wrapped) use lineHeight (110%).
+                // The very first display line ever also uses lineHeight to lead from startY.
+                y += (firstLineOfVerse && !firstDisplayLine) ? verseGap : lineHeight;
+                firstLineOfVerse = false;
+                firstDisplayLine = false;
+                parts.push(`<text xml:space="preserve" x="${dl.x}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" fill="#000">${renderSegments(dl.segments)}</text>`);
+            }
+        }
+    }
+
+    return { svg: parts.join(''), bottom: y + fontSize * 0.3 };
 }

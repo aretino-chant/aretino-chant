@@ -167,6 +167,36 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 
 ---
 
+## Verse Lines (W: Tag)
+
+Psalm verses under an antiphon — the typical liturgical use case:
+
+```aretino
+(g2) g hi h g e_d_ , g hi a'g g. ||
+w: Al-le-lu-ia, * al-le-lu-ia.
+W: Dicsőség az Atyának és Fiúnak * és Szentlélek Istennek.
+W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen.
+```
+
+Explicit line breaks within a verse (continuation lines are indented):
+
+```aretino
+W: Dicsőség az Atyának és Fiúnak * és
+Szentlélek Istennek.
+W: Miképpen kezdetben,
+most és mindenkor * és mindörökkön örökké, Ámen.
+```
+
+Verse lines with formatting (bold, italic, liturgical signs):
+
+```aretino
+W: {Gloria} Patri, et \V Filio, * et Spiritui Sancto.
+W: \R Sicut erat in principio, * et nunc et semper.
+W: + dagger ++ double~dagger (unbreakable~space)
+```
+
+---
+
 ## Fixed Width (Non-Responsive)
 
 This block lays out to a fixed physical width of 18 cm — its line breaks stay

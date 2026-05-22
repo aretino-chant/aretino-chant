@@ -308,6 +308,12 @@ function tokenizeMusicLine(line, lineStart = 0) {
                     if (closeIdx >= 0) {
                         label = line.slice(i + 1, closeIdx);
                         i = closeIdx + 1;
+                    } else {
+                        // Take label up to next space or end of line
+                        let spaceIdx = line.indexOf(' ', i + 1);
+                        if (spaceIdx === -1) spaceIdx = len;
+                        label = line.slice(i + 1, spaceIdx);
+                        i = spaceIdx;
                     }
                 }
                 tokens.push({ type: 'ligature', groups: r.groups, gaps: r.gaps, ...(label !== null ? { label } : {}), srcStart: lineStart + tokStart, srcEnd: lineStart + i });

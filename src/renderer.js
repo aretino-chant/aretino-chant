@@ -129,7 +129,7 @@ export function renderAretino(source, options = {}) {
             const fontSize = ctx.lyricSize * 1.2;
             y += fontSize;
             parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(title))}</text>`);
-            y += fontSize * 0.4;
+            y += fontSize * 1.2;
         }
         const caption = ast.header['caption'];
         const rubric = ast.header['rubric'];
@@ -137,7 +137,7 @@ export function renderAretino(source, options = {}) {
             const fontSize = ctx.lyricSize * 0.95;
             y += fontSize;
             if (rubric) {
-                parts.push(`<text x="${ctx.leftMargin}" y="${y - ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubric))}</text>`);
+                parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubric))}</text>`);
             }
             if (caption) {
                 parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(caption))}</text>`);
@@ -475,9 +475,9 @@ export function renderAretino(source, options = {}) {
                     let ligSvg = r.svg;
                     if (it.label != null && r.minY < Infinity) {
                         const fontSize = ctx.lyricSize * 0.8;
-                        const staffTopY = staffBottomY - 4 * ctx.staffSpace;
+                        const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        ligSvg += `<text x="${r.centerX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
+                        ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature'));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });

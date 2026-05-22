@@ -145,7 +145,7 @@ export const METRICS = {
     leftMargin: 1,
     rightMargin: 1,
     staffGap: 2.5,
-    titleTopPadding: 1.5,
+    titleTopPadding: 2,
     lyricDistance: 0.1
 };
 

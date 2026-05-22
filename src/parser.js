@@ -164,9 +164,9 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             i++;
             const note = {
                 pitch: pitchChar.toLowerCase(),
-                virga: pitchChar !== pitchChar.toLowerCase(),
-                high: false,
-                shape: pitchChar === pitchChar.toLowerCase() ? 'punctum' : 'virga',
+                virga: false,
+                high: pitchChar !== pitchChar.toLowerCase(),
+                shape: 'punctum',
                 modifiers: [],
             };
             if (pendingAcc) {
@@ -175,7 +175,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             }
             while (i < limit) {
                 const m = line[i];
-                if (m === "'") { note.high = true; i++; continue; }
+                if (m === "'") { note.virga = true; i++; continue; }
                 if (m === '_') { note.modifiers.push('episema'); i++; continue; }
                 if (m === '-') { note.modifiers.push('ictus'); i++; continue; }
                 if (m === '.') { note.modifiers.push('mora'); i++; continue; }

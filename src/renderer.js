@@ -915,7 +915,9 @@ function measureSplitLigature(ctx, groups, gaps) {
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
             const moraExtra = hasMora ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius) : 0;
-            total += ctx.singleNoteAdvance + (n - 1) * ctx.ligatureStepAdvance + moraExtra + accExtra;
+            const hasTenor = notes.some(n => n.shape === 'tenor');
+            const tenorExtra = hasTenor ? ss(ctx, METRICS.tenorAdvanceExtra) : 0;
+            total += ctx.singleNoteAdvance + (n - 1) * ctx.ligatureStepAdvance + moraExtra + accExtra + tenorExtra;
         }
     }
     return total;

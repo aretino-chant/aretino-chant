@@ -62,6 +62,7 @@ export const METRICS = {
     tenorSideStrokeHalfHeight: 0.9,
     tenorSideStroke: 0.15,             // thickness of the two vertical bars
     tenorSideStrokeMinPx: 1.4,
+    tenorAdvanceExtra: 0.5,            // extra advance vs. a normal note (wider glyph)
 
     // --- Small notehead (optional psalm-tone notes) ----------------------
     smallNoteScale: 0.7,               // scale factor for small noteheads

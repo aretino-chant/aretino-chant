@@ -374,7 +374,7 @@ export function renderAretino(source, options = {}) {
 
             const startKeySig = row.startKeySig ?? [];
             for (const acc of startKeySig) {
-                const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY);
+                const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY, acc.high ?? false);
                 parts.push(a.svg);
                 cursorX += a.advance;
             }
@@ -414,7 +414,7 @@ export function renderAretino(source, options = {}) {
                     parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef'));
                     cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
                 } else if (it.kind === 'accidental') {
-                    const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY);
+                    const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY, it.high ?? false);
                     parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental'));
                     let adv = a.advance;
                     if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
@@ -425,7 +425,7 @@ export function renderAretino(source, options = {}) {
                     const startX = cursorX;
                     const pieces = [];
                     for (const acc of it.accidentals) {
-                        const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY);
+                        const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY, acc.high ?? false);
                         pieces.push(a.svg);
                         cursorX += a.advance;
                     }
@@ -639,7 +639,7 @@ function flattenItems(tokens) {
             }
             const accM = matchAccidental(v);
             if (accM) {
-                items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...src });
+                items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...(accM.high ? { high: accM.high } : {}), ...src });
                 continue;
             }
             const keyM = v.match(/^K:\s*(.*)$/);
@@ -650,7 +650,7 @@ function flattenItems(tokens) {
                     for (const part of inner.split(/\s+/)) {
                         const acc = matchAccidental(part);
                         if (acc) {
-                            accidentals.push({ pitch: acc.pitch, symbol: acc.symbol });
+                            accidentals.push({ pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: acc.high } : {}) });
                         }
                     }
                 }
@@ -1009,7 +1009,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
             // Draw inline accidental before this note if present.
             if (note.accidental) {
                 const accX = cx - ss(ctx, METRICS.noteBoxWidth) * 0.5;
-                const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY);
+                const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY, note.accidental.high ?? false);
                 parts.push(a.svg);
                 cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
             }

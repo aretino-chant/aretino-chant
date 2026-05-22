@@ -115,20 +115,26 @@ function isPitchLetter(c) {
 const ACCIDENTAL_TOKENS = { b: 'x', n: 'y', '#': '#' };
 
 // Parses an accidental directive's inner text: an optional target pitch letter
-// followed by one accidental token. Returns { pitch, symbol } (symbol is the
+// followed by one accidental token. Returns { pitch, symbol, high? } (symbol is the
 // internal 'x'/'y'/'#'), or null if it isn't an accidental. When the pitch is
-// omitted it defaults to `defaultPitch` (the staff's reciting position).
+// omitted it defaults to `defaultPitch` (the staff's reciting position). Uppercase
+// pitch letters set high: true (octave up).
 export function matchAccidental(inner, defaultPitch = 'i') {
     const m = inner.match(/^([a-nA-N]?)([bn#])$/);
     if (!m) {
         return null;
     }
-    return { pitch: (m[1] || defaultPitch).toLowerCase(), symbol: ACCIDENTAL_TOKENS[m[2]] };
+    const pitchLetter = m[1] || defaultPitch;
+    return {
+        pitch: pitchLetter.toLowerCase(),
+        symbol: ACCIDENTAL_TOKENS[m[2]],
+        ...(m[1] && pitchLetter !== pitchLetter.toLowerCase() ? { high: true } : {})
+    };
 }
 
 // Peek at position `pos` (which should be '(') to see if the parenthesized
 // content is an accidental pattern like (ib), (n), (c#), etc.
-// Returns { pitch, symbol, end } where `end` is the index past ')' if it
+// Returns { pitch, symbol, high?, end } where `end` is the index past ')' if it
 // matches, or null if it doesn't.
 function peekInlineAccidental(line, pos) {
     if (line[pos] !== '(') {
@@ -142,7 +148,7 @@ function peekInlineAccidental(line, pos) {
     if (!acc) {
         return null;
     }
-    return { pitch: acc.pitch, symbol: acc.symbol, end: end + 1 };
+    return { pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: acc.high } : {}), end: end + 1 };
 }
 
 // Parses a sequence of note groups separated by '/' within line[i..limit).
@@ -170,7 +176,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 modifiers: [],
             };
             if (pendingAcc) {
-                note.accidental = { pitch: pendingAcc.pitch, symbol: pendingAcc.symbol };
+                note.accidental = { pitch: pendingAcc.pitch, symbol: pendingAcc.symbol, ...(pendingAcc.high ? { high: pendingAcc.high } : {}) };
                 pendingAcc = null;
             }
             while (i < limit) {

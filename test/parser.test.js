@@ -41,4 +41,12 @@ describe('matchAccidental', () => {
     expect(matchAccidental('K:fb')).toBeNull();
     expect(matchAccidental('sp2')).toBeNull();
   });
+
+  it('handles uppercase pitch letters to indicate octave shift', () => {
+    expect(matchAccidental('Fb')).toEqual({ pitch: 'f', symbol: 'x', high: true });
+    expect(matchAccidental('Fn')).toEqual({ pitch: 'f', symbol: 'y', high: true });
+    expect(matchAccidental('F#')).toEqual({ pitch: 'f', symbol: '#', high: true });
+    expect(matchAccidental('Bb')).toEqual({ pitch: 'b', symbol: 'x', high: true });
+    expect(matchAccidental('Nn')).toEqual({ pitch: 'n', symbol: 'y', high: true });
+  });
 });

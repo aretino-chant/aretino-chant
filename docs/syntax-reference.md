@@ -125,7 +125,7 @@ w:   a b c d e f g h i j k l m n
 | Suffix | Name | Effect |
 |---|---|---|
 | *(lowercase)* | punctum | Round notehead (default) |
-| *(uppercase)* | raised octave | Shift an octave up (e.g. `D` = same as `d'` was) |
+| *(uppercase)* | raised octave | Shift an octave up |
 | `'` | virga | Apostrophe after a note draws it as a virga |
 
 ```aretino
@@ -151,7 +151,7 @@ The notehead *shape* is set by the letter case and by trailing shape suffixes:
 | letter + `t` | tenor note | `dt` |
 
 ```aretino
-(g2) d D dw dt ds
+(g2) d d' dw dt ds
 w:   punctum virga quilisma tenor small
 ```
 

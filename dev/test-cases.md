@@ -38,7 +38,7 @@ w:   a b c d e f g h i j k l m n
 Punctum, virga (uppercase), quilisma (`w` suffix), tenor note (`t` suffix):
 
 ```aretino
-(g2) d D dw dt ds
+(g2) d d' dw dt ds
 w:   punctum virga quilisma tenor small
 ```
 
@@ -64,7 +64,8 @@ Combined modifiers:
 ## Barlines
 
 ```aretino
-(g2) g h , g h ; g h | g h || g h ||| g h :| g h |:
+(g2) g h , g h ; g h | g h || g h ||| g h :| g h |: :|:
+w: (,) (;) (|) (||) (|||) (:|) (|:) (:|:)
 ```
 
 Breath mark:
@@ -119,6 +120,18 @@ Inline, standalone, and natural cancelling a key-signature accidental:
 (g2) (K:fb) f f (fn) f f  (i#) i i
 ```
 
+Uppercase accidental pitches for octave shifts:
+
+```aretino
+(g2) (K:F# C#) i j k i j k
+```
+
+Inline uppercase accidentals:
+
+```aretino
+(g2) (Fb) F (fn) f (C#) C  (An)A
+```
+
 ---
 
 ## Parenthesized Notes
@@ -153,11 +166,11 @@ w:   Glo-ri-a (in) ex-cel-sis (De-o).
 
 ---
 
-## Raised Octave (apostrophe)
+## Raised Octave (uppercase)
 
 ```aretino
-(g2) g h i j h' i' j'
-w:   g h i j h' i' j'
+(g2) g h i j A B C 
+w:   g h i j A B C
 ```
 
 ---
@@ -202,7 +215,7 @@ w: O Lord, hear my hum-ble call to you!
 ## Text and Multiple Stanzas
 
 ```aretino
-(g2) g h i g. hi h g e_d_ , g hi a'g g. ||
+(g2) g h i g. hi h g e_d_ , g AB Ag g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
 ```
@@ -218,7 +231,7 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 
 ## Labels
 ```aretino
-(g2) c d e"<label>" f g | h
+(g2) c"<Label:>" d e f g | h
 ```
 
 ## Verse Lines (W: Tag)
@@ -226,7 +239,7 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 Psalm verses under an antiphon — the typical liturgical use case:
 
 ```aretino
-(g2) (K:b) h_gIhg/h_j jjjhghgh h. ;
+(g2) (K:B) h_gi'hg/h_j jjjhghgh h. ;
 w: Haec di-es (\red{*})
 W: <This is the day the Lord has made; let us rejoice and be glad.>
 W: <\V. Give thanks to the Lord, for he is good, for his mercy endures forever.>

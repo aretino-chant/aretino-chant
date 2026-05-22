@@ -509,8 +509,8 @@ const BRAVURA_ACCIDENTALS = {
     },
 };
 
-export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY) {
-    const pos = PITCH_BASE[pitchLetter] ?? 3;
+export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY, high = false) {
+    const pos = (PITCH_BASE[pitchLetter] ?? 3) + (high ? 7 : 0);
     const cy = staffBottomY - pos * ctx.pitchStep;
     // In SMuFL/Bravura: 1 em = 1000 units = 4 staff spaces.
     // Scale factor: 1 staff space in pixels / 250 font units.

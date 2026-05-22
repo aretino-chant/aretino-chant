@@ -52,8 +52,9 @@ export const METRICS = {
     // --- Stems (virga & tenor side strokes) -------------------------------
     stemStroke: 0.11,
     stemStrokeMinPx: 0.8,
-    virgaStemLength: 1.75,              // default descent of virga stem
-    virgaStemDescentBelowPrev: 1.25,    // descent past a lower preceding note
+    virgaStemLength: 2.25,              // default descent of virga stem
+    virgaStemDescentBelowPrev: 1.75,    // descent past a lower preceding note
+    virgaMaxBelowBottom: 1.75,           // stem tip never exceeds this many spatia below bottom staff line
 
     // --- Tenor notehead (open oval with two side strokes) -----------------
     tenorOutlineStroke: 0.15,
@@ -261,7 +262,9 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         const stemLength = prevCy !== null && prevCy > cy
             ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
             : ss(ctx, METRICS.virgaStemLength);
-        parts.push(`<line x1="${stemX}" y1="${cy}" x2="${stemX}" y2="${cy + stemLength}" stroke="#000" stroke-width="${sw}"/>`);
+        const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
+        const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
+        parts.push(`<line x1="${stemX}" y1="${cy}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}"/>`);
     }
     return parts.join('');
 }

@@ -472,7 +472,14 @@ export function renderAretino(source, options = {}) {
                     cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
                 } else if (it.kind === 'ligature') {
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? []);
-                    parts.push(wrapSrc(it, r.svg, 'aretino-token aretino-ligature'));
+                    let ligSvg = r.svg;
+                    if (it.label != null && r.minY < Infinity) {
+                        const fontSize = ctx.lyricSize * 0.8;
+                        const staffTopY = staffBottomY - 4 * ctx.staffSpace;
+                        const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
+                        ligSvg += `<text x="${r.centerX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
+                    }
+                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature'));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
@@ -681,7 +688,7 @@ function flattenItems(tokens) {
             continue;
         }
         if (tok.type === 'ligature') {
-            items.push({ kind: 'ligature', groups: tok.groups, gaps: tok.gaps ?? [], ...src });
+            items.push({ kind: 'ligature', groups: tok.groups, gaps: tok.gaps ?? [], ...(tok.label != null ? { label: tok.label } : {}), ...src });
             continue;
         }
     }

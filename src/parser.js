@@ -296,7 +296,15 @@ function tokenizeMusicLine(line, lineStart = 0) {
             const r = parseNoteGroupSequence(line, i, lineStart, len);
             i = r.newI;
             if (r.groups.length) {
-                tokens.push({ type: 'ligature', groups: r.groups, gaps: r.gaps, srcStart: lineStart + tokStart, srcEnd: lineStart + i });
+                let label = null;
+                if (i < len && line[i] === '"') {
+                    const closeIdx = line.indexOf('"', i + 1);
+                    if (closeIdx >= 0) {
+                        label = line.slice(i + 1, closeIdx);
+                        i = closeIdx + 1;
+                    }
+                }
+                tokens.push({ type: 'ligature', groups: r.groups, gaps: r.gaps, ...(label !== null ? { label } : {}), srcStart: lineStart + tokStart, srcEnd: lineStart + i });
             }
             continue;
         }

@@ -426,7 +426,11 @@ W: + dagger ++ double~dagger (unbreakable~space)
 
 ---
 
-## 15. Embedding in Markdown
+## 15. Labels
+
+You can add labels above notes with the syntax `f"Label"`. Formatting tags are supported as well.
+
+## 16. Embedding in Markdown
 
 The dev test page (and any host that adopts the same convention) recognizes
 fenced code blocks tagged `aretino` and turns each into a live editor with a
@@ -454,27 +458,3 @@ These options are a host-integration concern (see
 
 ---
 
-## 16. Token cheat sheet
-
-| You write | You get |
-|---|---|
-| `a`–`n` | pitch (punctum) |
-| `A`–`N` | pitch (virga) |
-| `'` after note | octave up |
-| `w` / `t` suffix | quilisma / tenor shape |
-| `.` `_` `-` `~` `s` | mora / episema / ictus / liquescens / small |
-| `abc` (no spaces) | ligature (neume) |
-| `/` inside a run | neume-separator gap |
-| `[` … `]` | parenthesized note(s) or neume |
-| `,` `;` `\|` `\|\|` `\|\|\|` | quarter / half / full / double / triple bar |
-| `\|:` `:\|` `:\|:` | repeat start / end / both |
-| `'` (standalone) | breath mark |
-| `(g2)` `(c3)` `(f4)` | clef |
-| `(fb)` `(fn)` `(f#)` | accidental (`b` flat, `n` natural, `#` sharp) |
-| `(K: …)` | key signature |
-| `(z)` `(Z)` | justified / ragged line break |
-| `*` | expander |
-| `(spN)` `===` | fixed-width spacer |
-| `%key: value` | header line |
-| `%%` | end of header |
-| `w:` `W:` | lyrics / verse line |

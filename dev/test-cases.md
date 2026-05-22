@@ -216,6 +216,11 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 ```
 ---
 
+## Labels
+```aretino
+(g2) c d e"<label>" f g | h
+```
+
 ## Verse Lines (W: Tag)
 
 Psalm verses under an antiphon — the typical liturgical use case:

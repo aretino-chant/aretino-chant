@@ -999,7 +999,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
         for (let i = 1; i < positions.length; i++) {
             const prev = positions[i - 1];
             const cur = positions[i];
-            if (cur.note.shape === 'virga' || cur.note.virga) {
+            if (cur.note.shape === 'virga' || cur.note.virga || autoVirga[i]) {
                 continue;
             }
             // Skip connector into a note preceded by an inline accidental —

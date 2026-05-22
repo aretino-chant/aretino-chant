@@ -28,7 +28,7 @@ export const METRICS = {
     // --- Notehead (rotated filled oval) -----------------------------------
     noteheadRx: 0.57,                  // pre-rotation horizontal radius
     noteheadRy: 0.45,                  // pre-rotation vertical radius
-    noteheadRotationDeg: -20,
+    noteheadRotationDeg: -25,
     noteBoxWidth: 0.9,                 // layout/bounding-box width
     noteBoxHeight: 1.0,                // layout/bounding-box height
 
@@ -257,7 +257,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         // Stem going down from the left edge of the head.
         const sw = stroke(ctx, METRICS.stemStroke, METRICS.stemStrokeMinPx);
         const scaledNoteW = noteW * scale;
-        const stemX = headCx - scaledNoteW / 2 - sw / 2 + METRICS.stemStroke;
+        const stemX = headCx - scaledNoteW / 2 - sw / 2 + METRICS.stemStroke + 0.066;
         const stemLength = prevCy !== null && prevCy > cy
             ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
             : ss(ctx, METRICS.virgaStemLength);

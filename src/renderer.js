@@ -100,6 +100,7 @@ export function renderAretino(source, options = {}) {
     // logical units via dpi. Set independently of staff space and layout width.
     const lyricPt = Math.max(1, options.lyricSize ?? DEFAULT_LYRIC_SIZE_PT);
     ctx.lyricSize = lyricPt * dpi / 72;
+    const lyricLineHeight = ctx.lyricSize * 1.2;
 
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
     const indentText = hasIndent ? (ast.header['indent'] ?? ast.header['behúzás'] ?? '') : '';
@@ -483,21 +484,21 @@ export function renderAretino(source, options = {}) {
                     if (matchedLabels.length > 0) {
                         parts.push(emitBarlineLabels(ctx, matchedLabels, matchedBarlines, lyricY));
                     }
-                    lyricY += ctx.lyricSize * 1.4;
+                    lyricY += lyricLineHeight;
                 }
                 ligOffset += rowLigCount;
                 // lyricY has advanced one full line past the last rendered baseline;
                 // only add descender clearance, not another full line height.
-                const lastLyricBottom = lyricY - ctx.lyricSize * 1.4 + ctx.lyricSize * 0.3;
+                const lastLyricBottom = lyricY - lyricLineHeight + ctx.lyricSize * 0.3;
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
                 sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
                     parts.push(`<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`);
-                    lyricY += ctx.lyricSize * 1.4;
+                    lyricY += lyricLineHeight;
                 }
-                const lastLyricBottom = lyricY - ctx.lyricSize * 1.4 + ctx.lyricSize * 0.3;
+                const lastLyricBottom = lyricY - lyricLineHeight + ctx.lyricSize * 0.3;
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
                 sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;

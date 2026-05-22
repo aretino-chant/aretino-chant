@@ -171,6 +171,7 @@ w: O Lord, hear my hum-ble call to you!
 ```aretino
 (g2) g h i g. hi h g e_d_ , g hi a'g g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
+w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
 ```
 ---
 

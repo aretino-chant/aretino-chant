@@ -67,11 +67,11 @@ export const METRICS = {
     smallNoteScale: 0.7,               // scale factor for small noteheads
 
     // --- Mora dot ---------------------------------------------------------
-    moraOffsetX: 0.85,                // horizontal distance from notehead center
+    moraOffsetX: 0.9,                // horizontal distance from notehead center
     moraRadius: 0.125,
 
     // --- Episema (horizontal mark above note) -----------------------------
-    episemaWidth: 0.9,
+    episemaWidth: 0.65,
     episemaStroke: 0.12,
     episemaStrokeMinPx: 0.8,
 
@@ -81,11 +81,11 @@ export const METRICS = {
     ictusStrokeMinPx: 0.8,
 
     // --- Liquescens (right-parenthesis tail beside the notehead) ----------
-    liquescensAnchorX: 0.4,            // x offset of both endpoints from notehead center
+    liquescensAnchorX: 0.2,            // x offset of both endpoints from notehead center
     liquescensTopY: 0.4,               // y offset above center (top-right corner of head)
-    liquescensBottomY: 0.55,           // y offset below center (under bottom-right corner)
-    liquescensBulge: 0.5,              // outward push of control points → curve depth
-    liquescensStroke: 0.1,
+    liquescensBottomY: 0.8,           // y offset below center (under bottom-right corner)
+    liquescensBulge: 0.6,              // outward push of control points → curve depth
+    liquescensStroke: 0.15,
     liquescensStrokeMinPx: 0.7,
 
     // --- Ligature connectors ----------------------------------------------
@@ -206,9 +206,8 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
 
     const isSmall = note.modifiers && note.modifiers.includes('small');
     const scale = isSmall ? METRICS.smallNoteScale : 1;
-    // Shift small noteheads left so their left edge aligns with a normal notehead's left edge.
-    const smallOffsetX = isSmall ? ss(ctx, METRICS.noteheadRx) * (1 - scale) : 0;
-    const headCx = cx - smallOffsetX;
+    // Small noteheads are centered on the same cx as the big notehead.
+    const headCx = cx;
 
     if (note.shape === 'quilisma') {
         const teeth = METRICS.quilismaTeeth;

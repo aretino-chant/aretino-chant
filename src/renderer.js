@@ -192,7 +192,8 @@ export function renderAretino(source, options = {}) {
             const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
             const ligInfo = [];
             let li = 0;
-            for (const it of items) {
+            for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
+                const it = items[itemIdx];
                 if (it.kind !== 'ligature') {
                     continue;
                 }
@@ -211,7 +212,7 @@ export function renderAretino(source, options = {}) {
                 const isCentered = totalNotes === 1
                     && !(lastN?.modifiers?.includes('mora'))
                     && !it.groups.some(g => g.some(n => n.shape === 'tenor'));
-                ligInfo.push({ item: it, maxSylW, isCentered });
+                ligInfo.push({ item: it, maxSylW, isCentered, itemIdx });
                 li++;
             }
             for (let i = 0; i < ligInfo.length; i++) {
@@ -221,11 +222,39 @@ export function renderAretino(source, options = {}) {
                 const currRight = isCentered ? halfNoteW + maxSylW / 2 : maxSylW;
                 // How far the next syllable extends to the left of the next ligature's
                 // start (positive = intrudes). Only centered syllables intrude leftward.
+                // If a barline sits between the two ligatures, the barline provides
+                // visual separation so the next syllable cannot intrude leftward.
+                const hasBarlineBetween = i + 1 < ligInfo.length
+                    && items.slice(ligInfo[i].itemIdx + 1, ligInfo[i + 1].itemIdx).some(it => it.kind === 'barline');
                 let nextLeftIntrusion = 0;
-                if (i + 1 < ligInfo.length) {
+                if (i + 1 < ligInfo.length && !hasBarlineBetween) {
                     const next = ligInfo[i + 1];
                     if (next.isCentered) {
                         nextLeftIntrusion = Math.max(0, next.maxSylW / 2 - halfNoteW);
+                    }
+                } else if (hasBarlineBetween && i + 1 < ligInfo.length) {
+                    // The next syllable's leftward intrusion relative to its ligature
+                    // start may eat into the barline's post-gap. Assign any excess as
+                    // barlinePostExtra on the last barline before that ligature.
+                    const next = ligInfo[i + 1];
+                    const nextIntrusion = next.isCentered
+                        ? Math.max(0, next.maxSylW / 2 - halfNoteW)
+                        : 0;
+                    if (nextIntrusion > 0) {
+                        const barlinePostGapPx = ss(ctx, METRICS.barlinePostGap);
+                        // Subtract the existing post-gap but require at least minGap
+                        // clearance so the syllable stays minGap away from any barline
+                        // text/label whose right half already sits inside that post-gap.
+                        const postExtra = Math.max(0, nextIntrusion + minGap - barlinePostGapPx);
+                        if (postExtra > 0) {
+                            // Find the last barline between the two ligatures.
+                            for (let k = ligInfo[i + 1].itemIdx - 1; k > ligInfo[i].itemIdx; k--) {
+                                if (items[k].kind === 'barline') {
+                                    items[k].barlinePostExtra = Math.max(items[k].barlinePostExtra || 0, postExtra);
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
                 // Hyphen-joined syllables ("Ki-rá-lyok") butt up against each other;
@@ -233,7 +262,7 @@ export function renderAretino(source, options = {}) {
                 // naturally wider than the syllables. Separate words ("Ki rá lyok")
                 // still need a minimum gap between them.
                 let pairConnected = false;
-                if (i + 1 < ligInfo.length) {
+                if (i + 1 < ligInfo.length && !hasBarlineBetween) {
                     let pairExists = false;
                     let allHyphenated = true;
                     for (const notes of verseNotes) {
@@ -254,8 +283,12 @@ export function renderAretino(source, options = {}) {
 
         // Reserve extra space around barlines that carry a label, so the
         // centered label doesn't overlap neighboring ligature syllables.
+        // The label is centered on the barline, so its left edge sits maxW/2
+        // to the left of the barline center. We need extra/2 >= maxW/2 + sideGap
+        // on each side, i.e. extra >= maxW + 2*sideGap, where sideGap is one
+        // lyric space width.
         if (hasBarlineLabels) {
-            const minGap = ctx.lyricSize * 0.18;
+            const lyricSpace = measureTextWidth(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
             let bi = 0;
             for (const it of items) {
                 if (it.kind !== 'barline') {
@@ -271,7 +304,7 @@ export function renderAretino(source, options = {}) {
                 }
                 if (maxW > 0) {
                     const baseAdv = measureBarline(ctx, it.value);
-                    it.barlineExtra = Math.max(0, maxW + minGap - baseAdv);
+                    it.barlineExtra = Math.max(0, maxW + 2 * lyricSpace - baseAdv);
                 }
                 bi++;
             }
@@ -393,6 +426,7 @@ export function renderAretino(source, options = {}) {
                     cursorX += ctx.expanderWidth + extraPerExpander;
                 } else if (it.kind === 'barline') {
                     const extra = it.barlineExtra || 0;
+                    const postExtra = it.barlinePostExtra || 0;
                     cursorX += extra / 2;
                     const b = drawBarline(ctx, it.value, cursorX, staffBottomY);
                     parts.push(wrapSrc(it, b.svg, 'aretino-token aretino-barline'));
@@ -401,7 +435,7 @@ export function renderAretino(source, options = {}) {
                         : METRICS.barlineOffsetX;
                     rowBarlines.push({ centerX: cursorX + ss(ctx, offsetX), value: it.value, globalIdx: globalBarlineIdx });
                     globalBarlineIdx++;
-                    cursorX += b.advance + ss(ctx, METRICS.barlinePostGap) + extra / 2;
+                    cursorX += b.advance + ss(ctx, METRICS.barlinePostGap) + extra / 2 + postExtra;
                 } else if (it.kind === 'spacer') {
                     cursorX += ss(ctx, METRICS.spacerAdvance) * it.multiplier;
                 } else if (it.kind === 'ligature') {
@@ -641,7 +675,7 @@ function measureItem(ctx, item) {
         return keySigAdvance(ctx, item.accidentals);
     }
     if (item.kind === 'barline') {
-        return measureBarline(ctx, item.value) + (item.barlineExtra || 0);
+        return measureBarline(ctx, item.value) + (item.barlineExtra || 0) + (item.barlinePostExtra || 0);
     }
     if (item.kind === 'spacer') {
         return ss(ctx, METRICS.spacerAdvance) * item.multiplier;

@@ -477,7 +477,7 @@ export function renderAretino(source, options = {}) {
                         const fontSize = ctx.lyricSize * 0.8;
                         const staffTopY = staffBottomY - 4 * ctx.staffSpace;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        ligSvg += `<text x="${r.centerX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
+                        ligSvg += `<text x="${r.centerX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature'));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
@@ -1157,7 +1157,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
     const lastNote = groups[groups.length - 1]?.[groups[groups.length - 1].length - 1];
     const hasMora = lastNote?.modifiers?.includes('mora');
     const isTenor = groups.some(g => g.some(n => n.shape === 'tenor'));
-    const shouldAlignLeft = totalNotes > 1 || hasMora || isTenor;
+    const shouldAlignLeft = totalNotes > 1 || isTenor;
 
     return { svg: parts.join(''), advance, centerX, leftX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
 }

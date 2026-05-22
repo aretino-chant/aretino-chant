@@ -14,6 +14,9 @@ Important (probably breaking) changes are listed here.
 - An accidental directive with no pitch letter now defaults to the reciting
   position `i` in every context (previously inline accidentals defaulted to
   `b`). So `(qb)` is a flat on `i`.
+- **Parenthesized notes.** Wrapping one or more notes (or a whole neume) in
+  `[` … `]` renders typographical parentheses around them. Single note: `[h]`;
+  ligature: `[hg]`; multiple tokens: `[h i j]`.
 
 ## 2025-05-19
 

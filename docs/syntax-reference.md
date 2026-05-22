@@ -24,14 +24,15 @@ wins — please file an issue.
 5. [Noteheads](#5-noteheads)
 6. [Modifiers](#6-modifiers)
 7. [Ligatures (neumes)](#7-ligatures-neumes)
-8. [Bar lines](#8-bar-lines)
-9. [Clefs](#9-clefs)
-10. [Accidentals](#10-accidentals)
-11. [Layout: breaks, expander, spacers](#11-layout-breaks-expander-spacers)
-12. [Lyrics](#12-lyrics)
-13. [Text formatting](#13-text-formatting)
-14. [Embedding in Markdown](#14-embedding-in-markdown)
-15. [Token cheat sheet](#15-token-cheat-sheet)
+8. [Parenthesized notes](#8-parenthesized-notes)
+9. [Bar lines](#9-bar-lines)
+10. [Clefs](#10-clefs)
+11. [Accidentals](#11-accidentals)
+12. [Layout: breaks, expander, spacers](#12-layout-breaks-expander-spacers)
+13. [Lyrics](#13-lyrics)
+14. [Text formatting](#14-text-formatting)
+15. [Embedding in Markdown](#15-embedding-in-markdown)
+16. [Token cheat sheet](#16-token-cheat-sheet)
 
 ---
 
@@ -114,7 +115,7 @@ W: Dicsőség az Atyának és Fiúnak *
 ## 4. Pitch
 
 A pitch is a single letter `a`–`n` (14 diatonic positions, low to high). The
-letter names the staff position; the active [clef](#9-clefs) maps it to a sound.
+letter names the staff position; the active [clef](#10-clefs) maps it to a sound.
 
 ```aretino
 (g2) a b c d e f g h i j k l m n
@@ -132,7 +133,7 @@ w:   a b c d e f g h i j k l m n
 w:   g h i j h' i' j'
 ```
 
-A bare `'` that does **not** follow a pitch is a [breath mark](#8-bar-lines),
+A bare `'` that does **not** follow a pitch is a [breath mark](#9-bar-lines),
 not an octave mark.
 
 ---
@@ -221,7 +222,34 @@ In the AST, a ligature's `groups` array holds one entry per `/`-separated group;
 
 ---
 
-## 8. Bar lines
+## 8. Parenthesized notes
+
+Wrapping one or more notes in `[` … `]` renders typographical parentheses around
+them. The brackets may span a single note, a ligature, or several
+whitespace-separated notes or neumes.
+
+```aretino
+(g2) g [h] i
+w:   plain opt plain
+```
+
+```aretino
+(g2) gh [hg] ghg [hgh] g
+w:   pod  cliv torc porr end
+```
+
+```aretino
+(g2) g [h i j] g [i h] g.
+w:   a  b c d e  f g h.
+```
+
+The `[` and `]` are separate tokens in the AST (`paren-open` / `paren-close`);
+everything between them is rendered normally and the parenthesis glyphs scale
+vertically to fit.
+
+---
+
+## 9. Bar lines
 
 Bar lines and dividers are written as the literal symbols below, or by wrapping
 the same symbol in parentheses (`(|)`, `(||)`, …) — useful to keep them from
@@ -249,7 +277,7 @@ attaching to a neighbouring spacer or expander.
 
 ---
 
-## 9. Clefs
+## 10. Clefs
 
 A clef is a directive `(` `letter` `line` `)` — the clef letter (`g`, `f`,
 or `c`, case-insensitive) plus the staff line it sits on.
@@ -269,7 +297,7 @@ one redrawn at the start of wrapped rows.
 
 ---
 
-## 10. Accidentals
+## 11. Accidentals
 
 An accidental is a single symbol, optionally prefixed by the target pitch
 letter:
@@ -307,7 +335,7 @@ mean another position.
 
 ---
 
-## 11. Layout: breaks, expander, spacers
+## 12. Layout: breaks, expander, spacers
 
 These tokens control horizontal spacing and line breaking; they produce no
 sound.
@@ -338,7 +366,7 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 
 ---
 
-## 12. Lyrics
+## 13. Lyrics
 
 A `w:` line carries syllable text aligned under the music line above it. A `W:`
 line carries free verse text.
@@ -357,7 +385,7 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
 
 `W:` verse lines flow as ordinary text (psalm tone style) and accept the same
-[text formatting](#13-text-formatting) as lyrics:
+[text formatting](#14-text-formatting) as lyrics:
 
 ```aretino
 (g2) g hi h g e_d_ , g hi a'g g. ||
@@ -368,7 +396,7 @@ W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen
 
 ---
 
-## 13. Text formatting
+## 14. Text formatting
 
 Lyric (`w:`) and verse (`W:`) text supports inline formatting. Styles nest.
 
@@ -398,7 +426,7 @@ W: + dagger ++ double~dagger (unbreakable~space)
 
 ---
 
-## 14. Embedding in Markdown
+## 15. Embedding in Markdown
 
 The dev test page (and any host that adopts the same convention) recognizes
 fenced code blocks tagged `aretino` and turns each into a live editor with a
@@ -426,7 +454,7 @@ These options are a host-integration concern (see
 
 ---
 
-## 15. Token cheat sheet
+## 16. Token cheat sheet
 
 | You write | You get |
 |---|---|
@@ -437,6 +465,7 @@ These options are a host-integration concern (see
 | `.` `_` `-` `~` `s` | mora / episema / ictus / liquescens / small |
 | `abc` (no spaces) | ligature (neume) |
 | `/` inside a run | neume-separator gap |
+| `[` … `]` | parenthesized note(s) or neume |
 | `,` `;` `\|` `\|\|` `\|\|\|` | quarter / half / full / double / triple bar |
 | `\|:` `:\|` `:\|:` | repeat start / end / both |
 | `'` (standalone) | breath mark |
@@ -446,6 +475,6 @@ These options are a host-integration concern (see
 | `(z)` `(Z)` | justified / ragged line break |
 | `*` | expander |
 | `(spN)` `===` | fixed-width spacer |
-| `;key: value` | header line |
+| `%key: value` | header line |
 | `%%` | end of header |
 | `w:` `W:` | lyrics / verse line |

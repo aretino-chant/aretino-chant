@@ -164,7 +164,14 @@ w: O Lord, hear my hum-ble call to you!
 (g2) g h i g. hi h g e_d_ , g hi a'g g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 ```
+---
 
+## Text and formatting
+
+```aretino
+(g2) c d e f g | h
+w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \color:green{green}
+```
 ---
 
 ## Verse Lines (W: Tag)
@@ -207,4 +214,3 @@ put no matter how wide the editor is, unlike the responsive blocks above:
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 
----

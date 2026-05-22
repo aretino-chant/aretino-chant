@@ -671,8 +671,15 @@ function clefAdvance(ctx, clef) {
     return 0;
 }
 
+function accidentalSymbolAdvance(ctx, symbol) {
+    if (symbol === 'y') return ss(ctx, METRICS.accidentalAdvanceNatural);
+    if (symbol === '#') return ss(ctx, METRICS.accidentalAdvanceSharp);
+    return ss(ctx, METRICS.accidentalAdvanceFlat);
+}
+
 function keySigAdvance(ctx, accidentals) {
-    return (accidentals?.length ?? 0) * ss(ctx, METRICS.accidentalAdvance);
+    if (!accidentals?.length) return 0;
+    return accidentals.reduce((sum, acc) => sum + accidentalSymbolAdvance(ctx, acc.symbol), 0);
 }
 
 function measureItem(ctx, item) {
@@ -893,7 +900,7 @@ function measureSplitLigature(ctx, groups, gaps) {
         const notes = groups[g];
         const n = notes.length;
         // Add advance for any inline accidentals on notes in this group.
-        const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? ss(ctx, METRICS.accidentalAdvance) : 0), 0);
+        const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
         if (g < groups.length - 1) {
             const gapType = gaps[g] ?? 'neume';
             const lastNote = notes[n - 1];
@@ -955,7 +962,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
                 const accX = cx - ss(ctx, METRICS.noteBoxWidth) * 0.5;
                 const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY);
                 parts.push(a.svg);
-                cx += ss(ctx, METRICS.accidentalAdvance);
+                cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
             }
             const cy = pitchY(ctx, note, staffBottomY);
             positions.push({ note, cx, cy });
@@ -1079,7 +1086,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
             const moraOverhang = (gapType === 'neume' && hasMora)
                 ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5)
                 : 0;
-            const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? ss(ctx, METRICS.accidentalAdvance) : 0), 0);
+            const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
             groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + ctx.neumeGapAdvance + moraOverhang + accExtra;
         }
     }

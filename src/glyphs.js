@@ -515,7 +515,7 @@ export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY) {
         // Translate to (x, cy) and apply scale with y-flip (font y-up → SVG y-down)
         svg = `<path d="${glyph.path}" fill="#000" transform="translate(${x}, ${cy}) scale(${scale}, ${-scale})"/>`;
     }
-    return { svg, advance: glyph ? glyph.advance * scale : ss(ctx, METRICS.accidentalAdvance) };
+    return { svg, advance: glyph ? glyph.advance * scale : ss(ctx, METRICS.accidentalAdvanceFlat) };
 }
 
 export function drawBarline(ctx, kind, x, staffBottomY) {

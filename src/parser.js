@@ -145,6 +145,68 @@ function peekInlineAccidental(line, pos) {
     return { pitch: acc.pitch, symbol: acc.symbol, end: end + 1 };
 }
 
+// Parses a sequence of note groups separated by '/' within line[i..limit).
+// Returns { groups, gaps, newI }. Used by both plain-ligature and [..] paths.
+function parseNoteGroupSequence(line, i, lineStart, limit) {
+    const groups = [];
+    const gaps = [];
+    while (true) {
+        const group = [];
+        let pendingAcc = null;
+        while (i < limit && (isPitchLetter(line[i]) || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
+            if (line[i] === '(') {
+                pendingAcc = peekInlineAccidental(line, i);
+                i = pendingAcc.end;
+                continue;
+            }
+            const noteStart = i;
+            const pitchChar = line[i];
+            i++;
+            const note = {
+                pitch: pitchChar.toLowerCase(),
+                virga: pitchChar !== pitchChar.toLowerCase(),
+                high: false,
+                shape: pitchChar === pitchChar.toLowerCase() ? 'punctum' : 'virga',
+                modifiers: [],
+            };
+            if (pendingAcc) {
+                note.accidental = { pitch: pendingAcc.pitch, symbol: pendingAcc.symbol };
+                pendingAcc = null;
+            }
+            while (i < limit) {
+                const m = line[i];
+                if (m === "'") { note.high = true; i++; continue; }
+                if (m === '_') { note.modifiers.push('episema'); i++; continue; }
+                if (m === '-') { note.modifiers.push('ictus'); i++; continue; }
+                if (m === '.') { note.modifiers.push('mora'); i++; continue; }
+                if (m === '~') { note.modifiers.push('liquescens'); i++; continue; }
+                if (m === 'w') { note.shape = 'quilisma'; i++; continue; }
+                if (m === 't') { note.shape = 'tenor'; i++; continue; }
+                if (m === 's') { note.modifiers.push('small'); i++; continue; }
+                break;
+            }
+            note.srcStart = lineStart + noteStart;
+            note.srcEnd = lineStart + i;
+            group.push(note);
+        }
+        if (group.length) groups.push(group);
+        let j = i;
+        while (j < limit && (line[j] === ' ' || line[j] === '\t')) j++;
+        if (j < limit && line[j] === '/') {
+            const afterSlash = j + 1;
+            let k = afterSlash;
+            while (k < limit && (line[k] === ' ' || line[k] === '\t')) k++;
+            if (k < limit && (isPitchLetter(line[k]) || (line[k] === '(' && peekInlineAccidental(line, k) !== null))) {
+                i = k;
+                gaps.push('neume');
+                continue;
+            }
+        }
+        break;
+    }
+    return { groups, gaps, newI: i };
+}
+
 function tokenizeMusicLine(line, lineStart = 0) {
     const tokens = [];
     const len = line.length;
@@ -219,102 +281,21 @@ function tokenizeMusicLine(line, lineStart = 0) {
             i++;
             continue;
         }
+        if (ch === '[') {
+            tokens.push({ type: 'paren-open', srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 1 });
+            i++;
+            continue;
+        }
+        if (ch === ']') {
+            tokens.push({ type: 'paren-close', srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 1 });
+            i++;
+            continue;
+        }
         if (isPitchLetter(ch)) {
-            const groups = [];
-            const gaps = []; // 'neume' for each explicit '/' boundary between groups
-            while (true) {
-                const group = [];
-                let pendingAcc = null;
-                while (i < len && (isPitchLetter(line[i]) || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
-                    // Check for inline accidental before the next note.
-                    if (line[i] === '(') {
-                        pendingAcc = peekInlineAccidental(line, i);
-                        // Advance past the directive including closing ')'.
-                        i = pendingAcc.end;
-                        continue;
-                    }
-                    const noteStart = i;
-                    const pitchChar = line[i];
-                    i++;
-                    const note = {
-                        pitch: pitchChar.toLowerCase(),
-                        virga: pitchChar !== pitchChar.toLowerCase(),
-                        high: false,
-                        shape: pitchChar === pitchChar.toLowerCase() ? 'punctum' : 'virga',
-                        modifiers: [],
-                    };
-                    if (pendingAcc) {
-                        note.accidental = { pitch: pendingAcc.pitch, symbol: pendingAcc.symbol };
-                        pendingAcc = null;
-                    }
-                    while (i < len) {
-                        const m = line[i];
-                        if (m === "'") {
-                            note.high = true;
-                            i++;
-                            continue;
-                        }
-                        if (m === '_') {
-                            note.modifiers.push('episema');
-                            i++;
-                            continue;
-                        }
-                        if (m === '-') {
-                            note.modifiers.push('ictus');
-                            i++;
-                            continue;
-                        }
-                        if (m === '.') {
-                            note.modifiers.push('mora');
-                            i++;
-                            continue;
-                        }
-                        if (m === '~') {
-                            note.modifiers.push('liquescens');
-                            i++;
-                            continue;
-                        }
-                        if (m === 'w') {
-                            note.shape = 'quilisma';
-                            i++;
-                            continue;
-                        }
-                        if (m === 't') {
-                            note.shape = 'tenor';
-                            i++;
-                            continue;
-                        }
-                        if (m === 's') {
-                            note.modifiers.push('small');
-                            i++;
-                            continue;
-                        }
-                        break;
-                    }
-                    note.srcStart = lineStart + noteStart;
-                    note.srcEnd = lineStart + i;
-                    group.push(note);
-                }
-                if (group.length) {
-                    groups.push(group);
-                }
-                // Check for '/' (skip surrounding whitespace) — '/' within a neume
-                // connects the next note group to this ligature.
-                let j = i;
-                while (j < len && (line[j] === ' ' || line[j] === '\t')) { j++; }
-                if (j < len && line[j] === '/') {
-                    i = j + 1;
-                    while (i < len && (line[i] === ' ' || line[i] === '\t')) { i++; }
-                    // After '/', also allow an inline accidental before the next pitch.
-                    if (i < len && (isPitchLetter(line[i]) || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
-                        gaps.push('neume');
-                        continue;
-                    }
-                }
-                break;
-            }
-            if (groups.length) {
-                tokens.push({ type: 'ligature', groups, gaps, srcStart: lineStart + tokStart, srcEnd: lineStart + i });
+            const r = parseNoteGroupSequence(line, i, lineStart, len);
+            i = r.newI;
+            if (r.groups.length) {
+                tokens.push({ type: 'ligature', groups: r.groups, gaps: r.gaps, srcStart: lineStart + tokStart, srcEnd: lineStart + i });
             }
             continue;
         }

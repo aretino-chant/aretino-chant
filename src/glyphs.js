@@ -134,6 +134,14 @@ export const METRICS = {
     // --- Spacer -----------------------------------------------------------
     spacerAdvance: 1,                   // default width of one (sp) spacer unit
 
+    // --- Parenthesized neumes ---------------------------------------------
+    parenthesisWidth: 0.45,            // horizontal space reserved for the arc itself
+    parenthesisInnerGap: 0.3,          // gap between arc hinge and the adjacent note
+    parenthesisBulge: 0.45,            // outward bulge of the arc
+    parenthesisVPadding: 0.25,         // vertical extension beyond the note bounding box
+    parenthesisStroke: 0.2,
+    parenthesisStrokeMinPx: 0.7,
+
     // --- Page layout ------------------------------------------------------
     leftMargin: 1,
     rightMargin: 1,
@@ -608,6 +616,15 @@ export function drawBarline(ctx, kind, x, staffBottomY) {
         svg = `<path d="M ${ax} ${topY} C ${ax + bulge} ${topY} ${ax + bulge} ${bottomY} ${ax} ${bottomY}" fill="none" stroke="#000" stroke-width="${bsw}" stroke-linecap="round"/>`;
     }
     return { svg, advance };
+}
+
+// Draws a musical parenthesis arc. hingeX is the x of the narrow end (closest to the notes).
+// y1 = top, y2 = bottom (y2 > y1 in SVG). side: 'left' curves leftward, 'right' rightward.
+export function drawParenthesis(ctx, hingeX, y1, y2, side) {
+    const bulge = ss(ctx, METRICS.parenthesisBulge);
+    const sw = stroke(ctx, METRICS.parenthesisStroke, METRICS.parenthesisStrokeMinPx);
+    const bx = side === 'left' ? hingeX - bulge : hingeX + bulge;
+    return `<path d="M ${hingeX} ${y1} C ${bx} ${y1} ${bx} ${y2} ${hingeX} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 
 export function escapeText(s) {

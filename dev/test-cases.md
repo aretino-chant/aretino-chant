@@ -121,6 +121,38 @@ Inline, standalone, and natural cancelling a key-signature accidental:
 
 ---
 
+## Parenthesized Notes
+
+Individual parenthesized notes:
+
+```aretino
+(g2) g [h] i [j] g
+w:   plain opt plain opt plain
+```
+
+Parenthesized neume (ligature):
+
+```aretino
+(g2) gh [hg] ghg [hgh] g
+w:   pod  cliv torc porr end
+```
+
+Parenthesized note group (multiple notes in parens):
+
+```aretino
+(g2) g [h i j] g [i h] g.
+w:   a  b c d e  f g h.
+```
+
+Mixed: lyrics with parenthesized syllables:
+
+```aretino
+(g2) h h [h] h h h [gh] h. ||
+w:   Glo-ri-a (in) ex-cel-sis (De-o).
+```
+
+---
+
 ## Raised Octave (apostrophe)
 
 ```aretino

@@ -21,6 +21,7 @@ import {
     drawClef,
     drawAccidental,
     drawBarline,
+    drawParenthesis,
     escapeText,
     escapeAttr,
 } from './glyphs.js';
@@ -361,6 +362,7 @@ export function renderAretino(source, options = {}) {
             }
 
             let cursorX = staffLeftX;
+            let parenState = null;
             const rowLigatures = [];
             const rowBarlines = [];
 
@@ -449,10 +451,33 @@ export function renderAretino(source, options = {}) {
                     cursorX += b.advance + ss(ctx, METRICS.barlinePostGap) + extra / 2 + postExtra;
                 } else if (it.kind === 'spacer') {
                     cursorX += ss(ctx, METRICS.spacerAdvance) * it.multiplier;
+                } else if (it.kind === 'paren-open') {
+                    const placeIdx = parts.length;
+                    parts.push('');
+                    cursorX += ss(ctx, METRICS.parenthesisWidth);
+                    const hingeX = cursorX;
+                    cursorX += ss(ctx, METRICS.parenthesisInnerGap);
+                    parenState = { placeIdx, hingeX, closeHingeX: hingeX, minY: Infinity, maxY: -Infinity };
+                } else if (it.kind === 'paren-close') {
+                    if (parenState) {
+                        const vPad = ss(ctx, METRICS.parenthesisVPadding);
+                        const spanTop = parenState.minY - vPad;
+                        const spanBot = parenState.maxY + vPad;
+                        const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
+                        parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
+                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - 2 * innerGap, spanTop, spanBot, 'right'));
+                        parenState = null;
+                    }
+                    cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
                 } else if (it.kind === 'ligature') {
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? []);
                     parts.push(wrapSrc(it, r.svg, 'aretino-token aretino-ligature'));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
+                    if (parenState) {
+                        if (r.minY < parenState.minY) parenState.minY = r.minY;
+                        if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;
+                        parenState.closeHingeX = cursorX + r.advance;
+                    }
                     cursorX += r.advance + (it.syllableExtra || 0);
                 }
                 if (idx < row.items.length - 1 && extraPerGap > 0) {
@@ -646,6 +671,14 @@ function flattenItems(tokens) {
             items.push({ kind: 'spacer', multiplier: tok.multiplier, ...src });
             continue;
         }
+        if (tok.type === 'paren-open') {
+            items.push({ kind: 'paren-open', ...src });
+            continue;
+        }
+        if (tok.type === 'paren-close') {
+            items.push({ kind: 'paren-close', ...src });
+            continue;
+        }
         if (tok.type === 'ligature') {
             items.push({ kind: 'ligature', groups: tok.groups, gaps: tok.gaps ?? [], ...src });
             continue;
@@ -703,6 +736,9 @@ function measureItem(ctx, item) {
     }
     if (item.kind === 'expander') {
         return ctx.expanderWidth;
+    }
+    if (item.kind === 'paren-open' || item.kind === 'paren-close') {
+        return ss(ctx, METRICS.parenthesisWidth) + ss(ctx, METRICS.parenthesisInnerGap);
     }
     if (item.kind === 'ligature') {
         return measureLigature(ctx, item.groups, item.gaps ?? []) + (item.syllableExtra || 0);
@@ -951,6 +987,8 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
     let groupStartX = x;
     let firstNoteCx = null;
     let lastNoteCx = null;
+    let allNotesMinY = Infinity;
+    let allNotesMaxY = -Infinity;
 
     for (let g = 0; g < groups.length; g++) {
         const notes = groups[g];
@@ -972,6 +1010,9 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
                 firstNoteCx = cx;
             }
             lastNoteCx = cx;
+            const halfH = ss(ctx, METRICS.noteBoxHeight) * 0.5;
+            if (cy - halfH < allNotesMinY) allNotesMinY = cy - halfH;
+            if (cy + halfH > allNotesMaxY) allNotesMaxY = cy + halfH;
             if (i < notes.length - 1) {
                 cx += ctx.ligatureStepAdvance;
             }
@@ -1108,7 +1149,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
     const isTenor = groups.some(g => g.some(n => n.shape === 'tenor'));
     const shouldAlignLeft = totalNotes > 1 || hasMora || isTenor;
 
-    return { svg: parts.join(''), advance, centerX, leftX, shouldAlignLeft };
+    return { svg: parts.join(''), advance, centerX, leftX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
 }
 
 let _measureCanvas = null;

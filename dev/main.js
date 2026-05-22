@@ -6,7 +6,11 @@ import testCasesSrc from './test-cases.md?raw';
 // (1.5 mm) is too small to edit comfortably, so we zoom the rendered SVG.
 // Layout/line-breaking is computed at the un-zoomed logical width, so the
 // preview reflows to the container width and zoom only changes pixel size.
-const EDITOR_ZOOM = 1.4;
+const ZOOM_DEFAULT = 1.4;
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 6;
+let editorZoom = ZOOM_DEFAULT;
 
 // Counter for unique IDs across all aretino blocks on the page.
 let blockCounter = 0;
@@ -79,14 +83,14 @@ function renderBlock(id, source) {
         if (opts.fixed) {
             // Non-responsive: lay out to a fixed physical width so line breaks
             // stay put. `zoom` only magnifies pixels for legible editing.
-            preview.innerHTML = renderAretino(source, { widthMm: opts.widthMm, zoom: EDITOR_ZOOM });
+            preview.innerHTML = renderAretino(source, { widthMm: opts.widthMm, zoom: editorZoom });
         } else {
             // Lay out to the container width, then zoom: render width × zoom ≈
             // container width, so the SVG fills the preview at editor scale and
             // reflows when the container resizes.
             const containerWidth = preview.clientWidth || 800;
-            const width = Math.max(120, Math.round(containerWidth / EDITOR_ZOOM));
-            preview.innerHTML = renderAretino(source, { width, zoom: EDITOR_ZOOM });
+            const width = Math.max(120, Math.round(containerWidth / editorZoom));
+            preview.innerHTML = renderAretino(source, { width, zoom: editorZoom });
         }
         errorEl.hidden = true;
     } catch (err) {
@@ -118,3 +122,20 @@ window.addEventListener('resize', () => {
         }
     }, 100);
 });
+
+// Zoom controls.
+function rerenderAll() {
+    for (const [id, source] of blockSources) {
+        renderBlock(id, source);
+    }
+}
+
+function setZoom(z) {
+    editorZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
+    document.getElementById('zoom-value').textContent = Math.round(editorZoom * 100) + '%';
+    rerenderAll();
+}
+
+document.getElementById('zoom-in').addEventListener('click', () => setZoom(editorZoom + ZOOM_STEP));
+document.getElementById('zoom-out').addEventListener('click', () => setZoom(editorZoom - ZOOM_STEP));
+document.getElementById('zoom-reset').addEventListener('click', () => setZoom(ZOOM_DEFAULT));

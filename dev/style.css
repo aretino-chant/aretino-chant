@@ -36,6 +36,53 @@ header code {
     font-family: monospace;
 }
 
+#zoom-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 2rem;
+    background: #3a3a3a;
+    border-bottom: 1px solid #555;
+}
+
+.zoom-label {
+    color: #aaa;
+    font-size: 0.8rem;
+    margin-right: 0.25rem;
+}
+
+#zoom-value {
+    color: #eee;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 3.5ch;
+    text-align: center;
+}
+
+#zoom-toolbar button {
+    background: #555;
+    color: #eee;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2rem 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+#zoom-toolbar button:hover {
+    background: #777;
+}
+
+#zoom-reset {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+    margin-left: 0.25rem;
+}
+
 main {
     max-width: 900px;
     margin: 0 auto;

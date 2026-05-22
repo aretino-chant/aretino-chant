@@ -240,16 +240,15 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         path += 'Z';
         parts.push(`<path d="${path}" fill="#000"/>`);
     } else if (note.shape === 'tenor') {
-        const outlineSW = stroke(ctx, METRICS.tenorOutlineStroke, METRICS.tenorOutlineStrokeMinPx);
         const sideSW = stroke(ctx, METRICS.tenorSideStroke, METRICS.tenorSideStrokeMinPx);
         const sideX = (noteW / 2 + ss(ctx, METRICS.tenorSideStrokeOffset)) * scale;
         const { dx: edgeDx } = noteheadEdgeOffset(ctx);
         // Shift the whole glyph right so its left outer stroke edge aligns with the normal notehead's left edge.
         const tenorCx = cx + (sideX + sideSW / 2 - edgeDx * scale);
-        parts.push(ovalHead(ctx, tenorCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale, fill: 'none', stroke: '#000', strokeWidth: outlineSW }));
+        parts.push(ovalHead(ctx, tenorCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale, fill: 'none', stroke: '#000', strokeWidth: sideSW }));
         const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
-        parts.push(`<line x1="${tenorCx - sideX}" y1="${cy - halfH}" x2="${tenorCx - sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}"/>`);
-        parts.push(`<line x1="${tenorCx + sideX}" y1="${cy - halfH}" x2="${tenorCx + sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}"/>`);
+        parts.push(`<line x1="${tenorCx - sideX}" y1="${cy - halfH}" x2="${tenorCx - sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}" stroke-linecap="round"/>`);
+        parts.push(`<line x1="${tenorCx + sideX}" y1="${cy - halfH}" x2="${tenorCx + sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}" stroke-linecap="round"/>`);
     } else {
         parts.push(ovalHead(ctx, headCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale }));
     }

@@ -1368,11 +1368,31 @@ function renderSegments(segments) {
         let attrs = '';
         if (s.bold) attrs += ' font-weight="bold"';
         if (s.italic) attrs += ' font-style="italic"';
-        if (s.underline) attrs += ' text-decoration="underline"';
         if (s.color) attrs += ` fill="${escapeAttr(s.color)}"`;
         if (!attrs) return escapeText(s.text);
         return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
     }).join('');
+}
+
+// Returns SVG <line> elements for any underlined segments, drawn below the text
+// baseline. textX/textY match the SVG text element's x/y attributes;
+// textAnchor is 'middle' or 'start'.
+function renderUnderlines(segments, textX, textY, fontSize, fontFamily, textAnchor) {
+    if (!segments || segments.every(s => !s.underline)) return '';
+    const totalW = measureSegmentsWidth(segments, fontSize, fontFamily);
+    let x = textAnchor === 'middle' ? textX - totalW / 2 : textX;
+    const lineY = textY + fontSize * 0.13;
+    const strokeW = Math.max(0.4, fontSize * 0.055);
+    const lines = [];
+    for (const seg of segments) {
+        const w = measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic);
+        if (seg.underline) {
+            const stroke = seg.color || '#000';
+            lines.push(`<line x1="${x}" y1="${lineY}" x2="${x + w}" y2="${lineY}" stroke="${escapeAttr(stroke)}" stroke-width="${strokeW}"/>`);
+        }
+        x += w;
+    }
+    return lines.join('');
 }
 
 // Converts a lyric line with formatting syntax into SVG tspan elements.
@@ -1399,6 +1419,7 @@ function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         const cx = barlines[i].centerX;
         const label = labels[i];
         parts.push(`<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`);
+        parts.push(renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle'));
     }
     return parts.join('');
 }
@@ -1469,6 +1490,7 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         const textCenter = left + fullW / 2;
 
         parts.push(`<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`);
+        parts.push(renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle'));
         if (hyphenX !== null) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
         }
@@ -1518,17 +1540,21 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
         }
     }
 
-    // Split into words at breakable (regular ASCII) spaces; NBSP stays within words
+    // Split into words at breakable (regular ASCII) spaces; NBSP stays within words.
+    // Each entry stores the word chars and the original space char that preceded it
+    // (null for the first word), preserving the space's formatting (e.g. underline).
     const words = [];
     let wordChars = [];
+    let pendingSpace = null;
     for (const c of chars) {
         if (c.ch === ' ') {
-            if (wordChars.length > 0) { words.push(wordChars); wordChars = []; }
+            if (wordChars.length > 0) { words.push({ chars: wordChars, spaceBefore: pendingSpace }); wordChars = []; }
+            pendingSpace = c;
         } else {
             wordChars.push(c);
         }
     }
-    if (wordChars.length > 0) words.push(wordChars);
+    if (wordChars.length > 0) words.push({ chars: wordChars, spaceBefore: pendingSpace });
 
     const spaceW = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
     const displayLines = [];
@@ -1538,19 +1564,19 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
     let currentAvailW = firstAvailW;
 
     for (const word of words) {
-        const wordW = measureSegmentsWidth(charsToSegments(word), fontSize, fontFamily);
+        const wordW = measureSegmentsWidth(charsToSegments(word.chars), fontSize, fontFamily);
         if (lineChars.length === 0) {
-            lineChars = [...word];
+            lineChars = [...word.chars];
             lineWidth = wordW;
         } else if (lineWidth + spaceW + wordW > currentAvailW) {
             displayLines.push({ x: currentX, segments: charsToSegments(lineChars) });
-            lineChars = [...word];
+            lineChars = [...word.chars];
             lineWidth = wordW;
             currentX = contX;
             currentAvailW = contAvailW;
         } else {
-            lineChars.push({ ch: ' ', bold: false, italic: false, underline: false, color: null });
-            lineChars.push(...word);
+            lineChars.push(word.spaceBefore || { ch: ' ', bold: false, italic: false, underline: false, color: null });
+            lineChars.push(...word.chars);
             lineWidth += spaceW + wordW;
         }
     }
@@ -1595,6 +1621,7 @@ function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                 firstLineOfVerse = false;
                 firstDisplayLine = false;
                 parts.push(`<text xml:space="preserve" x="${dl.x}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" fill="#000">${renderSegments(dl.segments)}</text>`);
+                parts.push(renderUnderlines(dl.segments, dl.x, y, fontSize, fontFamily, 'start'));
             }
         }
     }

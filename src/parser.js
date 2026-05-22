@@ -75,6 +75,11 @@ export function parseAretino(source) {
             lastWasLyrics = false;
             continue;
         }
+        if (/^\s*W:/.test(raw)) {
+            result.push({ type: 'verse', lines: [raw.replace(/^\s*W:\s?/, '')] });
+            lastWasLyrics = false;
+            continue;
+        }
         if (/^\s*w:/.test(raw)) {
             result.push({ type: 'lyrics', text: raw.replace(/^\s*w:\s?/, '') });
             lastWasLyrics = true;
@@ -87,6 +92,13 @@ export function parseAretino(source) {
             if (last && last.type === 'lyrics') {
                 last.text += ' ' + raw.trim();
             }
+            continue;
+        }
+        // A non-prefixed line that follows a W: verse line continues that verse
+        // as an explicit line break (rendered indented).
+        const lastItem = result[result.length - 1];
+        if (lastItem && lastItem.type === 'verse') {
+            lastItem.lines.push(raw.trim());
             continue;
         }
         result.push({ type: 'music', tokens: tokenizeMusicLine(raw, lineStart) });

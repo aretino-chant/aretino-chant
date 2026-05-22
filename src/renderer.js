@@ -123,18 +123,24 @@ export function renderAretino(source, options = {}) {
     let contentBottom = y;
 
     if (ast.header && Object.keys(ast.header).length) {
-        const title = ast.header['cím'] || ast.header['title'];
+        const title = ast.header['title'];
         if (title) {
-            const fontSize = ctx.lyricSize * 1.6;
+            const fontSize = ctx.lyricSize * 1.2;
             y += fontSize;
-            parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${escapeText(title)}</text>`);
+            parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(title))}</text>`);
             y += fontSize * 0.4;
         }
-        const caption = ast.header['caption'] || ast.header['felirat'];
-        if (caption) {
+        const caption = ast.header['caption'];
+        const rubric = ast.header['rubric'];
+        if (caption || rubric) {
             const fontSize = ctx.lyricSize * 0.95;
             y += fontSize;
-            parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${escapeText(caption)}</text>`);
+            if (rubric) {
+                parts.push(`<text x="${ctx.leftMargin}" y="${y - ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubric))}</text>`);
+            }
+            if (caption) {
+                parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(caption))}</text>`);
+            }
             y += fontSize * 0.4;
         }
     }
@@ -351,7 +357,7 @@ export function renderAretino(source, options = {}) {
             if (rowIndent > 0 && indentText) {
                 const tx = ctx.leftMargin + rowIndent / 2;
                 const ty = staffBottomY - ctx.staffHeight / 2 + indentFontSize * 0.35;
-                parts.push(`<text x="${tx}" y="${ty}" font-family="${escapeAttr(lyricFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${escapeText(indentText)}</text>`);
+                parts.push(`<text x="${tx}" y="${ty}" font-family="${escapeAttr(lyricFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentText))}</text>`);
             }
 
             let cursorX = staffLeftX;

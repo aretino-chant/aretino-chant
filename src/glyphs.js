@@ -136,11 +136,10 @@ export const METRICS = {
 
     // --- Parenthesized neumes ---------------------------------------------
     parenthesisWidth: 0.45,            // horizontal space reserved for the arc itself
-    parenthesisInnerGap: 0.3,          // gap between arc hinge and the adjacent note
-    parenthesisBulge: 0.45,            // outward bulge of the arc
-    parenthesisVPadding: 0.25,         // vertical extension beyond the note bounding box
-    parenthesisStroke: 0.2,
-    parenthesisStrokeMinPx: 0.7,
+    parenthesisInnerGap: 0.2,          // gap between arc hinge and the adjacent note
+    parenthesisBulge: 1,            // outward bulge of the arc
+    parenthesisVPadding: 0.4,         // vertical extension beyond the note bounding box
+    parenthesisThickness: 0.25,          // max visual stroke width at the midpoint (staff spaces)
 
     // --- Page layout ------------------------------------------------------
     leftMargin: 1,
@@ -620,11 +619,20 @@ export function drawBarline(ctx, kind, x, staffBottomY) {
 
 // Draws a musical parenthesis arc. hingeX is the x of the narrow end (closest to the notes).
 // y1 = top, y2 = bottom (y2 > y1 in SVG). side: 'left' curves leftward, 'right' rightward.
+// Rendered as a filled closed shape so it tapers to hairline at both ends, thickest at center.
 export function drawParenthesis(ctx, hingeX, y1, y2, side) {
     const bulge = ss(ctx, METRICS.parenthesisBulge);
-    const sw = stroke(ctx, METRICS.parenthesisStroke, METRICS.parenthesisStrokeMinPx);
-    const bx = side === 'left' ? hingeX - bulge : hingeX + bulge;
-    return `<path d="M ${hingeX} ${y1} C ${bx} ${y1} ${bx} ${y2} ${hingeX} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+    // Control-point offset needed to produce the desired visual thickness at the midpoint.
+    // At t=0.5 of a symmetric cubic bezier the displacement is 3/4 of the CP offset,
+    // so CP offset = (4/3) * desired_visual_thickness.
+    const cpThickness = ss(ctx, METRICS.parenthesisThickness) * (4 / 3);
+    const dir = side === 'left' ? -1 : 1;
+    const bxOuter = hingeX + dir * bulge;
+    const bxInner = bxOuter - dir * cpThickness;
+    const d = `M ${hingeX} ${y1} ` +
+              `C ${bxOuter} ${y1} ${bxOuter} ${y2} ${hingeX} ${y2} ` +
+              `C ${bxInner} ${y2} ${bxInner} ${y1} ${hingeX} ${y1} Z`;
+    return `<path d="${d}" fill="#000"/>`;
 }
 
 export function escapeText(s) {

@@ -463,9 +463,10 @@ export function renderAretino(source, options = {}) {
                         const vPad = ss(ctx, METRICS.parenthesisVPadding);
                         const spanTop = parenState.minY - vPad;
                         const spanBot = parenState.maxY + vPad;
+                        const parenWidth = ss(ctx, METRICS.parenthesisWidth);
                         const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
                         parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
-                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - 2 * innerGap, spanTop, spanBot, 'right'));
+                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - innerGap - parenWidth, spanTop, spanBot, 'right'));
                         parenState = null;
                     }
                     cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);

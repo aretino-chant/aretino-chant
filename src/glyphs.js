@@ -477,8 +477,7 @@ export function drawClef(ctx, clef, x, staffBottomY) {
         const top = lineY - h / 2;
         const bottom = lineY + h / 2;
         const right = left + w;
-        const svg = `<path d="M ${right} ${top} L ${left} ${top} L ${left} ${bottom} L ${right} ${bottom}" fill="none" stroke="#000" stroke-width="${sw}"/>`
-            + `<rect x="${left - sw / 2}" y="${top - sw / 2}" width="${sw}" height="${h + sw}" fill="#000"/>`;
+        const svg = `<path d="M ${right} ${top} L ${left} ${top} L ${left} ${bottom} L ${right} ${bottom}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
         return { svg, advance: w + ss(ctx, METRICS.clefCRightPadding) };
     }
     return { svg: '', advance: 0 };

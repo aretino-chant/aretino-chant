@@ -950,10 +950,10 @@ function measureSplitLigature(ctx, groups, gaps) {
             const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
-            // For an explicit '/' after a mora, the neume gap starts from the mora dot's right
-            // edge rather than the note box edge, so add the mora's overhang.
-            const moraOverhang = (slashCount > 0 && hasMora)
-                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5)
+            // The mora dot extends past the note box right edge; account for that overhang
+            // whether the gap after it is an explicit '/' or an implicit mora split.
+            const moraOverhang = hasMora
+                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
                 : 0;
             total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
         } else {
@@ -1136,8 +1136,8 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
             const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[notes.length - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
-            const moraOverhang = (slashCount > 0 && hasMora)
-                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5)
+            const moraOverhang = hasMora
+                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
                 : 0;
             const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
             groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;

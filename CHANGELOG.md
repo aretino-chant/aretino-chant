@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+Important (probably breaking) changes are listed here.
 
-### Changed
+### 2026-05-22
 
 - **Accidental syntax.** Accidentals are now written with a single symbol —
   `b` (flat), `n` (natural), `#` (sharp) — optionally prefixed by the target
@@ -10,9 +10,9 @@
   Gregorio-derived spelling (`bx` / `by` / `b#`), which is no longer accepted.
 - An accidental directive with no pitch letter now defaults to the reciting
   position `i` in every context (previously inline accidentals defaulted to
-  `b`). So `(b)` is a flat on `i`.
+  `b`). So `(qb)` is a flat on `i`.
 
-## 0.1.0 — Unreleased
+## 2025-05-19
 
 - Initial extraction from cantores.hu.
 - Public API: `parseAretino`, `renderAretino`.

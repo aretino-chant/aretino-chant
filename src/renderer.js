@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { parseAretino } from './parser.js';
+import { parseAretino, matchAccidental } from './parser.js';
 import {
     METRICS,
     pitchToPos,
@@ -559,9 +559,9 @@ function flattenItems(tokens) {
                 items.push({ kind: 'clef', clef: { letter: clefM[1].toLowerCase(), line: parseInt(clefM[2], 10) }, ...src });
                 continue;
             }
-            const accM = v.match(/^([a-nA-N]?)b([xy#])$/);
+            const accM = matchAccidental(v);
             if (accM) {
-                items.push({ kind: 'accidental', pitch: (accM[1] || 'i').toLowerCase(), symbol: accM[2], ...src });
+                items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...src });
                 continue;
             }
             const keyM = v.match(/^K:\s*(.*)$/);
@@ -570,9 +570,9 @@ function flattenItems(tokens) {
                 const accidentals = [];
                 if (inner) {
                     for (const part of inner.split(/\s+/)) {
-                        const m = part.match(/^([a-nA-N]?)b([xy#])$/);
-                        if (m) {
-                            accidentals.push({ pitch: (m[1] || 'i').toLowerCase(), symbol: m[2] });
+                        const acc = matchAccidental(part);
+                        if (acc) {
+                            accidentals.push({ pitch: acc.pitch, symbol: acc.symbol });
                         }
                     }
                 }

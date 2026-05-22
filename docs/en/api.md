@@ -5,7 +5,7 @@ Developer documentation for `@aretino-chant/core` — the parser and SVG rendere
 This document is for people **embedding the library**: building editors, live
 previews, responsive or fixed-width score layouts, and controlling sizing. For
 the chant *notation format* itself (how to write the source text), see the
-[User Guide](./user-guide.md).
+[Syntax Reference](./syntax-reference.md).
 
 ---
 
@@ -384,7 +384,7 @@ offsets (the same values surfaced as `data-src-*` in the SVG).
   high: boolean,                     // trailing apostrophe (octave up)
   shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
   modifiers: Array<'episema'|'mora'|'liquescens'|'ictus'|'small'>,
-  accidental?: { pitch: string, symbol: 'x'|'y'|'#' },  // inline (xby) etc.
+  accidental?: { pitch: string, symbol: 'x'|'y'|'#' },  // inline (fb)/(fn)/(f#); symbol x=flat y=natural #=sharp
   srcStart: number, srcEnd: number
 }
 ```
@@ -423,4 +423,4 @@ silently rather than throwing, so a half-typed source still parses.
 ---
 
 *Source code: [MPL-2.0](../../LICENSE). For the notation format itself, see the
-[User Guide](./user-guide.md).*
+[Syntax Reference](./syntax-reference.md).*

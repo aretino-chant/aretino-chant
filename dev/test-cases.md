@@ -107,8 +107,16 @@ Neume-separator gap `/` — visual grouping within one ligature:
 
 ## Accidentals
 
+Current spelling — `b` flat, `n` natural, `#` sharp:
+
 ```aretino
-(g2) (K:fb#) h h h f h i j ih h_
+(g2) (K:f#) h h h f h i j ih h_
+```
+
+Inline, standalone, and natural cancelling a key-signature accidental:
+
+```aretino
+(g2) (K:fb) f f (fn) f f  (i#) i i
 ```
 
 ---
@@ -179,19 +187,19 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 Psalm verses under an antiphon — the typical liturgical use case:
 
 ```aretino
-(g2) g hi h g e_d_ , g hi a'g g. ||
-w: Al-le-lu-ia, * al-le-lu-ia.
-W: Dicsőség az Atyának és Fiúnak * és Szentlélek Istennek.
-W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen.
+(g2) (K:b) h_gIhg/h_j jjjhghgh h. ;
+w: Haec di-es (\red{*})
+W: <This is the day the Lord has made; let us rejoice and be glad.>
+W: <\V. Give thanks to the Lord, for he is good, for his mercy endures forever.>
 ```
 
 Explicit line breaks within a verse (continuation lines are indented):
 
 ```aretino
-W: Dicsőség az Atyának és Fiúnak * és
-Szentlélek Istennek.
-W: Miképpen kezdetben,
-most és mindenkor * és mindörökkön örökké, Ámen.
+W: Glory be to the Father and to the Son, *
+and to the Holy Spirit,
+W: as it was in the beginning is now, *
+and ever shall be world without end. Amen
 ```
 
 Verse lines with formatting (bold, italic, liturgical signs):

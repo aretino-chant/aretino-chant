@@ -110,8 +110,24 @@ function isPitchLetter(c) {
     return /[a-nA-N]/.test(c);
 }
 
+// Maps each accepted accidental token to the internal symbol used downstream
+// ('x' flat, 'y' natural, '#' sharp): b = flat, n = natural, # = sharp.
+const ACCIDENTAL_TOKENS = { b: 'x', n: 'y', '#': '#' };
+
+// Parses an accidental directive's inner text: an optional target pitch letter
+// followed by one accidental token. Returns { pitch, symbol } (symbol is the
+// internal 'x'/'y'/'#'), or null if it isn't an accidental. When the pitch is
+// omitted it defaults to `defaultPitch` (the staff's reciting position).
+export function matchAccidental(inner, defaultPitch = 'i') {
+    const m = inner.match(/^([a-nA-N]?)([bn#])$/);
+    if (!m) {
+        return null;
+    }
+    return { pitch: (m[1] || defaultPitch).toLowerCase(), symbol: ACCIDENTAL_TOKENS[m[2]] };
+}
+
 // Peek at position `pos` (which should be '(') to see if the parenthesized
-// content is an accidental pattern like (ibx), (by), (c#), etc.
+// content is an accidental pattern like (ib), (n), (c#), etc.
 // Returns { pitch, symbol, end } where `end` is the index past ')' if it
 // matches, or null if it doesn't.
 function peekInlineAccidental(line, pos) {
@@ -122,12 +138,11 @@ function peekInlineAccidental(line, pos) {
     if (end < 0) {
         return null;
     }
-    const inner = line.slice(pos + 1, end).trim();
-    const m = inner.match(/^([a-nA-N]?)b([xy#])$/);
-    if (!m) {
+    const acc = matchAccidental(line.slice(pos + 1, end).trim());
+    if (!acc) {
         return null;
     }
-    return { pitch: (m[1] || 'b').toLowerCase(), symbol: m[2], end: end + 1 };
+    return { pitch: acc.pitch, symbol: acc.symbol, end: end + 1 };
 }
 
 function tokenizeMusicLine(line, lineStart = 0) {

@@ -1,0 +1,451 @@
+# Aretino — Syntax Reference
+
+A complete, terse description of the **Aretino** chant source format: every
+token the parser recognizes and what it renders to.
+
+This is a *reference*, not a tutorial. For a step-by-step introduction with
+musical background, see the User Guide (published separately at
+[aretino-chant.github.io](https://aretino-chant.github.io)). For the JavaScript
+API that parses and renders this format, see the [API Reference](./api.md).
+
+The grammar here mirrors `parseAretino` ([src/parser.js](../../src/parser.js))
+and the directive handling in `renderAretino`
+([src/renderer.js](../../src/renderer.js)). Where the two disagree, the source
+wins — please file an issue.
+
+---
+
+## Contents
+
+1. [Document structure](#1-document-structure)
+2. [Header](#2-header)
+3. [Line types](#3-line-types)
+4. [Pitch](#4-pitch)
+5. [Noteheads](#5-noteheads)
+6. [Modifiers](#6-modifiers)
+7. [Ligatures (neumes)](#7-ligatures-neumes)
+8. [Bar lines](#8-bar-lines)
+9. [Clefs](#9-clefs)
+10. [Accidentals](#10-accidentals)
+11. [Layout: breaks, expander, spacers](#11-layout-breaks-expander-spacers)
+12. [Lyrics](#12-lyrics)
+13. [Text formatting](#13-text-formatting)
+14. [Embedding in Markdown](#14-embedding-in-markdown)
+15. [Token cheat sheet](#15-token-cheat-sheet)
+
+---
+
+## 1. Document structure
+
+A source file is plain UTF-8 text. Line endings are normalized (`\r\n` → `\n`).
+A document is an optional **header** followed by a **body**:
+
+```
+;key: value          ← header lines (optional)
+;key: value
+%%                    ← optional end-of-header marker
+(g2) g h i ||         ← body: music, lyrics, verse, and blank lines
+w: text
+```
+
+The header ends at the first `%%` line, or — if there is no `%%` — at the first
+line that is neither a `;key: value` line nor blank. If no `;key:` lines and no
+`%%` are found, the whole file is body (parsing starts at line 0).
+
+The parser is **forgiving**: any character it doesn't recognize inside a music
+line is skipped silently, so a half-typed source still renders.
+
+---
+
+## 2. Header
+
+Each header line is `;` `key` `:` `value`. Keys are trimmed; values are trimmed.
+
+```aretino
+;title: Opening Prayer
+;caption: Vespers
+;indent: VII.
+%%
+(g2) h h h g h j i g h. ||
+w: O Lord, hear my hum-ble call to you!
+```
+
+| Key | Alias | Renders as |
+|---|---|---|
+| `title` | `cím` | Bold centered heading above the score |
+| `caption` | `felirat` | Italic heading, right-aligned |
+| `indent` | `behúzás` | Mode/incipit label drawn in the first-line indent |
+
+Unknown keys are stored in the AST `header` object but not drawn. The `%%`
+marker is optional but recommended once a header is present, to separate it
+unambiguously from the body.
+
+---
+
+## 3. Line types
+
+Each body line is classified by its prefix:
+
+| Prefix | Type | Meaning |
+|---|---|---|
+| `w:` | lyrics | Syllable text aligned under the **preceding** music line |
+| `W:` | verse | Free-flowing psalm/verse text (not note-aligned) |
+| *(blank)* | blank | Vertical spacing |
+| *(anything else)* | music | A sequence of music tokens |
+
+The space after `w:` / `W:` is optional and stripped (`w: text` and `w:text`
+are equivalent).
+
+**Continuation lines.** An unprefixed line has special meaning depending on what
+came before it:
+
+- After a `w:` line, it continues that lyric line (joined with a space).
+- After a `W:` line, it becomes an explicit line break within the verse
+  (rendered indented).
+- Otherwise it is parsed as a new music line.
+
+```aretino
+W: Dicsőség az Atyának és Fiúnak * 
+és Szentlélek Istennek.
+```
+
+---
+
+## 4. Pitch
+
+A pitch is a single letter `a`–`n` (14 diatonic positions, low to high). The
+letter names the staff position; the active [clef](#9-clefs) maps it to a sound.
+
+```aretino
+(g2) a b c d e f g h i j k l m n
+w:   a b c d e f g h i j k l m n
+```
+
+| Suffix | Name | Effect |
+|---|---|---|
+| *(lowercase)* | punctum | Round notehead (default) |
+| *(uppercase)* | virga | Same pitch, drawn as a virga (e.g. `D` = virga on `d`) |
+| `'` | raised octave | Apostrophe after a note shifts it an octave up |
+
+```aretino
+(g2) g h i j h' i' j'
+w:   g h i j h' i' j'
+```
+
+A bare `'` that does **not** follow a pitch is a [breath mark](#8-bar-lines),
+not an octave mark.
+
+---
+
+## 5. Noteheads
+
+The notehead *shape* is set by the letter case and by trailing shape suffixes:
+
+| Form | Shape | Example |
+|---|---|---|
+| lowercase letter | punctum | `d` |
+| uppercase letter | virga | `D` |
+| letter + `w` | quilisma | `dw` |
+| letter + `t` | tenor note | `dt` |
+
+```aretino
+(g2) d D dw dt ds
+w:   punctum virga quilisma tenor small
+```
+
+The `s` suffix marks a **small** (cue-sized) note. It is technically a modifier
+(see below) rather than a shape, so it combines with any shape.
+
+---
+
+## 6. Modifiers
+
+Modifiers are suffix characters attached to a note. A note can carry several;
+they accumulate in order.
+
+| Suffix | Modifier | Sign |
+|---|---|---|
+| `.` | mora | Dot (lengthening) |
+| `_` | episema | Horizontal episema |
+| `-` | ictus | Vertical ictus stroke |
+| `~` | liquescens | Liquescent reduction |
+| `s` | small | Cue-sized note |
+
+```aretino
+(g2) d d. d_ d- d~
+w:   plain mora episema ictus liquescens
+```
+
+Combine freely; suffixes may repeat and interleave with the octave mark `'`:
+
+```aretino
+(g2) d_e_d_ d._ d-~
+```
+
+---
+
+## 7. Ligatures (neumes)
+
+Adjacent pitch letters with no whitespace between them form **one ligature**
+(neume) — the notes are beamed/grouped and laid out together. Whitespace ends
+the ligature.
+
+```aretino
+(g2) gh hg
+w:   podatus clivis
+```
+
+```aretino
+(g2) ghg hgh
+w:   torculus porrectus
+```
+
+Longer runs work too; the renderer adds a virga on melodic peaks automatically:
+
+```aretino
+(g2) dfd ihgfghghjijigh
+```
+
+### Neume-separator gap (`/`)
+
+A `/` inside a run of notes is a **visual cut**: the groups on either side stay
+in the same ligature token but are drawn with a small separating gap.
+Whitespace around the `/` is ignored.
+
+```aretino
+(g2) fefdc.efdc./feg.gggee/cededdc. c
+```
+
+In the AST, a ligature's `groups` array holds one entry per `/`-separated group;
+`gaps` records each cut.
+
+---
+
+## 8. Bar lines
+
+Bar lines and dividers are written as the literal symbols below, or by wrapping
+the same symbol in parentheses (`(|)`, `(||)`, …) — useful to keep them from
+attaching to a neighbouring spacer or expander.
+
+```aretino
+(g2) g h , g h ; g h | g h || g h ||| g h :| g h |:
+```
+
+| Symbol | Kind |
+|---|---|
+| `,` | quarter bar (minor division) |
+| `;` | half bar |
+| `\|` | full bar |
+| `\|\|` | double bar |
+| `\|\|\|` | triple bar |
+| `\|:` | repeat start |
+| `:\|` | repeat end |
+| `:\|:` | repeat both |
+| `'` | breath mark |
+
+```aretino
+(g2) g h ' g h
+```
+
+---
+
+## 9. Clefs
+
+A clef is a directive `(` `letter` `line` `)` — the clef letter (`g`, `f`,
+or `c`, case-insensitive) plus the staff line it sits on.
+
+```aretino
+(g2) d f g h  (c3) e g h  (f4) i h g
+```
+
+| Directive | Clef |
+|---|---|
+| `(g2)` | G (treble) clef on line 2 |
+| `(c3)` | C clef on line 3 |
+| `(f4)` | F clef on line 4 |
+
+A clef can appear anywhere in a music line; the last clef before a row is the
+one redrawn at the start of wrapped rows.
+
+---
+
+## 10. Accidentals
+
+An accidental is a single symbol, optionally prefixed by the target pitch
+letter:
+
+| Symbol | Meaning |
+|---|---|
+| `b` | flat |
+| `n` | natural |
+| `#` | sharp |
+
+So `f#` is a sharp on `f`, `ib` a flat on `i`, `n` a natural (on the default
+pitch). Unlike common-practice notation, an accidental is **not** a property of
+a note — you place the sign explicitly at a staff position, exactly as it is
+drawn. Accidentals come in three placements:
+
+**Inline** — a directive `(…)` immediately before a note applies to that note:
+
+```aretino
+(g2) (f#) f f
+```
+
+**Key signature** — `(K: …)` sets a running signature for the rest of the line.
+List one or more accidentals separated by spaces. An empty `(K:)` clears it.
+
+```aretino
+(g2) (K:f#) h h h f h i j ih h_
+```
+
+**Standalone directive** — an accidental directive on its own (not glued to a
+note) draws the sign at that position.
+
+When the pitch letter is omitted, the position defaults to the reciting
+position `i` — so `(b)` is a flat on `i`. Name the pitch explicitly whenever you
+mean another position.
+
+---
+
+## 11. Layout: breaks, expander, spacers
+
+These tokens control horizontal spacing and line breaking; they produce no
+sound.
+
+| Token | Name | Effect |
+|---|---|---|
+| `(z)` | justified break | Force a line break **and** justify the row to the margin |
+| `(Z)` | ragged break | Force a line break without justifying |
+| `*` | expander | Absorbs slack — stretches to push surrounding content apart when the row is justified |
+| `(sp)` `(spN)` | spacer | Fixed-width gap; `N` (may be fractional) scales the width |
+| `=` `==` `===` | spacer | Fixed-width gap; width scales with the number of `=` |
+
+```aretino
+(g2) d f * g h * g f d  (||)
+```
+
+```aretino
+(g2) d f (sp2) g = h ==== f
+```
+
+Explicit breaks let one logical line render as several rows with controlled
+justification:
+
+```aretino
+(g2) h h h g h j i g h. (z) h h h h g e e d. (Z) g g g h g f e d.
+w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
+```
+
+---
+
+## 12. Lyrics
+
+A `w:` line carries syllable text aligned under the music line above it. A `W:`
+line carries free verse text.
+
+```aretino
+(g2) g h i g. hi h g e_d_ , g hi a'g g. ||
+w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
+```
+
+| Construct | Meaning |
+|---|---|
+| *(space)* | Word boundary — syllables of different words don't get a hyphen |
+| `-` | Syllable boundary **within** a word — joined syllables butt together, a hyphen appears only if the neumes leave room |
+| `~` | Renders as a literal (non-breaking) space — keeps a multi-word unit in one syllable, e.g. `(unbreakable~space)` |
+| `~~` | Splits a syllable's display text from its alignment text |
+| `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
+
+`W:` verse lines flow as ordinary text (psalm tone style) and accept the same
+[text formatting](#13-text-formatting) as lyrics:
+
+```aretino
+(g2) g hi h g e_d_ , g hi a'g g. ||
+w: Al-le-lu-ia, * al-le-lu-ia.
+W: Dicsőség az Atyának és Fiúnak * és Szentlélek Istennek.
+W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen.
+```
+
+---
+
+## 13. Text formatting
+
+Lyric (`w:`) and verse (`W:`) text supports inline formatting. Styles nest.
+
+| Syntax | Result |
+|---|---|
+| `{text}` | **bold** |
+| `<text>` | *italic* |
+| `[text]` | underline |
+| `\red{text}` | red text |
+| `\color:NAME{text}` | text in color `NAME` |
+| `\R` | responsory sign ℟ |
+| `\V` | versicle sign ℣ |
+| `+` | dagger † |
+| `++` | double dagger ‡ |
+| `\X` | literal `X` — escape any special character (`\{`, `\<`, `\\`, …) |
+
+```aretino
+(g2) c d e f g | h
+w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \color:green{green}
+```
+
+```aretino
+W: {Gloria} Patri, et \V Filio, * et Spiritui Sancto.
+W: \R Sicut erat in principio, * et nunc et semper.
+W: + dagger ++ double~dagger (unbreakable~space)
+```
+
+---
+
+## 14. Embedding in Markdown
+
+The dev test page (and any host that adopts the same convention) recognizes
+fenced code blocks tagged `aretino` and turns each into a live editor with a
+rendered preview. The fence info string after the language word carries
+per-block layout options:
+
+````markdown
+```aretino
+(g2) g h i ||
+```
+
+```aretino fixed width=18cm
+(g2) h h h g h j i g h. ||
+w:   O Lord, hear my hum-ble call to you!
+```
+````
+
+| Option | Meaning |
+|---|---|
+| `fixed` | Non-responsive: lay out to a fixed physical width, line breaks stay put |
+| `width=Ncm` / `width=Nmm` | Target physical width (used with `fixed`) |
+
+These options are a host-integration concern (see
+[dev/main.js](../../dev/main.js)), not part of the chant format itself.
+
+---
+
+## 15. Token cheat sheet
+
+| You write | You get |
+|---|---|
+| `a`–`n` | pitch (punctum) |
+| `A`–`N` | pitch (virga) |
+| `'` after note | octave up |
+| `w` / `t` suffix | quilisma / tenor shape |
+| `.` `_` `-` `~` `s` | mora / episema / ictus / liquescens / small |
+| `abc` (no spaces) | ligature (neume) |
+| `/` inside a run | neume-separator gap |
+| `,` `;` `\|` `\|\|` `\|\|\|` | quarter / half / full / double / triple bar |
+| `\|:` `:\|` `:\|:` | repeat start / end / both |
+| `'` (standalone) | breath mark |
+| `(g2)` `(c3)` `(f4)` | clef |
+| `(fb)` `(fn)` `(f#)` | accidental (`b` flat, `n` natural, `#` sharp) |
+| `(K: …)` | key signature |
+| `(z)` `(Z)` | justified / ragged line break |
+| `*` | expander |
+| `(spN)` `===` | fixed-width spacer |
+| `;key: value` | header line |
+| `%%` | end of header |
+| `w:` `W:` | lyrics / verse line |

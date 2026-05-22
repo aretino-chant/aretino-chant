@@ -545,25 +545,45 @@ w: 1.~~Ki-rá-lyok-nak Ki-rá-lya (†) és~Atyja...
 ```
 
 ### Special Characters
-Some characters are rendered specially.
+
+Some characters are rendered specially:
+
+| Syntax | Result | Description |
+|--------|--------|-------------|
+| `+`    | †      | Dagger (obelus) |
+| `++`   | ‡      | Double dagger |
+| `\R`   | ℟      | Responsory sign |
+| `\V`   | ℣      | Versicle sign |
 
 ```aretino
-c d e f
-w: R/ V/ + ++
-``` 
+c d e f g h
+w: \V + \R ++
+```
 
-### Text Formatting (italic, bold)
+### Text Formatting
 
-Simple formatting marks can be placed in text lines:
+Formatting delimiters can be nested freely:
 
-- `<i>text</i>` — *italic*
-- `<b>text</b>` — **bold**
+| Syntax | Effect |
+|--------|--------|
+| `{text}` | **bold** |
+| `<text>` | *italic* |
+| `[text]` | underline |
+| `\red{text}` | red text |
+| `\color:green{text}` | colored text (any CSS color name or `#rrggbb`) |
 
-The formatting can be applied to any syllables and remains in effect across syllable boundaries until the closing tag appears.
+Use `\` to escape a literal `{`, `<`, `[`, or `\`.
 
 ```aretino
 (g2) g h i g. hi h g e_d_ , g hi a'g g. ||
-w: <b>℟.:</b>~~Al-le-lu-ia, <i>al-le-lu-ia</i>, al-le-lu-ia.
+w: {\R.:}~~Al-le-lu-ia, <al-le-lu-ia>, al-le-lu-ia.
+```
+
+Nesting example — bold italic:
+
+```aretino
+(g2) g h i h g ||
+w: {<bold and italic>still bold}
 ```
 
 ---
@@ -576,13 +596,13 @@ w: <b>℟.:</b>~~Al-le-lu-ia, <i>al-le-lu-ia</i>, al-le-lu-ia.
 ;title: Lord, have mercy (XVI.)
 %%
 (g2) (K:ibx) h h h g h fg h ||
-w: Lord, have mer-cy up-on us! (<i>3x</i>)
+w: Lord, have mer-cy up-on us! (<3x>)
 
 h h h g h fg h ||
-w: Christ, have mer-cy up-on us! (<i>3x</i>)
+w: Christ, have mer-cy up-on us! (<3x>)
 
 h h h g h fg h ||
-w: Lord, have mer-cy up-on us! (<i>2x</i>)
+w: Lord, have mer-cy up-on us! (<2x>)
 
 h g i g f gh h ||
 w: Lord, have mer-cy up-on us!

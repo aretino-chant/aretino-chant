@@ -1072,56 +1072,130 @@ function measureTextWidth(text, fontSize, fontFamily) {
 // ]
 // Parenthesized tokens are barline labels: rendered centered under the next
 // barline rather than the next ligature.
-function parseSyllables(text) {
-    const result = [];
-    const src = substituteSymbols(text || '');
-    // Strip formatting tags and track bold/italic state per character position.
-    const tagRe = /<\/?[bi]>/gi;
-    let cleaned = '';
-    const formatMap = []; // for each char in cleaned: { bold, italic }
-    let bold = false;
-    let italic = false;
-    let lastIdx = 0;
-    let m;
-    while ((m = tagRe.exec(src)) !== null) {
-        const before = src.slice(lastIdx, m.index);
-        for (const c of before) {
-            cleaned += c;
-            formatMap.push({ bold, italic });
+// Parses lyric text with the formatting syntax into an array of segments.
+// Each segment: { text, bold, italic, underline, color }
+// Syntax:
+//   {text}           bold
+//   <text>           italic
+//   [text]           underline
+//   \R               responsory sign ℟
+//   \V               versicle sign ℣
+//   \red{text}       red colored text
+//   \color:X{text}   X-colored text (generic)
+//   +                dagger †
+//   ++               double dagger ‡
+//   \X               literal X (escape for any special char)
+function parseFormattingToSegments(text) {
+    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null }];
+    const segments = [];
+
+    function effectiveState() {
+        const s = { bold: false, italic: false, underline: false, color: null };
+        for (const e of stack) {
+            if (e.bold) s.bold = true;
+            if (e.italic) s.italic = true;
+            if (e.underline) s.underline = true;
+            if (e.color !== null) s.color = e.color;
         }
-        const tag = m[0].toLowerCase();
-        if (tag === '<b>') { bold = true; }
-        else if (tag === '</b>') { bold = false; }
-        else if (tag === '<i>') { italic = true; }
-        else if (tag === '</i>') { italic = false; }
-        lastIdx = m.index + m[0].length;
-    }
-    const tail = src.slice(lastIdx);
-    for (const c of tail) {
-        cleaned += c;
-        formatMap.push({ bold, italic });
+        return s;
     }
 
-    // Build segments for a range [start, end) in cleaned, collapsing runs of
-    // same formatting. The displayText function transforms the raw slice
-    // (e.g. replacing ~ with space).
+    function addText(str) {
+        if (!str) return;
+        const st = effectiveState();
+        const last = segments[segments.length - 1];
+        if (last && last.bold === st.bold && last.italic === st.italic &&
+                last.underline === st.underline && last.color === st.color) {
+            last.text += str;
+        } else {
+            segments.push({ text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color });
+        }
+    }
+
+    function popType(...types) {
+        for (let k = stack.length - 1; k >= 0; k--) {
+            if (types.includes(stack[k].type)) { stack.splice(k, 1); return; }
+        }
+    }
+
+    let i = 0;
+    while (i < text.length) {
+        if (text[i] === '+' && text[i + 1] === '+') {
+            addText('‡'); i += 2;
+        } else if (text[i] === '+') {
+            addText('†'); i++;
+        } else if (text[i] === '\\') {
+            i++;
+            if (i >= text.length) { addText('\\'); break; }
+            if (text[i] === 'R') {
+                addText('℟'); i++;
+            } else if (text[i] === 'V') {
+                addText('℣'); i++;
+            } else if (text.slice(i, i + 4) === 'red{') {
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red' });
+                i += 4;
+            } else if (text.slice(i, i + 6) === 'color:') {
+                i += 6;
+                const braceIdx = text.indexOf('{', i);
+                if (braceIdx >= 0) {
+                    const colorName = text.slice(i, braceIdx);
+                    i = braceIdx + 1;
+                    stack.push({ type: 'command', bold: false, italic: false, underline: false, color: colorName });
+                } else {
+                    addText('\\color:');
+                }
+            } else {
+                addText(text[i]); i++;
+            }
+        } else if (text[i] === '{') {
+            stack.push({ type: 'brace', bold: true, italic: false, underline: false, color: null }); i++;
+        } else if (text[i] === '}') {
+            popType('brace', 'command'); i++;
+        } else if (text[i] === '<') {
+            stack.push({ type: 'angle', bold: false, italic: true, underline: false, color: null }); i++;
+        } else if (text[i] === '>') {
+            popType('angle'); i++;
+        } else if (text[i] === '[') {
+            stack.push({ type: 'bracket', bold: false, italic: false, underline: true, color: null }); i++;
+        } else if (text[i] === ']') {
+            popType('bracket'); i++;
+        } else {
+            addText(text[i]); i++;
+        }
+    }
+
+    return segments.filter(s => s.text !== '');
+}
+
+function parseSyllables(text) {
+    const result = [];
+    // Parse formatting first, then reconstruct clean text + per-char format map.
+    const rawSegments = parseFormattingToSegments(text || '');
+    let cleaned = '';
+    const formatMap = [];
+    for (const seg of rawSegments) {
+        for (const c of seg.text) {
+            cleaned += c;
+            formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
+        }
+    }
+
+    // Build segments for a range [start, end) in cleaned, collapsing same-formatting runs.
     function buildSegments(start, end, displayFn) {
         const segments = [];
+        if (start >= end) return segments;
         let runStart = start;
-        let runBold = (formatMap[start] || {}).bold || false;
-        let runItalic = (formatMap[start] || {}).italic || false;
+        let f0 = formatMap[start] || { bold: false, italic: false, underline: false, color: null };
+        let runBold = f0.bold, runItalic = f0.italic, runUnderline = f0.underline, runColor = f0.color;
         for (let p = start + 1; p < end; p++) {
-            const f = formatMap[p] || { bold: false, italic: false };
-            if (f.bold !== runBold || f.italic !== runItalic) {
-                const rawSlice = cleaned.slice(runStart, p);
-                segments.push({ text: displayFn(rawSlice), bold: runBold, italic: runItalic });
+            const f = formatMap[p] || { bold: false, italic: false, underline: false, color: null };
+            if (f.bold !== runBold || f.italic !== runItalic || f.underline !== runUnderline || f.color !== runColor) {
+                segments.push({ text: displayFn(cleaned.slice(runStart, p)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor });
                 runStart = p;
-                runBold = f.bold;
-                runItalic = f.italic;
+                runBold = f.bold; runItalic = f.italic; runUnderline = f.underline; runColor = f.color;
             }
         }
-        const rawSlice = cleaned.slice(runStart, end);
-        segments.push({ text: displayFn(rawSlice), bold: runBold, italic: runItalic });
+        segments.push({ text: displayFn(cleaned.slice(runStart, end)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor });
         return segments;
     }
 
@@ -1188,68 +1262,24 @@ function parseSyllables(text) {
 
 // Renders a syllable's segments array as SVG text content (plain or with tspans).
 function renderSegments(segments) {
-    if (!segments || segments.length === 0) {
-        return '';
-    }
-    if (segments.every(s => !s.bold && !s.italic)) {
+    if (!segments || segments.length === 0) return '';
+    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color)) {
         return escapeText(segments.map(s => s.text).join(''));
     }
     return segments.map(s => {
-        const attrs = (s.bold ? ' font-weight="bold"' : '') + (s.italic ? ' font-style="italic"' : '');
-        if (!attrs) {
-            return escapeText(s.text);
-        }
+        let attrs = '';
+        if (s.bold) attrs += ' font-weight="bold"';
+        if (s.italic) attrs += ' font-style="italic"';
+        if (s.underline) attrs += ' text-decoration="underline"';
+        if (s.color) attrs += ` fill="${escapeAttr(s.color)}"`;
+        if (!attrs) return escapeText(s.text);
         return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
     }).join('');
 }
 
-function substituteSymbols(text) {
-    return text
-        .replace(/\+\+/g, '‡')
-        .replace(/\+/g, '†')
-        .replace(/R\//g, '℟')
-        .replace(/V\//g, '℣');
-}
-
-// Converts a lyric line with <b>/<i> formatting tags into SVG tspan elements.
+// Converts a lyric line with formatting syntax into SVG tspan elements.
 function formatLyricLine(text) {
-    text = substituteSymbols(text);
-    const tagRe = /<\/?[bi]>/gi;
-    const segments = [];
-    let bold = false;
-    let italic = false;
-    let lastIdx = 0;
-    let m;
-    while ((m = tagRe.exec(text)) !== null) {
-        const before = text.slice(lastIdx, m.index);
-        if (before) {
-            segments.push({ text: before, bold, italic });
-        }
-        const tag = m[0].toLowerCase();
-        if (tag === '<b>') { bold = true; }
-        else if (tag === '</b>') { bold = false; }
-        else if (tag === '<i>') { italic = true; }
-        else if (tag === '</i>') { italic = false; }
-        lastIdx = m.index + m[0].length;
-    }
-    const tail = text.slice(lastIdx);
-    if (tail) {
-        segments.push({ text: tail, bold, italic });
-    }
-    if (segments.length === 0) {
-        return '';
-    }
-    // If no formatting at all, return plain escaped text
-    if (segments.every(s => !s.bold && !s.italic)) {
-        return escapeText(text);
-    }
-    return segments.map(s => {
-        const attrs = (s.bold ? ' font-weight="bold"' : '') + (s.italic ? ' font-style="italic"' : '');
-        if (!attrs) {
-            return escapeText(s.text);
-        }
-        return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
-    }).join('');
+    return renderSegments(parseFormattingToSegments(text));
 }
 
 // Renders parenthesized lyric tokens centered under their corresponding

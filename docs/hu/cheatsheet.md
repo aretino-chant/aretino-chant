@@ -48,6 +48,13 @@
 | több `w:` sor | több versszak |
 | `~` | Több szó összekötése egy hanghoz |
 | `~~` | Verszakszám kötése (pl. `1.~~Ky-ri-e`) |
+| `+` `++` | † dagger, ‡ kettős dagger |
+| `\R` `\V` | ℟ responzórium, ℣ verzikulus |
+| `{szöveg}` | **félkövér** |
+| `<szöveg>` | *dőlt* |
+| `[szöveg]` | aláhúzott |
+| `\red{szöveg}` | piros szöveg |
+| `\color:zöld{szöveg}` | tetszőleges szín |
 
 
 | Fejléc | Jelentés |

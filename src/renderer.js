@@ -898,7 +898,7 @@ function measureBarline(ctx, kind) {
 // the group is split after that note so the remaining notes form a new group.
 // Returns { groups, gaps } where gaps[i] is the gap type after groups[i]:
 //   'mora'  — implicit split from an internal mora (compact spacing)
-//   'neume' — explicit '/' separator (standard neumeGapAdvance)
+//   N (number) — explicit '/' separator repeated N times (N × neumeGapAdvance)
 function splitGroupsAtInternalMora(groups, gaps = []) {
     const resultGroups = [];
     const resultGaps = [];
@@ -916,7 +916,7 @@ function splitGroupsAtInternalMora(groups, gaps = []) {
         if (current.length > 0) {
             resultGroups.push(current);
             if (gi < groups.length - 1) {
-                resultGaps.push(gaps[gi] ?? 'neume');
+                resultGaps.push(gaps[gi] ?? 1);
             }
         }
     }
@@ -925,7 +925,7 @@ function splitGroupsAtInternalMora(groups, gaps = []) {
 
 // groups: Note[][] — each group is a run of notes; groups are separated by neumatic cuts ('/').
 // All groups except the last contribute a gap advance; the last group contributes singleNoteAdvance.
-// Gap types: 'neume' = standard neumeGapAdvance; 'mora' = compact spacing just past the mora dot.
+// Gap types: N (number) = N × neumeGapAdvance; 'mora' = compact spacing just past the mora dot.
 function measureLigature(ctx, groups, gaps = []) {
     const split = splitGroupsAtInternalMora(groups, gaps);
     return measureSplitLigature(ctx, split.groups, split.gaps);
@@ -939,15 +939,16 @@ function measureSplitLigature(ctx, groups, gaps) {
         // Add advance for any inline accidentals on notes in this group.
         const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
         if (g < groups.length - 1) {
-            const gapType = gaps[g] ?? 'neume';
+            const gapType = gaps[g] ?? 1;
+            const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
             // For an explicit '/' after a mora, the neume gap starts from the mora dot's right
             // edge rather than the note box edge, so add the mora's overhang.
-            const moraOverhang = (gapType === 'neume' && hasMora)
+            const moraOverhang = (slashCount > 0 && hasMora)
                 ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5)
                 : 0;
-            total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + ctx.neumeGapAdvance + moraOverhang + accExtra;
+            total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
         } else {
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
@@ -1124,14 +1125,15 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
         }
 
         if (g < groups.length - 1) {
-            const gapType = gaps[g] ?? 'neume';
+            const gapType = gaps[g] ?? 1;
+            const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[notes.length - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
-            const moraOverhang = (gapType === 'neume' && hasMora)
+            const moraOverhang = (slashCount > 0 && hasMora)
                 ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5)
                 : 0;
             const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
-            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + ctx.neumeGapAdvance + moraOverhang + accExtra;
+            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
         }
     }
 

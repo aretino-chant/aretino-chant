@@ -193,12 +193,13 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
         let j = i;
         while (j < limit && (line[j] === ' ' || line[j] === '\t')) j++;
         if (j < limit && line[j] === '/') {
-            const afterSlash = j + 1;
-            let k = afterSlash;
+            let slashCount = 0;
+            let k = j;
+            while (k < limit && line[k] === '/') { slashCount++; k++; }
             while (k < limit && (line[k] === ' ' || line[k] === '\t')) k++;
             if (k < limit && (isPitchLetter(line[k]) || (line[k] === '(' && peekInlineAccidental(line, k) !== null))) {
                 i = k;
-                gaps.push('neume');
+                gaps.push(slashCount);
                 continue;
             }
         }

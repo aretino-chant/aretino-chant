@@ -36,7 +36,7 @@ export const METRICS = {
     singleNoteAdvance: 1.75,           // base spacing per glyph (× noteSpacing)
     ligatureStepAdvance: 1.05,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
-    neumeGapAdvance: 0.9,              // extra space inserted by '/' between neume groups
+    neumeGapAdvance: 0.525,           // extra space per '/' between neume groups
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,

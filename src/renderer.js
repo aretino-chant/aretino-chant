@@ -414,7 +414,11 @@ export function renderAretino(source, options = {}) {
                 } else if (it.kind === 'accidental') {
                     const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY);
                     parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental'));
-                    cursorX += a.advance;
+                    let adv = a.advance;
+                    if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
+                    else if (it.symbol === 'y') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceNatural));
+                    else if (it.symbol === '#') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceSharp));
+                    cursorX += adv;
                 } else if (it.kind === 'keysig') {
                     const startX = cursorX;
                     const pieces = [];
@@ -676,7 +680,10 @@ function measureItem(ctx, item) {
         return clefAdvance(ctx, item.clef) + ss(ctx, METRICS.clefInlinePostGap);
     }
     if (item.kind === 'accidental') {
-        return ss(ctx, METRICS.accidentalAdvance);
+        if (item.symbol === 'x') return ss(ctx, METRICS.accidentalAdvanceFlat);
+        if (item.symbol === 'y') return ss(ctx, METRICS.accidentalAdvanceNatural);
+        if (item.symbol === '#') return ss(ctx, METRICS.accidentalAdvanceSharp);
+        return ss(ctx, METRICS.accidentalAdvanceFlat); // fallback
     }
     if (item.kind === 'keysig') {
         return keySigAdvance(ctx, item.accidentals);

@@ -4,6 +4,9 @@ Important (probably breaking) changes are listed here.
 
 ### 2026-05-22
 
+- **Header prefix changed from `;` to `%`.** Header fields are now written as
+  `%key: value` instead of `;key: value`. The previous `;` prefix is no longer
+  recognised.
 - **Accidental syntax.** Accidentals are now written with a single symbol —
   `b` (flat), `n` (natural), `#` (sharp) — optionally prefixed by the target
   pitch, e.g. `(fb)`, `(fn)`, `(f#)`, `(K:f#)`. This replaces the earlier

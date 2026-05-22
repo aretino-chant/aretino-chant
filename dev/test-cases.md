@@ -156,10 +156,10 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 ## Header
 
 ```aretino
-;title: Opening Prayer
-;caption: Vespers
-;indent: VII.
-;rubric: During procession
+%title: Opening Prayer
+%caption: Vespers
+%indent: VII.
+%rubric: During procession
 %%
 (g2) h h h g h j i g h. ||
 w: O Lord, hear my hum-ble call to you!

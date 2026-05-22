@@ -41,15 +41,15 @@ A source file is plain UTF-8 text. Line endings are normalized (`\r\n` → `\n`)
 A document is an optional **header** followed by a **body**:
 
 ```
-;key: value          ← header lines (optional)
-;key: value
+%key: value          ← header lines (optional)
+%key: value
 %%                    ← optional end-of-header marker
 (g2) g h i ||         ← body: music, lyrics, verse, and blank lines
 w: text
 ```
 
 The header ends at the first `%%` line, or — if there is no `%%` — at the first
-line that is neither a `;key: value` line nor blank. If no `;key:` lines and no
+line that is neither a `%key: value` line nor blank. If no `%key:` lines and no
 `%%` are found, the whole file is body (parsing starts at line 0).
 
 The parser is **forgiving**: any character it doesn't recognize inside a music
@@ -59,12 +59,12 @@ line is skipped silently, so a half-typed source still renders.
 
 ## 2. Header
 
-Each header line is `;` `key` `:` `value`. Keys are trimmed; values are trimmed.
+Each header line is `%` `key` `:` `value`. Keys are trimmed; values are trimmed.
 
 ```aretino
-;title: Opening Prayer
-;caption: Vespers
-;indent: VII.
+%title: Opening Prayer
+%caption: Vespers
+%indent: VII.
 %%
 (g2) h h h g h j i g h. ||
 w: O Lord, hear my hum-ble call to you!

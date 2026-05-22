@@ -112,7 +112,9 @@ export const METRICS = {
 
     // --- Accidentals (flat / natural / sharp) -----------------------------
     accidentalSize: 0.9,
-    accidentalAdvance: 1.08,
+    accidentalAdvanceFlat: 1.08,    // for flat (b)
+    accidentalAdvanceNatural: 0.95, // for natural
+    accidentalAdvanceSharp: 1.18,   // for sharp
 
     // --- Barlines ---------------------------------------------------------
     barlineStroke: 0.12,

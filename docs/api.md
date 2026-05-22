@@ -356,9 +356,8 @@ const ast = parseAretino(source); // { header, lines }
 }
 ```
 
-- **`header`** — collected from leading `; key: value` lines, ended by `%%`.
-  Recognised keys include `title`/`cím`, `caption`/`felirat`, `indent`/`behúzás`
-  (both English and Hungarian spellings).
+- **`header`** — collected from leading `% key: value` lines, ended by `%%`.
+  Recognised keys include `title`, `caption`, `indent`
 - Lines beginning `w:` become `lyrics`; consecutive non-`w:` lines after a lyric
   line are folded into the same lyric (so a manual wrap mid-lyric is preserved).
 

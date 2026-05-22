@@ -51,7 +51,7 @@ export function parseAretino(source) {
             sawHeaderEnd = true;
             break;
         }
-        const m = line.match(/^;\s*([^:]+):\s*(.*)$/);
+        const m = line.match(/^%\s*([^:]+):\s*(.*)$/);
         if (m) {
             header[m[1].trim()] = m[2].trim();
             continue;

@@ -106,7 +106,7 @@ export function renderAretino(source, options = {}) {
     const indentFontSize = ctx.lyricSize * 0.85;
     let indentWidth = 0;
     if (hasIndent) {
-        const textW = indentText ? measureTextWidth(indentText, indentFontSize, lyricFont) : 0;
+        const textW = indentText ? measureSegmentsWidth(parseFormattingToSegments(indentText), indentFontSize, lyricFont) : 0;
         indentWidth = Math.max(textW + ctx.staffSpace * 1.5, ctx.staffSpace * 2);
     }
 
@@ -199,7 +199,7 @@ export function renderAretino(source, options = {}) {
                 let maxSylW = 0;
                 for (const notes of verseNotes) {
                     if (li < notes.length) {
-                        const w = measureTextWidth(notes[li].alignText || notes[li].text, ctx.lyricSize, ctx.lyricFont);
+                        const w = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont);
                         if (w > maxSylW) {
                             maxSylW = w;
                         }
@@ -265,7 +265,7 @@ export function renderAretino(source, options = {}) {
                 for (const barlineMap of verseBarlineMaps) {
                     const lbl = barlineMap.get(bi);
                     if (lbl) {
-                        const w = measureTextWidth(lbl.text, ctx.lyricSize, ctx.lyricFont);
+                        const w = measureSegmentsWidth(lbl.segments, ctx.lyricSize, ctx.lyricFont);
                         if (w > maxW) { maxW = w; }
                     }
                 }
@@ -1056,7 +1056,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
 
 let _measureCanvas = null;
 
-function measureTextWidth(text, fontSize, fontFamily) {
+function measureTextWidth(text, fontSize, fontFamily, bold = false, italic = false) {
     if (text === '') {
         return 0;
     }
@@ -1066,13 +1066,37 @@ function measureTextWidth(text, fontSize, fontFamily) {
                 _measureCanvas = document.createElement('canvas');
             }
             const c2d = _measureCanvas.getContext('2d');
-            c2d.font = `${fontSize}px ${fontFamily}`;
+            const style = (italic ? 'italic ' : '') + (bold ? 'bold ' : '');
+            c2d.font = `${style}${fontSize}px ${fontFamily}`;
             return c2d.measureText(text).width;
         } catch (_e) {
             // fall through to estimation
         }
     }
-    return text.length * fontSize * 0.55;
+    return text.length * fontSize * 0.55 * (bold ? 1.1 : 1.0) * (italic ? 0.95 : 1.0);
+}
+
+function measureSegmentsWidth(segments, fontSize, fontFamily) {
+    if (!segments || segments.length === 0) return 0;
+    return segments.reduce(
+        (sum, seg) => sum + measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic),
+        0
+    );
+}
+
+// Return a copy of `segments` covering only the characters from `startChar` onwards.
+function sliceSegments(segments, startChar) {
+    const result = [];
+    let pos = 0;
+    for (const seg of segments) {
+        const segEnd = pos + seg.text.length;
+        if (segEnd > startChar) {
+            const cutStart = Math.max(pos, startChar) - pos;
+            result.push({ ...seg, text: seg.text.slice(cutStart) });
+        }
+        pos = segEnd;
+    }
+    return result;
 }
 
 // "San-ctus, (M.:) Do-mi-nus" → [
@@ -1260,10 +1284,14 @@ function parseSyllables(text) {
                 alignText = text;
             }
             const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' '));
+            const alignSegments = text === alignText
+                ? segments
+                : sliceSegments(segments, text.length - alignText.length);
             result.push({
                 text,
                 alignText,
                 segments,
+                alignSegments,
                 hyphenAfter: k < parts.length - 1,
                 kind: 'note',
             });
@@ -1343,9 +1371,8 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
 
     for (let i = 0; i < syllables.length; i++) {
         const syl = syllables[i];
-        const alignStr = syl.alignText || syl.text;
-        const fullW = measureTextWidth(syl.text, fontSize, fontFamily);
-        const alignW = measureTextWidth(alignStr, fontSize, fontFamily);
+        const fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
+        const alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
         // Offset from the left edge of fullW to the left edge of alignText portion
         const prefixW = fullW - alignW;
         let center;
@@ -1454,8 +1481,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
     let currentAvailW = firstAvailW;
 
     for (const word of words) {
-        const wordText = word.map(c => c.ch).join('');
-        const wordW = measureTextWidth(wordText, fontSize, fontFamily);
+        const wordW = measureSegmentsWidth(charsToSegments(word), fontSize, fontFamily);
         if (lineChars.length === 0) {
             lineChars = [...word];
             lineWidth = wordW;

@@ -20,10 +20,6 @@ const ast = parseAretino(source);
 const svg = renderAretino(ast);
 ```
 
-## Documentation
-
-- See the [aretino-chant.github.io](https://aretino-chant.github.io)
-
 ## Development
 
 ### Run the test page

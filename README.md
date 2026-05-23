@@ -2,6 +2,10 @@
 
 Monorepo for the Aretino chant notation format.
 
+## Documentation
+
+- See the User Guide at [aretino-chant.github.io](https://aretino-chant.github.io)
+
 ## Packages
 
 | Package | Description |

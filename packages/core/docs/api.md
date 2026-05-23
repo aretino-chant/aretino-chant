@@ -76,6 +76,7 @@ All options are optional. Defaults in **bold**.
 | `lyricFont` | string | **`'Palatino Linotype', 'Book Antiqua', Palatino, serif`** | CSS `font-family` for lyrics, title, and caption. |
 | `noteSpacing` | number | **1** | Multiplier on horizontal advance between glyphs. Min `0.5`. |
 | `staffGap` | number (staff-spaces) | **2.5** | Vertical gap between successive staff systems. |
+| `lyricDistance` | number (staff-spaces) | **0.1** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |
 | `hideRepeatClef` | boolean | **false** | When true, draws the clef only on the first system; subsequent wrapped lines omit the repeated clef. |
 | `canvasHeight` | number (px) | — | Forces total SVG height (logical units). When unset, height is computed from content. |
 

@@ -65,6 +65,8 @@ Each header line is `%` `key` `:` `value`. Keys are trimmed; values are trimmed.
 ```aretino
 %title: Opening Prayer
 %caption: Vespers
+%option: lyricDistance=0.5
+%option: hideRepeatClef=true
 %indent: VII.
 %%
 (g2) h h h g h j i g h. ||
@@ -76,6 +78,25 @@ w: O Lord, hear my hum-ble call to you!
 | `title` | `cím` | Bold centered heading above the score |
 | `caption` | `felirat` | Italic heading, right-aligned |
 | `indent` | `behúzás` | Mode/incipit label drawn in the first-line indent |
+| `option` | — | Renderer option, one per line; repeatable |
+
+`option` headers set renderer options from the source. Write one option per
+header line, using either `name=value` or `name: value`:
+
+```aretino
+%option: lyricDistance=0.5
+%option: lyricSize=12
+%option: hideRepeatClef=true
+%%
+(g2) h h h g h j i g h. ||
+w:   O Lord, hear my hum-ble call to you!
+```
+
+Numbers are parsed as JavaScript numbers; booleans accept `true`/`false`,
+`1`/`0`, `yes`/`no`, and `on`/`off`. Recognised option names are the same names
+accepted by `renderAretino(source, options)`. If the same renderer option is set
+more than once in headers, the later header wins; explicit API options passed to
+`renderAretino` override source headers.
 
 Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
@@ -454,8 +475,8 @@ w:   O Lord, hear my hum-ble call to you!
 | `fixed` | Non-responsive: lay out to a fixed physical width, line breaks stay put |
 | `width=Ncm` / `width=Nmm` | Target physical width (used with `fixed`) |
 
-These options are a host-integration concern (see
-[dev/main.js](../../dev/main.js)), not part of the chant format itself.
+These fence options are a host-integration concern (see
+[dev/main.js](../../dev/main.js)); source-level renderer options should be
+written with repeatable `%option:` headers.
 
 ---
-

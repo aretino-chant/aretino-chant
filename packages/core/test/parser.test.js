@@ -7,6 +7,12 @@ describe('parseAretino', () => {
     expect(ast).toBeTypeOf('object');
   });
 
+  it('preserves multiple option headers in source order', () => {
+    const ast = parseAretino('%option: lyricDistance=2\n%option: hideRepeatClef=true\n%%\ng h i');
+    expect(ast.header.option).toBe('hideRepeatClef=true');
+    expect(ast.optionHeaders).toEqual(['lyricDistance=2', 'hideRepeatClef=true']);
+  });
+
   // TODO: port representative parser assertions from cantores.hu fixtures.
 });
 

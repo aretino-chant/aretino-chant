@@ -2,6 +2,11 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-05-23
+
+- Added repeatable `%option:` headers for source-level renderer options, e.g.
+  `%option: lyricDistance=0.5` and `%option: hideRepeatClef=true`.
+
 ### 2026-05-22
 
 - **Header prefix changed from `;` to `%`.** Header fields are now written as

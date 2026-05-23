@@ -7,6 +7,7 @@
 // Returns:
 // {
 //     header: { [key: string]: string },
+//     optionHeaders: string[],                         — repeated %option: renderer-option=value header lines
 //     lines: Array<
 //         | { type: 'music', tokens: Token[] }
 //         | { type: 'lyrics', text: string }
@@ -51,6 +52,7 @@ export function parseAretino(source) {
         off += line.length + 1;
     }
     const header = {};
+    const optionHeaders = [];
     let bodyStart = 0;
     let sawHeaderEnd = false;
     for (let i = 0; i < lines.length; i++) {
@@ -62,7 +64,12 @@ export function parseAretino(source) {
         }
         const m = line.match(/^%\s*([^:]+):\s*(.*)$/);
         if (m) {
-            header[m[1].trim()] = m[2].trim();
+            const key = m[1].trim();
+            const value = m[2].trim();
+            header[key] = value;
+            if (key.toLowerCase() === 'option') {
+                optionHeaders.push(value);
+            }
             continue;
         }
         if (line.trim() === '') {
@@ -147,7 +154,7 @@ export function parseAretino(source) {
         }
         result.push({ type: 'music', tokens: tokenizeMusicLine(raw, lineStart) });
     }
-    return { header, lines: result };
+    return { header, optionHeaders, lines: result };
 }
 
 function isPitchLetter(c) {

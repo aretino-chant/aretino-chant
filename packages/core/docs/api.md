@@ -83,6 +83,23 @@ All options are optional. Defaults in **bold**.
 > **Note:** Pitch, clef, accidentals, and other musical content come from the
 > *source*, not options. Options control only sizing and layout.
 
+The same renderer options can be embedded in the source header with repeatable
+`%option:` lines:
+
+```aretino
+%option: lyricDistance=0.5
+%option: lyricSize=12
+%option: hideRepeatClef=true
+%%
+(g2) h h h g h j i g h. ||
+w:   O Lord, hear my hum-ble call to you!
+```
+
+Each `%option:` line sets one renderer option, using either `name=value` or
+`name: value`. Numbers and booleans are coerced before rendering. Later header
+lines win for repeated option names; explicit options passed as the second
+argument to `renderAretino` override header options.
+
 ---
 
 ## 3. The sizing model
@@ -341,7 +358,7 @@ Parses source text to an AST. You rarely need this directly for rendering
 highlighting, or custom layout.
 
 ```js
-const ast = parseAretino(source); // { header, lines }
+const ast = parseAretino(source); // { header, optionHeaders, lines }
 ```
 
 ### Return shape
@@ -349,6 +366,7 @@ const ast = parseAretino(source); // { header, lines }
 ```
 {
   header: { [key: string]: string },   // e.g. { title: "...", indent: "..." }
+  optionHeaders: string[],             // repeated %option: header values, in source order
   lines: Array<
     | { type: 'music',  tokens: Token[] }
     | { type: 'lyrics', text: string }
@@ -358,7 +376,9 @@ const ast = parseAretino(source); // { header, lines }
 ```
 
 - **`header`** — collected from leading `% key: value` lines, ended by `%%`.
-  Recognised keys include `title`, `caption`, `indent`
+  Recognised keys include `title`, `caption`, `indent`, and repeatable `option`
+- **`optionHeaders`** — raw values from each `%option:` header line, preserving
+  source order for the renderer
 - Lines beginning `w:` become `lyrics`; consecutive non-`w:` lines after a lyric
   line are folded into the same lyric (so a manual wrap mid-lyric is preserved).
 

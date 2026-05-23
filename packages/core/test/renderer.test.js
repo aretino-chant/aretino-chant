@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { parseAretino, renderAretino } from '../src/index.js';
 
+function firstLyricY(svg) {
+  // Extract the y attribute from the first <text> element that contains
+  // lyric content (identified by xml:space="preserve"). Use non-greedy
+  // match to avoid stopping at the 'y=' inside 'font-family='.
+  const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? y="([^"]+)"/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function firstLyricFontSize(svg) {
+  const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? font-size="([^"]+)"/);
+  return m ? parseFloat(m[1]) : null;
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -12,14 +25,6 @@ describe('renderAretino', () => {
   describe('lyricDistance option', () => {
     // Source with a music line and a matching lyric line.
     const source = 'c d e f\nw: a b c d';
-
-    function firstLyricY(svg) {
-      // Extract the y attribute from the first <text> element that contains
-      // lyric content (identified by xml:space="preserve"). Use non-greedy
-      // match to avoid stopping at the 'y=' inside 'font-family='.
-      const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? y="([^"]+)"/);
-      return m ? parseFloat(m[1]) : null;
-    }
 
     it('accepts a positive lyricDistance and positions lyrics further from staff', () => {
       const svgDefault = renderAretino(source);
@@ -42,6 +47,27 @@ describe('renderAretino', () => {
     it('accepts lyricDistance of zero without error', () => {
       const svg = renderAretino(source, { lyricDistance: 0 });
       expect(svg).toContain('<svg');
+    });
+  });
+
+  describe('option headers', () => {
+    const body = 'c d e f\nw: a b c d';
+
+    it('applies multiple option headers to renderer options', () => {
+      const source = `%option: lyricDistance=2\n%option: lyricSize=20\n%%\n${body}`;
+      const svgDefault = renderAretino(body);
+      const svgWithOptions = renderAretino(source);
+
+      expect(firstLyricY(svgWithOptions)).toBeGreaterThan(firstLyricY(svgDefault));
+      expect(firstLyricFontSize(svgWithOptions)).toBeCloseTo(20 * 96 / 72, 5);
+    });
+
+    it('lets explicit render options override option headers', () => {
+      const source = `%option: lyricDistance=2\n%%\n${body}`;
+      const svgWithOverride = renderAretino(source, { lyricDistance: 0 });
+      const svgExplicit = renderAretino(body, { lyricDistance: 0 });
+
+      expect(firstLyricY(svgWithOverride)).toBeCloseTo(firstLyricY(svgExplicit), 5);
     });
   });
 

@@ -114,11 +114,12 @@ Each body line is classified by its prefix:
 |---|---|---|
 | `w:` | lyrics | Syllable text aligned under the **preceding** music line |
 | `W:` | verse | Free-flowing psalm/verse text (not note-aligned) |
+| `n:` | music continuation | More music for the same note-aligned lyric stream |
 | *(blank)* | blank | Vertical spacing |
 | *(anything else)* | music | A sequence of music tokens |
 
-The space after `w:` / `W:` is optional and stripped (`w: text` and `w:text`
-are equivalent).
+The space after `w:` / `W:` / `n:` is optional and stripped (`w: text` and
+`w:text` are equivalent).
 
 **Continuation lines.** An unprefixed line has special meaning depending on what
 came before it:
@@ -127,6 +128,23 @@ came before it:
 - After a `W:` line, it becomes an explicit line break within the verse
   (rendered indented).
 - Otherwise it is parsed as a new music line.
+- `n:` explicitly switches back to music after `w:` lines. Following `w:` lines
+  then continue the previous note-aligned lyric lines, in order, instead of
+  starting new verses.
+
+```aretino
+(g2) c d e f
+w: first phrase
+n: g h i j
+w: second phrase
+```
+
+This is equivalent to writing:
+
+```aretino
+(g2) c d e f g h i j
+w: first phrase second phrase
+```
 
 ```aretino
 W: Dicsőség az Atyának és Fiúnak * 

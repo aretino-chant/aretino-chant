@@ -13,6 +13,30 @@ describe('parseAretino', () => {
     expect(ast.optionHeaders).toEqual(['lyricDistance=2', 'hideRepeatClef=true']);
   });
 
+  it('uses n: to resume music and append the following w: to the previous lyrics', () => {
+    const source = 'c d\nw: one two\nn: e f\nw: three four';
+    const ast = parseAretino(source);
+
+    expect(ast.lines.map(l => l.type)).toEqual(['music', 'lyrics', 'music']);
+    expect(ast.lines[1].text).toBe('one two three four');
+    expect(ast.lines[2].tokens[0].srcStart).toBe(source.indexOf('e f'));
+  });
+
+  it('continues appended n:/w: lyrics with unprefixed text lines', () => {
+    const ast = parseAretino('c\nw: one\nn: d\nw: two\nthree');
+
+    expect(ast.lines.map(l => l.type)).toEqual(['music', 'lyrics', 'music']);
+    expect(ast.lines[1].text).toBe('one two three');
+  });
+
+  it('continues multiple lyric lines in order after n:', () => {
+    const ast = parseAretino('c\nw: one\nw: uno\nn: d\nw: two\nw: dos');
+    const lyrics = ast.lines.filter(l => l.type === 'lyrics').map(l => l.text);
+
+    expect(ast.lines.map(l => l.type)).toEqual(['music', 'lyrics', 'lyrics', 'music']);
+    expect(lyrics).toEqual(['one two', 'uno dos']);
+  });
+
   // TODO: port representative parser assertions from cantores.hu fixtures.
 });
 

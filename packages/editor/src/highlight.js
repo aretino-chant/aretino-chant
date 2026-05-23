@@ -7,7 +7,7 @@ import { tags } from '@lezer/highlight';
 
 // Token types (CM5 legacy names → lezer highlight tags via StreamLanguage):
 //   meta                  → %key: header key part, %% separator
-//   keyword               → w:/W: prefix, (directives)
+//   keyword               → w:/W:/n: prefix, (directives)
 //   string                → base lyric/verse text, "labels" in music lines
 //   atom                  → pitch notes + modifiers
 //   punctuation           → barlines , ; | || ||| :| |: :|: '
@@ -46,7 +46,7 @@ function tokenInTextSpan(stream, state) {
 const aretinoStreamParser = {
     name: 'aretino',
 
-    startState: () => ({ headerDone: false, lineMode: 'music', textSpan: null, inBlockComment: false }),
+    startState: () => ({ headerDone: false, lineMode: 'music', textSpan: null, inBlockComment: false, musicPrefixPending: false }),
 
     token(stream, state) {
         if (stream.sol()) {
@@ -63,11 +63,17 @@ const aretinoStreamParser = {
                     } else {
                         if (line.trim() !== '') state.headerDone = true;
                         state.lineMode = 'music';
+                        state.musicPrefixPending = /^\s*n:/.test(line);
                     }
                 } else {
+                    state.musicPrefixPending = false;
                     if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
                     else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
-                    else if (state.lineMode !== 'lyrics' && state.lineMode !== 'verse') state.lineMode = 'music';
+                    else {
+                        if (/^\s*n:/.test(line)) state.musicPrefixPending = true;
+                        if (state.lineMode !== 'lyrics' && state.lineMode !== 'verse') state.lineMode = 'music';
+                        if (state.musicPrefixPending) state.lineMode = 'music';
+                    }
                 }
             }
         }
@@ -110,6 +116,11 @@ const aretinoStreamParser = {
 
         // Music line
         const ch = stream.peek();
+
+        if (state.musicPrefixPending && stream.match('n:')) {
+            state.musicPrefixPending = false;
+            return 'keyword';
+        }
 
         if (ch === '%') {
             if (stream.string[stream.pos + 1] === '[') {
@@ -164,7 +175,7 @@ const aretinoStreamParser = {
         return null;
     },
 
-    blankLine(state) { state.lineMode = 'music'; state.textSpan = null; },
+    blankLine(state) { state.lineMode = 'music'; state.textSpan = null; state.musicPrefixPending = false; },
 };
 
 const aretinoLanguage = StreamLanguage.define(aretinoStreamParser);
@@ -176,7 +187,7 @@ const aretinoHighlightStyle = HighlightStyle.define([
     { tag: tags.meta,                  color: '#9ca3af', fontStyle: 'italic' },       // % headers
     { tag: tags.comment,               color: '#9ca3af' },                            // % comments, %[ blocks %]
     { tag: tags.processingInstruction, color: '#a0a0a0' },                            // format delimiters { < [
-    { tag: tags.keyword,               color: '#1d4ed8' },                            // w:/W:, (directives)
+    { tag: tags.keyword,               color: '#1d4ed8' },                            // w:/W:/n:, (directives)
     { tag: tags.string,                color: '#065f46' },                            // lyrics, "labels"
     { tag: tags.atom,                  color: '#0b0b0b', fontWeight: '600' },         // pitch notes
     { tag: tags.punctuation,           color: '#1d4ed8', fontWeight: '600' },         // barlines

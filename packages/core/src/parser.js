@@ -11,6 +11,7 @@
 //     lines: Array<
 //         | { type: 'music', tokens: Token[] }
 //         | { type: 'lyrics', text: string }
+//         | { type: 'verse', lines: string[] }
 //         | { type: 'blank' }
 //         | { type: 'preprocessor', key: string, value: string }  — %[ key: value %] as a standalone body line
 //         | { type: 'pagebreak', id: string }                      — %pagebreakXXX body directive
@@ -82,7 +83,12 @@ export function parseAretino(source) {
         bodyStart = 0;
     }
     const result = [];
+    // `n:` resumes music after lyrics; following `w:` lines extend lyrics in order.
     let lastWasLyrics = false;
+    let implicitLyricContinuationIdx = null;
+    let sectionLyricIndices = [];
+    let pendingMusicContinuationLyricIndices = null;
+    let pendingMusicContinuationLyricPos = 0;
     let inBlockComment = false;
     for (let li = bodyStart; li < lines.length; li++) {
         const raw = lines[li];
@@ -95,6 +101,9 @@ export function parseAretino(source) {
                 if (remainder.trim()) {
                     result.push({ type: 'music', tokens: tokenizeMusicLine(remainder, lineStart + closeIdx + 2) });
                     lastWasLyrics = false;
+                    implicitLyricContinuationIdx = null;
+                    pendingMusicContinuationLyricIndices = null;
+                    pendingMusicContinuationLyricPos = 0;
                 }
             }
             continue;
@@ -102,6 +111,10 @@ export function parseAretino(source) {
         if (raw.trim() === '') {
             result.push({ type: 'blank' });
             lastWasLyrics = false;
+            implicitLyricContinuationIdx = null;
+            sectionLyricIndices = [];
+            pendingMusicContinuationLyricIndices = null;
+            pendingMusicContinuationLyricPos = 0;
             continue;
         }
         if (raw[0] === '%') {
@@ -124,22 +137,61 @@ export function parseAretino(source) {
                 // else: plain % comment line — skip silently
             }
             lastWasLyrics = false;
+            implicitLyricContinuationIdx = null;
+            pendingMusicContinuationLyricIndices = null;
+            pendingMusicContinuationLyricPos = 0;
             continue;
         }
         if (/^\s*W:/.test(raw)) {
             result.push({ type: 'verse', lines: [raw.replace(/^\s*W:\s?/, '')] });
             lastWasLyrics = false;
+            implicitLyricContinuationIdx = null;
+            pendingMusicContinuationLyricIndices = null;
+            pendingMusicContinuationLyricPos = 0;
             continue;
         }
         if (/^\s*w:/.test(raw)) {
-            result.push({ type: 'lyrics', text: raw.replace(/^\s*w:\s?/, '') });
+            const text = raw.replace(/^\s*w:\s?/, '');
+            const hasMusicContinuationLyric = pendingMusicContinuationLyricIndices
+                && pendingMusicContinuationLyricPos < pendingMusicContinuationLyricIndices.length;
+            const continuationIdx = hasMusicContinuationLyric
+                ? pendingMusicContinuationLyricIndices[pendingMusicContinuationLyricPos]
+                : null;
+            const continuationTarget = continuationIdx !== null ? result[continuationIdx] : null;
+            if (continuationTarget && continuationTarget.type === 'lyrics') {
+                continuationTarget.text += ' ' + text.trim();
+                implicitLyricContinuationIdx = continuationIdx;
+                pendingMusicContinuationLyricPos++;
+                if (pendingMusicContinuationLyricPos >= pendingMusicContinuationLyricIndices.length) {
+                    pendingMusicContinuationLyricIndices = null;
+                    pendingMusicContinuationLyricPos = 0;
+                }
+            } else {
+                result.push({ type: 'lyrics', text });
+                implicitLyricContinuationIdx = result.length - 1;
+                sectionLyricIndices.push(implicitLyricContinuationIdx);
+            }
             lastWasLyrics = true;
+            continue;
+        }
+        const musicContinuation = raw.match(/^(\s*n:\s?)(.*)$/);
+        if (musicContinuation) {
+            result.push({
+                type: 'music',
+                tokens: tokenizeMusicLine(musicContinuation[2], lineStart + musicContinuation[1].length),
+            });
+            lastWasLyrics = false;
+            implicitLyricContinuationIdx = null;
+            pendingMusicContinuationLyricIndices = sectionLyricIndices.slice();
+            pendingMusicContinuationLyricPos = 0;
             continue;
         }
         if (lastWasLyrics) {
             // A line without w: prefix that follows a lyrics line continues the
             // same lyric line (same verse) — e.g. a linebreak added mid-lyric.
-            const last = result[result.length - 1];
+            const last = implicitLyricContinuationIdx !== null
+                ? result[implicitLyricContinuationIdx]
+                : result[result.length - 1];
             if (last && last.type === 'lyrics') {
                 last.text += ' ' + raw.trim();
             }

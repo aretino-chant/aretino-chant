@@ -20,6 +20,14 @@ function firstLyricFontSize(svg) {
   return m ? parseFloat(m[1]) : null;
 }
 
+function lyricTextEntries(svg) {
+  return [...svg.matchAll(/<text[^>]*?xml:space="preserve"[^>]*? y="([^"]+)"[^>]*>(.*?)<\/text>/g)]
+    .map(m => ({
+      y: parseFloat(m[1]),
+      text: m[2].replace(/<[^>]*>/g, ''),
+    }));
+}
+
 function courtesyAccidentalCount(svg) {
   return (svg.match(/aretino-courtesy-accidental/g) || []).length;
 }
@@ -138,6 +146,15 @@ describe('renderAretino', () => {
       expect(moraX).not.toBeNull();
       expect(moraX).toBeGreaterThan(plainX);
       expect(moraX - plainX).toBeCloseTo(expectedShift, 5);
+    });
+
+    it('keeps lyrics after n: on the same aligned lyric baseline', () => {
+      const svg = renderAretino('c d\nw: a b\nn: e f\nw: c d', { width: 400 });
+      const lyrics = lyricTextEntries(svg);
+      const baseline = lyrics[0].y;
+
+      expect(lyrics.map(l => l.text)).toEqual(['a', 'b', 'c', 'd']);
+      expect(lyrics.every(l => l.y === baseline)).toBe(true);
     });
   });
 

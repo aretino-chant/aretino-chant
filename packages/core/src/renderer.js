@@ -409,7 +409,7 @@ export function renderAretino(source, options = {}) {
         const allowedClefRows = drawClefForRows ? clefRowsBudget : 0;
         const firstRowIndent = firstSectionLayoutDone ? 0 : indentWidth;
         firstSectionLayoutDone = true;
-        const rows = layoutRows(items, ctx, currentClef, staffRightX, drawClefForRows, currentKeySig, allowedClefRows, firstRowIndent);
+        const rows = layoutRowsWithCourtesyAccidentals(items, ctx, currentClef, staffRightX, drawClefForRows, currentKeySig, allowedClefRows, firstRowIndent);
 
         if (hideRepeatClef) {
             const clefRowsUsed = rows.filter(r => r.drawStartClef).length;
@@ -559,7 +559,7 @@ export function renderAretino(source, options = {}) {
                     }
                     cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
                 } else if (it.kind === 'ligature') {
-                    const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? []);
+                    const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? [], it.leadingCourtesyAccidentals ?? []);
                     let ligSvg = r.svg;
                     if (it.label != null && r.minY < Infinity) {
                         const fontSize = ctx.lyricSize * 0.8;
@@ -806,6 +806,128 @@ function accidentalSymbolAdvance(ctx, symbol) {
     return ss(ctx, METRICS.accidentalAdvanceFlat);
 }
 
+function accidentalAdvance(ctx, acc) {
+    return accidentalSymbolAdvance(ctx, acc.symbol);
+}
+
+function accidentalListAdvance(ctx, accidentals) {
+    if (!accidentals?.length) {
+        return 0;
+    }
+    return accidentals.reduce((sum, acc) => sum + accidentalAdvance(ctx, acc), 0);
+}
+
+function accidentalKey(acc) {
+    return `${acc.pitch}:${acc.high ? '1' : '0'}`;
+}
+
+function noteAccidentalKey(note) {
+    return `${note.pitch}:${note.high ? '1' : '0'}`;
+}
+
+function copyAccidental(acc) {
+    return { pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: true } : {}) };
+}
+
+function setActiveAccidental(active, acc) {
+    active.set(accidentalKey(acc), copyAccidental(acc));
+}
+
+function clearCourtesyAccidentals(items) {
+    for (const item of items) {
+        if (item.kind === 'ligature') {
+            delete item.leadingCourtesyAccidentals;
+        }
+    }
+}
+
+function courtesySignature(items) {
+    return items
+        .map((item, idx) => {
+            if (item.kind !== 'ligature' || !item.leadingCourtesyAccidentals?.length) {
+                return '';
+            }
+            const keys = item.leadingCourtesyAccidentals
+                .map(acc => `${accidentalKey(acc)}=${acc.symbol}`)
+                .join(',');
+            return `${idx}:${keys}`;
+        })
+        .filter(Boolean)
+        .join('|');
+}
+
+function updateActiveAccidentalsFromLigature(ligature, active, pendingCourtesy = null) {
+    const courtesyByKey = new Map();
+    for (const group of ligature.groups) {
+        for (const note of group) {
+            if (note.accidental) {
+                const key = accidentalKey(note.accidental);
+                pendingCourtesy?.delete(key);
+                setActiveAccidental(active, note.accidental);
+            }
+
+            const noteKey = noteAccidentalKey(note);
+            if (pendingCourtesy?.has(noteKey) && !courtesyByKey.has(noteKey)) {
+                courtesyByKey.set(noteKey, copyAccidental(pendingCourtesy.get(noteKey)));
+                pendingCourtesy.delete(noteKey);
+            }
+        }
+    }
+    return Array.from(courtesyByKey.values());
+}
+
+function annotateCourtesyAccidentals(items, rows) {
+    clearCourtesyAccidentals(items);
+    const active = new Map();
+
+    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+        const row = rows[rowIdx];
+        const pendingCourtesy = rowIdx === 0 ? new Map() : new Map(active);
+
+        for (const item of row.items) {
+            if (item.kind === 'barline') {
+                active.clear();
+                pendingCourtesy.clear();
+                continue;
+            }
+
+            if (item.kind === 'accidental') {
+                pendingCourtesy.delete(accidentalKey(item));
+                setActiveAccidental(active, item);
+                continue;
+            }
+
+            if (item.kind === 'ligature') {
+                const courtesy = updateActiveAccidentalsFromLigature(item, active, pendingCourtesy);
+                if (courtesy.length > 0) {
+                    item.leadingCourtesyAccidentals = courtesy;
+                }
+            }
+        }
+    }
+
+    return courtesySignature(items);
+}
+
+function layoutRowsWithCourtesyAccidentals(items, ctx, initialClef, staffRightX, drawStartClef, initialKeySig, allowedClefRows = Infinity, firstRowIndentWidth = 0) {
+    clearCourtesyAccidentals(items);
+    let previousSignature = null;
+    let rows = [];
+
+    for (let pass = 0; pass < 8; pass++) {
+        rows = layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initialKeySig, allowedClefRows, firstRowIndentWidth);
+        const signature = annotateCourtesyAccidentals(items, rows);
+        if (signature === previousSignature) {
+            return rows;
+        }
+        previousSignature = signature;
+    }
+
+    rows = layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initialKeySig, allowedClefRows, firstRowIndentWidth);
+    annotateCourtesyAccidentals(items, rows);
+    return rows;
+}
+
 function keySigAdvance(ctx, accidentals) {
     if (!accidentals?.length) return 0;
     return accidentals.reduce((sum, acc) => sum + accidentalSymbolAdvance(ctx, acc.symbol), 0);
@@ -837,7 +959,9 @@ function measureItem(ctx, item) {
         return ss(ctx, METRICS.parenthesisWidth) + ss(ctx, METRICS.parenthesisInnerGap);
     }
     if (item.kind === 'ligature') {
-        return measureLigature(ctx, item.groups, item.gaps ?? []) + (item.syllableExtra || 0);
+        return accidentalListAdvance(ctx, item.leadingCourtesyAccidentals)
+            + measureLigature(ctx, item.groups, item.gaps ?? [])
+            + (item.syllableExtra || 0);
     }
     return 0;
 }
@@ -1075,17 +1199,26 @@ function rowLowestNoteY(ctx, row, staffBottomY) {
     return maxY;
 }
 
-function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
+function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAccidentals = []) {
     const splitResult = splitGroupsAtInternalMora(groups, gaps);
     groups = splitResult.groups;
     gaps = splitResult.gaps;
     const parts = [];
     const halfSW = ligatureConnectorHalfStroke(ctx);
     let groupStartX = x;
+    let courtesyAdvance = 0;
     let firstNoteCx = null;
     let lastNoteCx = null;
     let allNotesMinY = Infinity;
     let allNotesMaxY = -Infinity;
+
+    for (const acc of leadingCourtesyAccidentals) {
+        const accX = groupStartX + courtesyAdvance;
+        const a = drawAccidental(ctx, acc.pitch, acc.symbol, accX, staffBottomY, acc.high ?? false);
+        parts.push(`<g class="aretino-accidental aretino-courtesy-accidental">${a.svg}</g>`);
+        courtesyAdvance += accidentalAdvance(ctx, acc);
+    }
+    groupStartX += courtesyAdvance;
 
     for (let g = 0; g < groups.length; g++) {
         const notes = groups[g];
@@ -1232,7 +1365,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
         }
     }
 
-    const advance = measureSplitLigature(ctx, groups, gaps);
+    const advance = courtesyAdvance + measureSplitLigature(ctx, groups, gaps);
     const centerX = firstNoteCx !== null
         ? (firstNoteCx + lastNoteCx) / 2
         : x + advance / 2;

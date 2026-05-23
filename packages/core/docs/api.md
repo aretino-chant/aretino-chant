@@ -274,6 +274,10 @@ class. This is the entire basis for editor integration:
 | Ligature (neume) | `aretino-token aretino-ligature` | `data-src-start`, `data-src-end` |
 | Individual note | `aretino-note` | `data-src-start`, `data-src-end` |
 
+Generated accidental repeats at wrapped systems are emitted inside the affected
+ligature with classes `aretino-accidental aretino-courtesy-accidental`; they do
+not correspond to a separate source span.
+
 `data-src-start` / `data-src-end` are **absolute character offsets into the
 source string** — they line up directly with a textarea's `selectionStart`.
 

@@ -333,9 +333,13 @@ letter:
 | `#` | sharp |
 
 So `f#` is a sharp on `f`, `ib` a flat on `i`, `n` a natural (on the default
-pitch). Unlike common-practice notation, an accidental is **not** a property of
-a note — you place the sign explicitly at a staff position, exactly as it is
-drawn. Accidentals come in three placements:
+pitch). An accidental is always drawn exactly where it is written. Outside key
+signatures, it remains in force for notes on the same staff position until the
+next barline or another accidental on that same position.
+
+If a measure wraps to a new system, the renderer repeats the active accidental
+before the first neume on the new system that contains an affected note.
+Accidentals come in three placements:
 
 **Inline** — a directive `(…)` immediately before a note applies to that note:
 

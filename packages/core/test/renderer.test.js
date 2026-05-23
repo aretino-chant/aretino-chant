@@ -14,6 +14,10 @@ function firstLyricFontSize(svg) {
   return m ? parseFloat(m[1]) : null;
 }
 
+function courtesyAccidentalCount(svg) {
+  return (svg.match(/aretino-courtesy-accidental/g) || []).length;
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -68,6 +72,39 @@ describe('renderAretino', () => {
       const svgExplicit = renderAretino(body, { lyricDistance: 0 });
 
       expect(firstLyricY(svgWithOverride)).toBeCloseTo(firstLyricY(svgExplicit), 5);
+    });
+  });
+
+  describe('measure accidentals across wrapped rows', () => {
+    it('repeats a preceding accidental before the first affected neume after an automatic wrap', () => {
+      const source = '(g2) (b) i i i i i i i i i i i i i i i i | i i';
+      const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(1);
+    });
+
+    it('does not repeat a preceding accidental for unaffected staff positions', () => {
+      const svg = renderAretino('(g2) (b) (Z) h h', { width: 400, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(0);
+    });
+
+    it('clears measure accidentals at barlines', () => {
+      const svg = renderAretino('(g2) (b) i | (Z) i i', { width: 400, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(0);
+    });
+
+    it('lets another accidental on the same staff position replace the previous one', () => {
+      const svg = renderAretino('(g2) (b) h h (Z) (n) i i', { width: 400, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(0);
+    });
+
+    it('treats inline accidentals as active until the next barline or replacement accidental', () => {
+      const svg = renderAretino('(g2) (fb) f (Z) f f', { width: 400, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(1);
     });
   });
 

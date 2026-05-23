@@ -1,0 +1,10 @@
+Aretino Chant — a text format for Gregorian chant.
+
+Source code (src/, test/, examples/) is licensed under the
+Mozilla Public License 2.0 — see LICENSE.
+
+Documentation and the format specification (docs/) are licensed
+under the Creative Commons Attribution 4.0 International License
+(CC-BY-4.0) — see docs/LICENSE.
+
+Copyright (c) 2026 Bertalan Fodor and contributors.

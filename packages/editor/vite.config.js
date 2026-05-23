@@ -11,7 +11,7 @@ export default defineConfig(({ command }) => {
             server: { open: true },
             resolve: {
                 alias: {
-                    '@aretino-chant/core': resolve(__dirname, '../../src/index.js'),
+                    '@aretino-chant/core': resolve(__dirname, '../core/src/index.js'),
                 },
             },
         };

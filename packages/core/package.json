@@ -1,46 +1,42 @@
 {
-  "name": "@aretino-chant/editor",
-  "version": "0.1.0",
-  "description": "CodeMirror-based editor web component for Aretino chant notation.",
+  "name": "@aretino-chant/core",
+  "version": "0.5.1",
+  "description": "A text format for Gregorian chant — parser and SVG renderer.",
   "type": "module",
+  "main": "./src/index.js",
   "exports": {
-    ".": {
-      "import": "./src/index.js"
-    }
+    ".": "./src/index.js"
   },
   "files": [
     "src",
-    "dist",
+    "docs",
     "NOTICE"
   ],
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "gregorian",
     "chant",
-    "codemirror",
-    "editor",
-    "web-component"
+    "music-notation",
+    "liturgical",
+    "svg"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/aretino-chant/aretino-chant.git",
-    "directory": "packages/editor"
+    "directory": "packages/core"
   },
   "homepage": "https://github.com/aretino-chant/aretino-chant#readme",
   "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
   "license": "MPL-2.0",
   "author": "Bertalan Fodor",
-  "peerDependencies": {
-    "@aretino-chant/core": "*"
-  },
-  "dependencies": {
-    "codemirror": "^6.0.1"
-  },
   "devDependencies": {
-    "vite": "^5.4.21"
+    "marked": "^18.0.4",
+    "vite": "^5.4.21",
+    "vitest": "^2.0.0"
   }
 }

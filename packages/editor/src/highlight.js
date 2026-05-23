@@ -174,7 +174,7 @@ const aretinoLanguage = StreamLanguage.define(aretinoStreamParser);
 // so this style wins for every tag it defines.
 const aretinoHighlightStyle = HighlightStyle.define([
     { tag: tags.meta,                  color: '#9ca3af', fontStyle: 'italic' },       // % headers
-    { tag: tags.comment,               color: '#9ca3af', fontStyle: 'italic' },       // % comments, %[ blocks %]
+    { tag: tags.comment,               color: '#9ca3af' },                            // % comments, %[ blocks %]
     { tag: tags.processingInstruction, color: '#a0a0a0' },                            // format delimiters { < [
     { tag: tags.keyword,               color: '#7c3aed' },                            // w:/W:, (directives)
     { tag: tags.string,                color: '#065f46' },                            // lyrics, "labels"

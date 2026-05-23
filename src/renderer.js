@@ -221,7 +221,6 @@ export function renderAretino(source, options = {}) {
                 const lastG = it.groups[it.groups.length - 1];
                 const lastN = lastG?.[lastG.length - 1];
                 const isCentered = totalNotes === 1
-                    && !(lastN?.modifiers?.includes('mora'))
                     && !it.groups.some(g => g.some(n => n.shape === 'tenor'));
                 ligInfo.push({ item: it, maxSylW, isCentered, itemIdx });
                 li++;

@@ -44,11 +44,14 @@ function ss(ctx, n) {
     return n * ctx.staffSpace;
 }
 
-function wrapSrc(item, svg, cls) {
+function wrapSrc(item, svg, cls, staffBottomY, staffHeight) {
     if (item.srcStart === undefined || item.srcEnd === undefined) {
         return svg;
     }
-    return `<g class="${cls}" data-src-start="${item.srcStart}" data-src-end="${item.srcEnd}">${svg}</g>`;
+    const staffAttrs = (staffBottomY !== undefined)
+        ? ` data-staff-bottom="${staffBottomY}" data-staff-height="${staffHeight}"`
+        : '';
+    return `<g class="${cls}" data-src-start="${item.srcStart}" data-src-end="${item.srcEnd}"${staffAttrs}>${svg}</g>`;
 }
 
 // CSS rules embedded in the SVG so a cursor-tracking script can toggle a
@@ -411,11 +414,11 @@ export function renderAretino(source, options = {}) {
                 const it = row.items[idx];
                 if (it.kind === 'clef') {
                     const c = drawClef(ctx, it.clef, cursorX, staffBottomY);
-                    parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef'));
+                    parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight));
                     cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
                 } else if (it.kind === 'accidental') {
                     const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY, it.high ?? false);
-                    parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental'));
+                    parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental', staffBottomY, ctx.staffHeight));
                     let adv = a.advance;
                     if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
                     else if (it.symbol === 'y') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceNatural));
@@ -430,7 +433,7 @@ export function renderAretino(source, options = {}) {
                         cursorX += a.advance;
                     }
                     if (pieces.length) {
-                        parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig'));
+                        parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig', staffBottomY, ctx.staffHeight));
                     } else {
                         // Empty (K:) — clears signature; nothing to draw.
                         cursorX = startX;
@@ -442,7 +445,7 @@ export function renderAretino(source, options = {}) {
                     const postExtra = it.barlinePostExtra || 0;
                     cursorX += extra / 2;
                     const b = drawBarline(ctx, it.value, cursorX, staffBottomY);
-                    parts.push(wrapSrc(it, b.svg, 'aretino-token aretino-barline'));
+                    parts.push(wrapSrc(it, b.svg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight));
                     const offsetX = (it.value === '||' || it.value === ':|' || it.value === '|:' || it.value === ':|:' || it.value === '|||')
                         ? (METRICS.barlineOffsetX + METRICS.barlineDoubleSecondOffsetX) / 2
                         : METRICS.barlineOffsetX;
@@ -479,7 +482,7 @@ export function renderAretino(source, options = {}) {
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
                         ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
-                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature'));
+                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
@@ -1128,7 +1131,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = []) {
                     noteParts.push(drawLiquescens(ctx, p.cx, p.cy, 'down'));
                 }
             }
-            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note'));
+            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight));
         }
 
         if (g < groups.length - 1) {

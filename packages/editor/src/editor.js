@@ -5,15 +5,18 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { renderAretino } from '@aretino-chant/core';
+import { aretino } from './highlight.js';
 
 const STYLE = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap');
+
 :host {
   display: flex;
   flex-direction: row;
   box-sizing: border-box;
   height: 300px;
   overflow: hidden;
-  font-family: monospace;
+  font-family: 'Inter', system-ui, sans-serif;
   gap: 8px;
 }
 
@@ -26,10 +29,18 @@ const STYLE = `
 
 .editor-pane .cm-editor {
   height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .editor-pane .cm-scroller {
   overflow: auto;
+}
+
+.editor-pane .cm-content,
+.editor-pane .cm-line {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .error {
@@ -76,8 +87,10 @@ class AretinoEditor extends HTMLElement {
                 doc: this.getAttribute('value') ?? '',
                 extensions: [
                     basicSetup,
+                    aretino(),
                     EditorView.updateListener.of(update => {
                         if (update.docChanged) this._handleChange();
+                        else if (update.selectionSet) this._highlightAtCaret();
                     }),
                 ],
             }),
@@ -146,6 +159,43 @@ class AretinoEditor extends HTMLElement {
         } catch (err) {
             this._previewEl.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
         }
+        this._highlightAtCaret();
+    }
+
+    _highlightAtCaret() {
+        if (!this._previewEl || !this._view) return;
+        const caret = this._view.state.selection.main.head;
+
+        this._previewEl.querySelectorAll('.aretino-cursor-rect')
+            .forEach(el => el.remove());
+
+        const candidates = this._previewEl.querySelectorAll('[data-src-start]');
+        let best = null, bestA = 0, bestB = 0;
+        for (const el of candidates) {
+            const a = +el.dataset.srcStart, b = +el.dataset.srcEnd;
+            if (caret > a && caret <= b) {
+                if (!best || (b - a) < (bestB - bestA)) {
+                    best = el; bestA = a; bestB = b;
+                }
+            }
+        }
+
+        if (!best || best.dataset.staffBottom === undefined) return;
+
+        const staffBottom = +best.dataset.staffBottom;
+        const staffHeight = +best.dataset.staffHeight;
+        const bbox = best.getBBox();
+        if (bbox.width === 0) return;
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('class', 'aretino-cursor-rect aretino-cursor-bg');
+        rect.setAttribute('x', bbox.x);
+        rect.setAttribute('y', staffBottom - staffHeight - staffHeight/4);
+        rect.setAttribute('width', bbox.width);
+        rect.setAttribute('height', staffHeight + 2 * staffHeight/4);
+        rect.setAttribute('fill', 'rgba(234, 88, 12, 0.13)');
+        rect.setAttribute('stroke', 'none');
+        best.prepend(rect);
     }
 }
 

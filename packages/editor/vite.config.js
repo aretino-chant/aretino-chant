@@ -9,6 +9,11 @@ export default defineConfig(({ command }) => {
         return {
             root: resolve(__dirname, 'dev'),
             server: { open: true },
+            resolve: {
+                alias: {
+                    '@aretino-chant/core': resolve(__dirname, '../../src/index.js'),
+                },
+            },
         };
     }
     return {

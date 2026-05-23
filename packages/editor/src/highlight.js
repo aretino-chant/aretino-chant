@@ -176,10 +176,10 @@ const aretinoHighlightStyle = HighlightStyle.define([
     { tag: tags.meta,                  color: '#9ca3af', fontStyle: 'italic' },       // % headers
     { tag: tags.comment,               color: '#9ca3af' },                            // % comments, %[ blocks %]
     { tag: tags.processingInstruction, color: '#a0a0a0' },                            // format delimiters { < [
-    { tag: tags.keyword,               color: '#7c3aed' },                            // w:/W:, (directives)
+    { tag: tags.keyword,               color: '#1d4ed8' },                            // w:/W:, (directives)
     { tag: tags.string,                color: '#065f46' },                            // lyrics, "labels"
-    { tag: tags.atom,                  color: '#1d4ed8', fontWeight: '600' },         // pitch notes
-    { tag: tags.punctuation,           color: '#92400e', fontWeight: '600' },         // barlines
+    { tag: tags.atom,                  color: '#0b0b0b', fontWeight: '600' },         // pitch notes
+    { tag: tags.punctuation,           color: '#1d4ed8', fontWeight: '600' },         // barlines
     { tag: tags.operator,              color: '#0891b2' },                            // * / =
     { tag: tags.bracket,               color: '#9d174d' },                            // [ ] neume groups
     { tag: tags.strong,                color: '#065f46', fontWeight: '700' },         // {bold}

@@ -3,9 +3,9 @@ import { AretinoEditor } from '../src/index.js';
 // Suppress the unused-import warning — the import registers <aretino-editor>.
 void AretinoEditor;
 
-const DEMO_SOURCE =
-`(g2) gh hg | ghg hgh |
-     g h. i h g ||`;
+const DEMO_SOURCE =`%title: Alleluia
+(g2) g A B g. , AB A g e_d_ , g AB Ag g. ||
+w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.`;
 
 const demo = document.getElementById('demo');
 const eventOut = document.getElementById('event-out');

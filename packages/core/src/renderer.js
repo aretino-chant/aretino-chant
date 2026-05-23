@@ -1366,19 +1366,21 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
     }
 
     const advance = courtesyAdvance + measureSplitLigature(ctx, groups, gaps);
-    const centerX = firstNoteCx !== null
-        ? (firstNoteCx + lastNoteCx) / 2
-        : x + advance / 2;
-    const leftX = firstNoteCx !== null
-        ? firstNoteCx - ss(ctx, METRICS.noteBoxWidth) * 0.5
-        : x;
-
-    // Determine if syllable should align to left edge
     const totalNotes = groups.reduce((sum, g) => sum + g.length, 0);
     const lastNote = groups[groups.length - 1]?.[groups[groups.length - 1].length - 1];
     const hasMora = lastNote?.modifiers?.includes('mora');
     const isTenor = groups.some(g => g.some(n => n.shape === 'tenor'));
     const shouldAlignLeft = totalNotes > 1 || isTenor;
+    // Single mora notes remain centered, but their visual span extends to the mora dot's right edge.
+    const singleMoraCenterOffset = totalNotes === 1 && hasMora && !shouldAlignLeft
+        ? ss(ctx, (METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5) * 0.5)
+        : 0;
+    const centerX = firstNoteCx !== null
+        ? (firstNoteCx + lastNoteCx) / 2 + singleMoraCenterOffset
+        : x + advance / 2;
+    const leftX = firstNoteCx !== null
+        ? firstNoteCx - ss(ctx, METRICS.noteBoxWidth) * 0.5
+        : x;
 
     return { svg: parts.join(''), advance, centerX, leftX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
 }
@@ -1729,10 +1731,10 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         if (i < ligatures.length) {
             const lig = ligatures[i];
             if (lig.shouldAlignLeft) {
-                // Align left edge: syllable with mora, multi-note neume, or tenor note
+                // Align left edge: multi-note neume or tenor note.
                 center = lig.leftX + alignW / 2 - ctx.staffSpace * 0.1;
             } else {
-                // Center syllable: single note without mora (default)
+                // Center syllable: single note, including any mora in lig.centerX.
                 center = lig.centerX;
             }
         } else {

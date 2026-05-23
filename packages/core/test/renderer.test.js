@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { parseAretino, renderAretino } from '../src/index.js';
+import { METRICS } from '../src/glyphs.js';
 
 function firstLyricY(svg) {
   // Extract the y attribute from the first <text> element that contains
   // lyric content (identified by xml:space="preserve"). Use non-greedy
   // match to avoid stopping at the 'y=' inside 'font-family='.
   const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? y="([^"]+)"/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function firstLyricX(svg) {
+  const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? x="([^"]+)"/);
   return m ? parseFloat(m[1]) : null;
 }
 
@@ -105,6 +111,20 @@ describe('renderAretino', () => {
       const svg = renderAretino('(g2) (fb) f (Z) f f', { width: 400, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
+    });
+  });
+
+  describe('lyric alignment', () => {
+    it('centers a single-note mora syllable under the notehead and mora dot', () => {
+      const options = { width: 200, staffSpaceMm: 25.4 / 96 };
+      const plainX = firstLyricX(renderAretino('c\nw: a', options));
+      const moraX = firstLyricX(renderAretino('c.\nw: a', options));
+      const expectedShift = (METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5) * 0.5;
+
+      expect(plainX).not.toBeNull();
+      expect(moraX).not.toBeNull();
+      expect(moraX).toBeGreaterThan(plainX);
+      expect(moraX - plainX).toBeCloseTo(expectedShift, 5);
     });
   });
 

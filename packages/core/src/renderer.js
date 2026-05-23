@@ -818,11 +818,11 @@ function accidentalListAdvance(ctx, accidentals) {
 }
 
 function accidentalKey(acc) {
-    return `${acc.pitch}:${acc.high ? '1' : '0'}`;
+    return `${pitchToPos(acc)}`;
 }
 
 function noteAccidentalKey(note) {
-    return `${note.pitch}:${note.high ? '1' : '0'}`;
+    return `${pitchToPos(note)}`;
 }
 
 function copyAccidental(acc) {

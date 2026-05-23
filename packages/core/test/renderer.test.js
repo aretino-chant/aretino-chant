@@ -89,6 +89,19 @@ describe('renderAretino', () => {
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
 
+    it('matches active accidentals by staff position after an explicit break', () => {
+      const svg = renderAretino('(b)B (z) B |', { width: 400, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(1);
+    });
+
+    it('matches active accidentals by staff position after an automatic wrap', () => {
+      const source = '(b)B B B B B B B B B B B B B B B B B B |';
+      const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
+
+      expect(courtesyAccidentalCount(svg)).toBe(1);
+    });
+
     it('does not repeat a preceding accidental for unaffected staff positions', () => {
       const svg = renderAretino('(g2) (b) (Z) h h', { width: 400, hideRepeatClef: true });
 

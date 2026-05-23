@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@aretino-chant/editor — Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+    <header>
+        <h1>@aretino-chant/editor</h1>
+        <p>CodeMirror-based web component for editing and previewing Aretino chant notation.</p>
+    </header>
+    <main>
+
+        <section>
+            <h2>Live demo</h2>
+            <p>
+                Edit the Aretino source on the left. The rendered chant updates on the right in real time.
+                A <code>change</code> event is fired on every document change.
+            </p>
+            <div class="demo-wrap">
+                <aretino-editor id="demo" zoom="1.4"></aretino-editor>
+            </div>
+            <p class="event-log">
+                Last <code>change</code> event — <code id="event-out">(none yet)</code>
+            </p>
+        </section>
+
+        <section>
+            <h2>Getting started</h2>
+
+            <h3>Install</h3>
+            <pre><code>npm install @aretino-chant/editor @aretino-chant/core</code></pre>
+
+            <h3>Register the custom element</h3>
+            <pre><code>import '@aretino-chant/editor'; // side-effect: registers &lt;aretino-editor&gt;
+
+// Or, if you need the class directly:
+import { AretinoEditor } from '@aretino-chant/editor';</code></pre>
+
+            <h3>HTML</h3>
+            <pre><code>&lt;aretino-editor value="(g2) gh hg | ghg | g h i h ||" zoom="1.4"&gt;&lt;/aretino-editor&gt;</code></pre>
+
+            <h3>JavaScript</h3>
+            <pre><code>const ed = document.querySelector('aretino-editor');
+
+// Read and write the source text
+console.log(ed.value);
+ed.value = '(g2) g h i ||';
+
+// Adjust the preview zoom
+ed.zoom = 1.4;
+
+// React to edits
+ed.addEventListener('change', e =&gt; {
+    console.log(e.detail.value);
+});</code></pre>
+        </section>
+
+        <section>
+            <h2>API reference</h2>
+
+            <h3>Attributes &amp; properties</h3>
+            <p>Every attribute has a matching JS property of the same name.</p>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>value</code></td>
+                        <td>string</td>
+                        <td><code>""</code></td>
+                        <td>The Aretino source text shown in the editor.</td>
+                    </tr>
+                    <tr>
+                        <td><code>zoom</code></td>
+                        <td>number</td>
+                        <td><code>1</code></td>
+                        <td>
+                            Preview magnification factor passed to
+                            <code>renderAretino()</code>. The physical staff spacing
+                            is small (≈ 1.5 mm), so a zoom of 1.2–1.5 is comfortable
+                            for editing.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Events</h3>
+            <table>
+                <thead>
+                    <tr><th>Event</th><th>Bubbles / composed</th><th>Detail</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>change</code></td>
+                        <td>yes / yes</td>
+                        <td><code>{ value: string }</code></td>
+                        <td>Fired on every document change (every keystroke).</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>CSS customisation</h3>
+            <p>
+                The component uses Shadow DOM. The host element controls the overall size.
+                The two panes are exposed via <code>::part()</code>:
+            </p>
+            <table>
+                <thead><tr><th>Part</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>editor</code></td><td>The CodeMirror editor pane (left).</td></tr>
+                    <tr><td><code>preview</code></td><td>The live SVG preview pane (right).</td></tr>
+                </tbody>
+            </table>
+            <pre><code>aretino-editor {
+    height: 320px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Make the preview pane take up 60% of the width */
+aretino-editor::part(editor)  { flex: 2; }
+aretino-editor::part(preview) { flex: 3; }</code></pre>
+
+            <p>
+                The component inherits no external styles into its Shadow DOM.
+                CodeMirror's own theme API can be used to style the editor pane
+                by passing a theme extension via the JS API (not yet exposed as an
+                attribute — wire it in your integration layer).
+            </p>
+        </section>
+
+    </main>
+    <script type="module" src="./main.js"></script>
+</body>
+</html>

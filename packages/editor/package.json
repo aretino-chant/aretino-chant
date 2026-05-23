@@ -1,0 +1,45 @@
+{
+  "name": "@aretino-chant/editor",
+  "version": "0.1.0",
+  "description": "CodeMirror-based editor web component for Aretino chant notation.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [
+    "gregorian",
+    "chant",
+    "codemirror",
+    "editor",
+    "web-component"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretino-chant/aretino-chant.git",
+    "directory": "packages/editor"
+  },
+  "homepage": "https://github.com/aretino-chant/aretino-chant#readme",
+  "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "peerDependencies": {
+    "@aretino-chant/core": "*"
+  },
+  "dependencies": {
+    "codemirror": "^6.0.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21"
+  }
+}

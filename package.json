@@ -36,6 +36,9 @@
   "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
   "license": "MPL-2.0",
   "author": "Bertalan Fodor",
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "marked": "^18.0.4",
     "vite": "^5.4.21",

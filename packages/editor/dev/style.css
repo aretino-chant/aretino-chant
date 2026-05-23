@@ -1,0 +1,122 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    background: #f8f7f5;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background: #2c2c2c;
+    color: #eee;
+    padding: 1rem 2rem;
+}
+
+header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+header p {
+    margin: 0;
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
+main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+section {
+    margin-bottom: 3rem;
+}
+
+h2 {
+    margin-top: 2.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.3rem;
+}
+
+h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.4rem;
+}
+
+p {
+    line-height: 1.6;
+    margin: 0.5rem 0 1rem;
+}
+
+code {
+    background: #eee;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+pre {
+    background: #2c2c2c;
+    color: #ccc;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.875rem;
+    margin: 0.5rem 0 1.25rem;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0.5rem 0 1.25rem;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: top;
+}
+
+thead th {
+    background: #f0ede8;
+    font-weight: 600;
+}
+
+/* Live demo */
+.demo-wrap {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    background: #fff;
+    margin-bottom: 0.75rem;
+}
+
+.demo-wrap aretino-editor {
+    height: 220px;
+    display: flex;
+}
+
+.event-log {
+    font-size: 0.85rem;
+    color: #555;
+    margin: 0;
+}

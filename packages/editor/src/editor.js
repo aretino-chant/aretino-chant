@@ -7,9 +7,9 @@ import { EditorState } from '@codemirror/state';
 import { renderAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
 
-const STYLE = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap');
+const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap';
 
+const STYLE = `
 :host {
   display: flex;
   flex-direction: row;
@@ -69,6 +69,13 @@ class AretinoEditor extends HTMLElement {
     }
 
     connectedCallback() {
+        if (!document.querySelector(`link[href="${FONT_HREF}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = FONT_HREF;
+            document.head.appendChild(link);
+        }
+
         const style = document.createElement('style');
         style.textContent = STYLE;
 

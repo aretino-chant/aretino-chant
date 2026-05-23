@@ -46,31 +46,45 @@ function tokenInTextSpan(stream, state) {
 const aretinoStreamParser = {
     name: 'aretino',
 
-    startState: () => ({ headerDone: false, lineMode: 'music', textSpan: null }),
+    startState: () => ({ headerDone: false, lineMode: 'music', textSpan: null, inBlockComment: false }),
 
     token(stream, state) {
         if (stream.sol()) {
             state.textSpan = null; // inline spans don't cross line boundaries
             const line = stream.string;
 
-            if (!state.headerDone) {
-                if (/^%%\s*$/.test(line)) {
-                    state.headerDone = true;
-                    state.lineMode = 'separator';
-                } else if (line.startsWith('%')) {
-                    state.lineMode = 'header';
+            if (!state.inBlockComment) {
+                if (!state.headerDone) {
+                    if (/^%%\s*$/.test(line)) {
+                        state.headerDone = true;
+                        state.lineMode = 'separator';
+                    } else if (line.startsWith('%')) {
+                        state.lineMode = 'header';
+                    } else {
+                        if (line.trim() !== '') state.headerDone = true;
+                        state.lineMode = 'music';
+                    }
                 } else {
-                    if (line.trim() !== '') state.headerDone = true;
-                    state.lineMode = 'music';
+                    if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
+                    else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
+                    else if (state.lineMode !== 'lyrics' && state.lineMode !== 'verse') state.lineMode = 'music';
                 }
-            } else {
-                if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
-                else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
-                else if (state.lineMode !== 'lyrics' && state.lineMode !== 'verse') state.lineMode = 'music';
             }
         }
 
         if (stream.eatSpace()) return null;
+
+        // Multi-line block comment continuation
+        if (state.inBlockComment) {
+            const closeIdx = stream.string.indexOf('%]', stream.pos);
+            if (closeIdx >= 0) {
+                while (stream.pos < closeIdx + 2) stream.next();
+                state.inBlockComment = false;
+            } else {
+                stream.skipToEnd();
+            }
+            return 'comment';
+        }
 
         // %% separator — whole line is meta
         if (state.lineMode === 'separator') {
@@ -96,6 +110,21 @@ const aretinoStreamParser = {
 
         // Music line
         const ch = stream.peek();
+
+        if (ch === '%') {
+            if (stream.string[stream.pos + 1] === '[') {
+                const closeIdx = stream.string.indexOf('%]', stream.pos + 2);
+                if (closeIdx >= 0) {
+                    while (stream.pos < closeIdx + 2) stream.next();
+                } else {
+                    stream.skipToEnd();
+                    state.inBlockComment = true;
+                }
+            } else {
+                stream.skipToEnd();
+            }
+            return 'comment';
+        }
 
         if (ch === '(') {
             stream.next();
@@ -145,6 +174,7 @@ const aretinoLanguage = StreamLanguage.define(aretinoStreamParser);
 // so this style wins for every tag it defines.
 const aretinoHighlightStyle = HighlightStyle.define([
     { tag: tags.meta,                  color: '#9ca3af', fontStyle: 'italic' },       // % headers
+    { tag: tags.comment,               color: '#9ca3af', fontStyle: 'italic' },       // % comments, %[ blocks %]
     { tag: tags.processingInstruction, color: '#a0a0a0' },                            // format delimiters { < [
     { tag: tags.keyword,               color: '#7c3aed' },                            // w:/W:, (directives)
     { tag: tags.string,                color: '#065f46' },                            // lyrics, "labels"

@@ -11,14 +11,23 @@
 //         | { type: 'music', tokens: Token[] }
 //         | { type: 'lyrics', text: string }
 //         | { type: 'blank' }
+//         | { type: 'preprocessor', key: string, value: string }  — %[ key: value %] as a standalone body line
+//         | { type: 'pagebreak', id: string }                      — %pagebreakXXX body directive
 //     >
 // }
+//
+// Comment syntax (stripped before further parsing):
+//   % ...        — line comment: rest of line is ignored (in music lines)
+//   %[ ... %]    — block comment: content ignored (single or multi-line)
+//   %[ k: v %]   — preprocessor directive: emitted as 'preprocessor' / 'inline-directive'
+//   %pagebreakID — page-break directive: emitted as { type: 'pagebreak', id }
 //
 // Token shapes:
 //   { type: 'directive', value: string }              — anything inside ( )
 //   { type: 'barline', kind: ',' | ';' | '|' | '||' | ':|' | '|||' | "'" }
 //   { type: 'expander' }                              — `*`
 //   { type: 'ligature', groups: Note[][] }            — one or more note groups; groups are separated by '/' cuts within the neume
+//   { type: 'inline-directive', key: string, value: string }  — %[ key: value %] inside a music line
 //
 // Note shape:
 //   {
@@ -67,11 +76,46 @@ export function parseAretino(source) {
     }
     const result = [];
     let lastWasLyrics = false;
+    let inBlockComment = false;
     for (let li = bodyStart; li < lines.length; li++) {
         const raw = lines[li];
         const lineStart = lineStarts[li];
+        if (inBlockComment) {
+            const closeIdx = raw.indexOf('%]');
+            if (closeIdx >= 0) {
+                inBlockComment = false;
+                const remainder = raw.slice(closeIdx + 2);
+                if (remainder.trim()) {
+                    result.push({ type: 'music', tokens: tokenizeMusicLine(remainder, lineStart + closeIdx + 2) });
+                    lastWasLyrics = false;
+                }
+            }
+            continue;
+        }
         if (raw.trim() === '') {
             result.push({ type: 'blank' });
+            lastWasLyrics = false;
+            continue;
+        }
+        if (raw[0] === '%') {
+            if (raw.startsWith('%[')) {
+                const closeIdx = raw.indexOf('%]', 2);
+                if (closeIdx >= 0) {
+                    const inner = raw.slice(2, closeIdx).trim();
+                    const dm = inner.match(/^(\S+?):\s*(.*)$/);
+                    if (dm) {
+                        result.push({ type: 'preprocessor', key: dm[1], value: dm[2].trim() });
+                    }
+                } else {
+                    inBlockComment = true;
+                }
+            } else {
+                const pbm = raw.match(/^%pagebreak(\S+)/i);
+                if (pbm) {
+                    result.push({ type: 'pagebreak', id: pbm[1] });
+                }
+                // else: plain % comment line — skip silently
+            }
             lastWasLyrics = false;
             continue;
         }
@@ -223,6 +267,26 @@ function tokenizeMusicLine(line, lineStart = 0) {
         if (ch === ' ' || ch === '\t') {
             i++;
             continue;
+        }
+        if (ch === '%') {
+            if (line[i + 1] === '[') {
+                // Inline block comment or directive: %[ ... %]
+                const closeIdx = line.indexOf('%]', i + 2);
+                if (closeIdx >= 0) {
+                    const inner = line.slice(i + 2, closeIdx).trim();
+                    const srcStart = lineStart + i;
+                    i = closeIdx + 2;
+                    const srcEnd = lineStart + i;
+                    const dm = inner.match(/^(\S+?):\s*(.*)$/);
+                    if (dm) {
+                        tokens.push({ type: 'inline-directive', key: dm[1], value: dm[2].trim(), srcStart, srcEnd });
+                    }
+                } else {
+                    break; // no closing %] on this line — treat rest as comment
+                }
+                continue;
+            }
+            break; // % alone: rest of line is a comment
         }
         const tokStart = i;
         if (ch === '(') {

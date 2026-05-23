@@ -98,7 +98,7 @@ export function renderAretino(source, options = {}) {
     ctx.leftMargin = ss(ctx, METRICS.leftMargin);
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = Math.max(0, ss(ctx, options.staffGap ?? METRICS.staffGap));
-    ctx.lyricDistance = ss(ctx, METRICS.lyricDistance);
+    ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
     ctx.lyricFont = lyricFont;
     // Lyric font size in typographic points (default 12pt), converted to
     // logical units via dpi. Set independently of staff space and layout width.

@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "npm run dev -w packages/core",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "release": "npm publish --workspaces --access public"
+    "build": "npm run build --workspaces --if-present"
   },
   "workspaces": [
     "packages/*"

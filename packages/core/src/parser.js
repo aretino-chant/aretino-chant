@@ -483,6 +483,38 @@ function tokenizeMusicLine(line, lineStart = 0) {
             i++;
             continue;
         }
+        if (ch === '\\') {
+            const m = /^\\([a-zA-Z]+)\{/.exec(line.slice(i));
+            if (m) {
+                tokens.push({ type: 'brace-open', kind: m[1], srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + m[0].length });
+                i += m[0].length;
+                continue;
+            }
+        }
+        if (ch === '{') {
+            tokens.push({ type: 'brace-open', kind: 'brace', srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 1 });
+            i++;
+            continue;
+        }
+        if (ch === '}') {
+            let label = null;
+            let endI = i + 1;
+            if (endI < len && line[endI] === '"') {
+                const closeIdx = line.indexOf('"', endI + 1);
+                if (closeIdx >= 0) {
+                    label = line.slice(endI + 1, closeIdx);
+                    endI = closeIdx + 1;
+                } else {
+                    let sp = line.indexOf(' ', endI + 1);
+                    if (sp === -1) sp = len;
+                    label = line.slice(endI + 1, sp);
+                    endI = sp;
+                }
+            }
+            tokens.push({ type: 'brace-close', ...(label !== null ? { label } : {}), srcStart: lineStart + tokStart, srcEnd: lineStart + endI });
+            i = endI;
+            continue;
+        }
         if (isPitchLetter(ch)) {
             const r = parseNoteGroupSequence(line, i, lineStart, len);
             i = r.newI;

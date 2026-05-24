@@ -25,14 +25,15 @@ wins — please file an issue.
 6. [Modifiers](#6-modifiers)
 7. [Ligatures (neumes)](#7-ligatures-neumes)
 8. [Parenthesized notes](#8-parenthesized-notes)
-9. [Bar lines](#9-bar-lines)
-10. [Clefs](#10-clefs)
-11. [Accidentals](#11-accidentals)
-12. [Layout: breaks, expander, spacers](#12-layout-breaks-expander-spacers)
-13. [Lyrics](#13-lyrics)
-14. [Text formatting](#14-text-formatting)
-15. [Embedding in Markdown](#15-embedding-in-markdown)
-16. [Token cheat sheet](#16-token-cheat-sheet)
+9. [Braces and spanning marks](#9-braces-and-spanning-marks)
+10. [Bar lines](#10-bar-lines)
+11. [Clefs](#11-clefs)
+12. [Accidentals](#12-accidentals)
+13. [Layout: breaks, expander, spacers](#13-layout-breaks-expander-spacers)
+14. [Lyrics](#14-lyrics)
+15. [Text formatting](#15-text-formatting)
+16. [Labels](#16-labels)
+17. [Embedding in Markdown](#17-embedding-in-markdown)
 
 ---
 
@@ -156,7 +157,7 @@ W: Dicsőség az Atyának és Fiúnak *
 ## 4. Pitch
 
 A pitch is a single letter `a`–`n` (14 diatonic positions, low to high). The
-letter names the staff position; the active [clef](#10-clefs) maps it to a sound.
+letter names the staff position; the active [clef](#11-clefs) maps it to a sound.
 
 ```aretino
 (g2) a b c d e f g h i j k l m n
@@ -174,7 +175,7 @@ w:   a b c d e f g h i j k l m n
 w:   g h i j h' i' j'
 ```
 
-A bare `'` that does **not** follow a pitch is a [breath mark](#9-bar-lines),
+A bare `'` that does **not** follow a pitch is a [breath mark](#10-bar-lines),
 not an octave mark.
 
 ---
@@ -291,7 +292,45 @@ vertically to fit.
 
 ---
 
-## 9. Bar lines
+## 9. Braces and spanning marks
+
+A `{` … `}` pair draws a visual mark **above** the notes it spans. Three shapes
+are available:
+
+| Opening token | Shape |
+|---|---|
+| `{` | Overbrace (curly brace pointing down) |
+| `\arc{` | Arc (smooth curve) |
+| `\line{` | Straight line |
+
+The closing `}` may be followed by a quoted or unquoted label:
+
+| Syntax | Label |
+|---|---|
+| `}` | No label |
+| `}"Text"` | Label in double quotes |
+| `}Word` | Label up to the next space |
+
+Spans can cross system breaks; the renderer continues the mark on the next row
+automatically.
+
+```aretino
+(g2) { g h i j } { h i j k }"melisma"
+```
+
+```aretino
+(g2) \arc{ g h i } \line{ j k l m }
+```
+
+```aretino
+(g2) { g h i j }"1." g { h i j k }"2." g
+```
+
+In the AST, the opening token is `{ type: 'brace-open', kind: 'brace' | 'arc' | 'line' }` and the closing token is `{ type: 'brace-close', label? }`.
+
+---
+
+## 10. Bar lines
 
 Bar lines and dividers are written as the literal symbols below, or by wrapping
 the same symbol in parentheses (`(|)`, `(||)`, …) — useful to keep them from
@@ -319,7 +358,7 @@ attaching to a neighbouring spacer or expander.
 
 ---
 
-## 10. Clefs
+## 11. Clefs
 
 A clef is a directive `(` `letter` `line` `)` — the clef letter (`g`, `f`,
 or `c`, case-insensitive) plus the staff line it sits on.
@@ -339,7 +378,7 @@ one redrawn at the start of wrapped rows.
 
 ---
 
-## 11. Accidentals
+## 12. Accidentals
 
 An accidental is a single symbol, optionally prefixed by the target pitch
 letter:
@@ -381,7 +420,7 @@ mean another position.
 
 ---
 
-## 12. Layout: breaks, expander, spacers
+## 13. Layout: breaks, expander, spacers
 
 These tokens control horizontal spacing and line breaking; they produce no
 sound.
@@ -412,7 +451,7 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 
 ---
 
-## 13. Lyrics
+## 14. Lyrics
 
 A `w:` line carries syllable text aligned under the music line above it. A `W:`
 line carries free verse text.
@@ -431,7 +470,7 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
 
 `W:` verse lines flow as ordinary text (psalm tone style) and accept the same
-[text formatting](#14-text-formatting) as lyrics:
+[text formatting](#15-text-formatting) as lyrics:
 
 ```aretino
 (g2) g hi h g e_d_ , g hi a'g g. ||
@@ -442,7 +481,7 @@ W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen
 
 ---
 
-## 14. Text formatting
+## 15. Text formatting
 
 Lyric (`w:`) and verse (`W:`) text supports inline formatting. Styles nest.
 
@@ -472,11 +511,11 @@ W: + dagger ++ double~dagger (unbreakable~space)
 
 ---
 
-## 15. Labels
+## 16. Labels
 
 You can add labels above notes with the syntax `f"Label"`. Formatting tags are supported as well.
 
-## 16. Embedding in Markdown
+## 17. Embedding in Markdown
 
 The dev test page (and any host that adopts the same convention) recognizes
 fenced code blocks tagged `aretino` and turns each into a live editor with a

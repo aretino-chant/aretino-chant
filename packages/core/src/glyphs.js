@@ -141,6 +141,17 @@ export const METRICS = {
     parenthesisVPadding: 0.4,         // vertical extension beyond the note bounding box
     parenthesisThickness: 0.25,          // max visual stroke width at the midpoint (staff spaces)
 
+    // --- Overbraces and arcs above neume spans ----------------------------
+    overbraceGap:           0.45,   // gap between top of notes and bottom of brace
+    overbraceTipDepth:      0.25,   // downward V-tip depth (brace only)
+    overbraceArmDepth:      0.22,   // downward arm depth at each end
+    overbraceKinkWidth:     0.3,    // horizontal width of the center brace kink
+    overbraceStroke:        0.2,
+    overbraceStrokeMinPx:   0.75,
+    overarcBulge:           0.75,    // upward arc height in SS
+    overarcStroke:          0.09,
+    overarcStrokeMinPx:     0.75,
+
     // --- Page layout ------------------------------------------------------
     leftMargin: 1,
     rightMargin: 1,
@@ -633,6 +644,63 @@ export function drawParenthesis(ctx, hingeX, y1, y2, side) {
               `C ${bxOuter} ${y1} ${bxOuter} ${y2} ${hingeX} ${y2} ` +
               `C ${bxInner} ${y2} ${bxInner} ${y1} ${hingeX} ${y1} Z`;
     return `<path d="${d}" fill="#000"/>`;
+}
+
+// Draws a horizontal overbrace segment from x1 to x2 with flat top at y.
+// isStart: true if this is the left end of the span; isEnd: true if right end.
+// Full span (both true): classic overbrace shape with center V-tip pointing down.
+// Partial spans: flat line with one curved arm where the span begins/ends.
+export function drawOverbrace(ctx, x1, x2, y, isStart = true, isEnd = true) {
+    const sw = stroke(ctx, METRICS.overbraceStroke, METRICS.overbraceStrokeMinPx);
+    const arm = ss(ctx, METRICS.overbraceArmDepth);
+    const tip = ss(ctx, METRICS.overbraceTipDepth);
+    const span = Math.max(0, x2 - x1);
+    const armWidth = Math.min(arm * 2.5, span / 4);
+    const mx = (x1 + x2) / 2;
+    let d;
+    if (isStart && isEnd) {
+        const leftArmX = x1 + armWidth;
+        const rightArmX = x2 - armWidth;
+        const halfKink = Math.min(ss(ctx, METRICS.overbraceKinkWidth) / 2, Math.max(0, rightArmX - leftArmX) / 2);
+
+        if (halfKink <= 0) {
+            d = `M ${x1} ${y + arm} Q ${x1} ${y} ${mx} ${y} Q ${x2} ${y} ${x2} ${y + arm}`;
+        } else {
+            const leftKinkX = mx - halfKink;
+            const rightKinkX = mx + halfKink;
+            d = `M ${x1} ${y + arm} ` +
+                `Q ${x1} ${y} ${leftArmX} ${y} ` +
+                `L ${leftKinkX} ${y} ` +
+                `L ${mx - halfKink * 0.45} ${y - tip * 0.45} ` +
+                `L ${mx - halfKink * 0.12} ${y - tip * 0.1} ` +
+                `L ${mx} ${y - tip} ` +
+                `L ${mx + halfKink * 0.45} ${y - tip * 0.45} ` +
+                `L ${rightKinkX} ${y} ` +
+                `L ${rightArmX} ${y} ` +
+                `Q ${x2} ${y} ${x2} ${y + arm}`;
+        }
+    } else if (isStart) {
+        d = `M ${x1} ${y + arm} Q ${x1} ${y} ${x1 + armWidth} ${y} L ${x2} ${y}`;
+    } else if (isEnd) {
+        d = `M ${x1} ${y} L ${x2 - armWidth} ${y} Q ${x2} ${y} ${x2} ${y + arm}`;
+    } else {
+        d = `M ${x1} ${y} L ${x2} ${y}`;
+    }
+    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+// Draws a simple upward-bowing arc from x1 to x2 with ends at y.
+export function drawOverarc(ctx, x1, x2, y) {
+    const sw = stroke(ctx, METRICS.overarcStroke, METRICS.overarcStrokeMinPx);
+    const bulge = ss(ctx, METRICS.overarcBulge);
+    const d = `M ${x1} ${y} C ${x1} ${y - bulge} ${x2} ${y - bulge} ${x2} ${y}`;
+    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+
+// Draws a simple horizontal line from x1 to x2 at y.
+export function drawOverline(ctx, x1, x2, y) {
+    const sw = stroke(ctx, METRICS.overarcStroke, METRICS.overarcStrokeMinPx);
+    return `<path d="M ${x1} ${y} L ${x2} ${y}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 
 export function escapeText(s) {

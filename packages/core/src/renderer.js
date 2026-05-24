@@ -22,6 +22,9 @@ import {
     drawAccidental,
     drawBarline,
     drawParenthesis,
+    drawOverbrace,
+    drawOverarc,
+    drawOverline,
     escapeText,
     escapeAttr,
 } from './glyphs.js';
@@ -142,6 +145,44 @@ function wrapSrc(item, svg, cls, staffBottomY, staffHeight) {
 // CSS rules embedded in the SVG so a cursor-tracking script can toggle a
 // single class to highlight the active note/token.
 const HIGHLIGHT_STYLE = `<style>.aretino-active [fill]:not([fill="none"]):not(.aretino-cursor-bg){fill:#ea580c}.aretino-active [stroke]:not([stroke="none"]):not(.aretino-cursor-bg){stroke:#ea580c}</style>`;
+
+function _flushBrace(ctx, parts, state, staffBottomY, isEnd, lyricFont) {
+    const gap = ss(ctx, METRICS.overbraceGap);
+    const staffTopY = staffBottomY - 4 * ctx.staffSpace;
+    const topNoteY = state.minY < Infinity
+        ? Math.min(state.minY, staffTopY)
+        : staffTopY;
+    const markY = topNoteY - gap;
+    const { braceKind, startX, endX, isStart, placeIdx, label } = state;
+
+    let svg;
+    if (braceKind === 'arc') {
+        svg = drawOverarc(ctx, startX, endX, markY);
+    } else if (braceKind === 'line') {
+        svg = drawOverline(ctx, startX, endX, markY);
+    } else {
+        svg = drawOverbrace(ctx, startX, endX, markY, isStart !== false, isEnd);
+    }
+
+    if (isEnd && label) {
+        const fontSize = ctx.lyricSize * 0.8;
+        const mx = (startX + endX) / 2;
+        // Offset by the brace shape's height above markY so text clears the tallest part.
+        let braceTopOffset;
+        if (braceKind === 'arc') {
+            // Cubic bezier midpoint sits at ~3/4 of the bulge above markY.
+            braceTopOffset = ss(ctx, METRICS.overarcBulge) * 0.75;
+        } else if (braceKind === 'line') {
+            braceTopOffset = 0;
+        } else {
+            // Center V-tip only exists on the first/only segment of an overbrace.
+            braceTopOffset = (isStart !== false) ? ss(ctx, METRICS.overbraceTipDepth) : 0;
+        }
+        const textY = markY - braceTopOffset - gap * 0.5 - fontSize * 0.15;
+        svg += `<text x="${mx}" y="${textY}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(label))}</text>`;
+    }
+    parts[placeIdx] = svg;
+}
 
 export function renderAretino(source, options = {}) {
     const ast = typeof source === 'string' ? parseAretino(source) : source;
@@ -440,6 +481,8 @@ export function renderAretino(source, options = {}) {
         // a line break still gets rendered (opening arc on each row, closing arc
         // on each row where the group continues or ends).
         let parenState = null;
+        // braceState tracks an open { } or \arc{ } span across rows similarly.
+        let braceState = null;
 
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
@@ -509,6 +552,14 @@ export function renderAretino(source, options = {}) {
                 parenState = { placeIdx, hingeX, closeHingeX: hingeX, minY: Infinity, maxY: -Infinity };
             }
 
+            // If a brace/arc span carried over from the previous row, start a new
+            // segment on this row from the current cursor position.
+            if (braceState) {
+                const placeIdx = parts.length;
+                parts.push('');
+                braceState = { ...braceState, placeIdx, startX: cursorX, endX: cursorX, minY: Infinity, isStart: false };
+            }
+
             for (let idx = 0; idx < row.items.length; idx++) {
                 const it = row.items[idx];
                 if (it.kind === 'clef') {
@@ -572,6 +623,16 @@ export function renderAretino(source, options = {}) {
                         parenState = null;
                     }
                     cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
+                } else if (it.kind === 'brace-open') {
+                    const placeIdx = parts.length;
+                    parts.push('');
+                    braceState = { placeIdx, braceKind: it.braceKind, startX: cursorX, endX: cursorX, minY: Infinity, isStart: true };
+                } else if (it.kind === 'brace-close') {
+                    if (braceState) {
+                        braceState.label = it.label ?? null;
+                        _flushBrace(ctx, parts, braceState, staffBottomY, true, lyricFont);
+                        braceState = null;
+                    }
                 } else if (it.kind === 'ligature') {
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? [], it.leadingCourtesyAccidentals ?? []);
                     let ligSvg = r.svg;
@@ -587,6 +648,10 @@ export function renderAretino(source, options = {}) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
                         if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;
                         parenState.closeHingeX = cursorX + r.advance;
+                    }
+                    if (braceState) {
+                        if (r.minY < braceState.minY) braceState.minY = r.minY;
+                        braceState.endX = r.rightX;
                     }
                     cursorX += r.advance + (it.syllableExtra || 0);
                 }
@@ -612,6 +677,13 @@ export function renderAretino(source, options = {}) {
                 parts.push(drawParenthesis(ctx, parenState.closeHingeX - innerGap - parenWidth, spanTop, spanBot, 'right'));
                 // Signal the next row to re-open the group (parenState truthy = continuation).
                 parenState = { continuation: true };
+            }
+
+            // If a brace/arc span was opened on this row but its close is on a
+            // later row, draw this row's segment and carry the state forward.
+            if (braceState) {
+                _flushBrace(ctx, parts, braceState, staffBottomY, false, lyricFont);
+                braceState = { braceKind: braceState.braceKind, label: braceState.label, continuation: true };
             }
 
             const isLastRow = rowIdx === rows.length - 1;
@@ -805,6 +877,14 @@ function flattenItems(tokens) {
             items.push({ kind: 'paren-close', ...src });
             continue;
         }
+        if (tok.type === 'brace-open') {
+            items.push({ kind: 'brace-open', braceKind: tok.kind, ...src });
+            continue;
+        }
+        if (tok.type === 'brace-close') {
+            items.push({ kind: 'brace-close', ...(tok.label != null ? { label: tok.label } : {}), ...src });
+            continue;
+        }
         if (tok.type === 'ligature') {
             items.push({ kind: 'ligature', groups: tok.groups, gaps: tok.gaps ?? [], ...(tok.label != null ? { label: tok.label } : {}), ...src });
             continue;
@@ -987,6 +1067,9 @@ function measureItem(ctx, item) {
     }
     if (item.kind === 'paren-open' || item.kind === 'paren-close') {
         return ss(ctx, METRICS.parenthesisWidth) + ss(ctx, METRICS.parenthesisInnerGap);
+    }
+    if (item.kind === 'brace-open' || item.kind === 'brace-close') {
+        return 0;
     }
     if (item.kind === 'ligature') {
         return accidentalListAdvance(ctx, item.leadingCourtesyAccidentals)
@@ -1430,8 +1513,13 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
     const leftX = firstNoteCx !== null
         ? firstNoteCx - ss(ctx, METRICS.noteBoxWidth) * 0.5
         : x;
+    // Visual right edge of the last notehead (extended for a trailing mora dot),
+    // distinct from `advance` which also includes inter-neume spacing.
+    const rightX = lastNoteCx !== null
+        ? lastNoteCx + ss(ctx, hasMora ? METRICS.moraOffsetX + METRICS.moraRadius : METRICS.noteBoxWidth * 0.5)
+        : x + advance;
 
-    return { svg: parts.join(''), advance, centerX, leftX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
+    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
 }
 
 let _measureCanvas = null;

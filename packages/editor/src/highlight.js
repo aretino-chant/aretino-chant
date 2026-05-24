@@ -144,6 +144,16 @@ const aretinoStreamParser = {
             return 'keyword';
         }
         if (ch === '[' || ch === ']') { stream.next(); return 'bracket'; }
+        if (ch === '\\') {
+            const m = /^\\[a-zA-Z]+\{/.exec(stream.string.slice(stream.pos));
+            if (m) { for (let k = 0; k < m[0].length; k++) stream.next(); return 'bracket'; }
+        }
+        if (ch === '{') { stream.next(); return 'bracket'; }
+        if (ch === '}') {
+            stream.next();
+            if (stream.peek() === '"') { stream.next(); stream.eatWhile(c => c !== '"'); if (!stream.eol()) stream.next(); }
+            return 'bracket';
+        }
         if (ch === '*') { stream.next(); return 'operator'; }
         if (ch === '/') { stream.next(); return 'operator'; }
         if (ch === '=') { stream.eatWhile('='); return 'operator'; }

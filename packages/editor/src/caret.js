@@ -47,6 +47,19 @@ function bestMatchingTarget(candidates, matches) {
     return best;
 }
 
+function findPrecedingTarget(candidates, position) {
+    let best = null, bestEnd = -1;
+    for (const el of candidates) {
+        const b = datasetNumber(el, 'srcEnd');
+        if (b === null || b > position) continue;
+        if (best === null || b > bestEnd) {
+            best = el;
+            bestEnd = b;
+        }
+    }
+    return best;
+}
+
 function findTargetAtCaret(preview, caret) {
     if (!preview || typeof preview.querySelectorAll !== 'function') return null;
 
@@ -54,7 +67,9 @@ function findTargetAtCaret(preview, caret) {
     if (!Number.isFinite(position)) return null;
 
     const candidates = preview.querySelectorAll('[data-src-start]');
-    return bestMatchingTarget(candidates, (a, b) => position > a && position <= b);
+    const direct = bestMatchingTarget(candidates, (a, b) => position > a && position <= b);
+    if (direct) return direct;
+    return findPrecedingTarget(candidates, position);
 }
 
 function clearHighlight(preview, activeClass, cursorClass) {
@@ -71,17 +86,28 @@ function addCursorBackground(target, options) {
     const staffHeight = datasetNumber(target, 'staffHeight');
 
     const bbox = target.getBBox();
-    if (bbox.width === 0 || bbox.height === 0) return false;
+    if (bbox.height === 0) return false;
 
     const hasStaffBox = staffBottom !== null && staffHeight !== null;
     const padding = hasStaffBox
         ? staffHeight * options.verticalPadding
         : bbox.height * options.verticalPadding;
+
+    // Zero-width elements (e.g., barlines rendered as a vertical <line>) need
+    // a minimum cursor width so the highlight rect is visible.
+    let rectX = bbox.x;
+    let rectWidth = bbox.width;
+    if (rectWidth === 0) {
+        const minW = (hasStaffBox ? staffHeight : bbox.height) * 0.15;
+        rectX -= minW / 2;
+        rectWidth = minW;
+    }
+
     const rect = target.ownerDocument.createElementNS(SVG_NS, 'rect');
     rect.setAttribute('class', `${options.cursorClass} ${options.cursorBackgroundClass}`);
-    rect.setAttribute('x', bbox.x);
+    rect.setAttribute('x', rectX);
     rect.setAttribute('y', hasStaffBox ? staffBottom - staffHeight - padding : bbox.y - padding);
-    rect.setAttribute('width', bbox.width);
+    rect.setAttribute('width', rectWidth);
     rect.setAttribute('height', (hasStaffBox ? staffHeight : bbox.height) + 2 * padding);
     rect.setAttribute('fill', options.fill);
     rect.setAttribute('stroke', 'none');

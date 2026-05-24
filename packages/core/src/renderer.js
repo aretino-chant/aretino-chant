@@ -1590,20 +1590,36 @@ function parseSyllables(text) {
             });
             continue;
         }
+        const wordChars = [];
+        const wordCharIndexes = [];
         let j = i;
-        while (j < cleaned.length && cleaned[j] !== ' ' && cleaned[j] !== '\t' && cleaned[j] !== '(') {
+        let skipWhitespaceAfterHyphen = false;
+        while (j < cleaned.length) {
+            const c = cleaned[j];
+            if (c === '(') {
+                break;
+            }
+            if (c === ' ' || c === '\t') {
+                if (skipWhitespaceAfterHyphen) {
+                    j++;
+                    continue;
+                }
+                break;
+            }
+            wordChars.push(c);
+            wordCharIndexes.push(j);
+            skipWhitespaceAfterHyphen = c === '-';
             j++;
         }
-        const word = cleaned.slice(i, j);
-        const wordStart = i;
+        const word = wordChars.join('');
         i = j;
         const parts = word.split('-').filter(p => p !== '');
         let posInWord = 0;
         for (let k = 0; k < parts.length; k++) {
             const raw = parts[k];
             const sylPos = word.indexOf(raw, posInWord);
-            const absStart = wordStart + sylPos;
-            const absEnd = absStart + raw.length;
+            const absStart = wordCharIndexes[sylPos];
+            const absEnd = wordCharIndexes[sylPos + raw.length - 1] + 1;
             posInWord = sylPos + raw.length + 1; // +1 for the hyphen
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;

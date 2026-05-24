@@ -425,7 +425,7 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | Construct | Meaning |
 |---|---|
 | *(space)* | Word boundary — syllables of different words don't get a hyphen |
-| `-` | Syllable boundary **within** a word — joined syllables butt together, a hyphen appears only if the neumes leave room |
+| `-` | Syllable boundary **within** a word — spaces after the hyphen are ignored, joined syllables butt together, and a hyphen appears only if the neumes leave room |
 | `~` | Renders as a literal (non-breaking) space — keeps a multi-word unit in one syllable, e.g. `(unbreakable~space)` |
 | `~~` | Splits a syllable's display text from its alignment text |
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |

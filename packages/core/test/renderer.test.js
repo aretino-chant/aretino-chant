@@ -32,6 +32,10 @@ function courtesyAccidentalCount(svg) {
   return (svg.match(/aretino-courtesy-accidental/g) || []).length;
 }
 
+function renderedHyphenCount(svg) {
+  return (svg.match(/<text[^>]*>-<\/text>/g) || []).length;
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -155,6 +159,14 @@ describe('renderAretino', () => {
 
       expect(lyrics.map(l => l.text)).toEqual(['a', 'b', 'c', 'd']);
       expect(lyrics.every(l => l.y === baseline)).toBe(true);
+    });
+
+    it('allows whitespace after lyric syllable hyphens', () => {
+      const source = 'c = = d = = e\nw: Ky-    ri-     e';
+      const svg = renderAretino(source, { width: 600 });
+
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['Ky', 'ri', 'e']);
+      expect(renderedHyphenCount(svg)).toBe(2);
     });
   });
 

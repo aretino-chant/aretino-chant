@@ -20,10 +20,11 @@ Importing the package registers `<aretino-editor>` as a custom element:
 import '@aretino-chant/editor';
 ```
 
-If you need the class directly, import `AretinoEditor`:
+If you need the class directly, or the preview caret helper, import them by
+name:
 
 ```js
-import { AretinoEditor } from '@aretino-chant/editor';
+import { AretinoEditor, highlightAtCaret } from '@aretino-chant/editor';
 ```
 
 ## HTML
@@ -43,6 +44,10 @@ const editor = document.querySelector('aretino-editor');
 // Read and write the source text.
 console.log(editor.value);
 editor.value = '(g2) g h i ||';
+
+// Read and write the primary caret position.
+console.log(editor.caret);
+editor.caret = 8;
 
 // Adjust the preview zoom.
 editor.zoom = 1.4;
@@ -66,11 +71,71 @@ Every attribute has a matching JavaScript property of the same name.
 | `zoom` | number | `1` | Preview magnification factor passed to `renderAretino()`. The physical staff spacing is small, about 1.5 mm, so a zoom of 1.2 to 1.5 is comfortable for editing. |
 | `preview` | boolean | `true` | Whether to create the built-in live SVG preview pane. Set `preview="false"` or `editor.preview = false` when the embedding app provides its own preview. |
 
+## Editor Properties
+
+| Name | Type | Description |
+|---|---|---|
+| `caret` | number | Primary CodeMirror caret offset in the source string. Setting it moves the caret, scrolls it into view, and focuses the editor. |
+
 ## Events
 
 | Event | Bubbles / composed | Detail | Description |
 |---|---|---|---|
-| `change` | yes / yes | `{ value: string }` | Fired on every document change, including every keystroke. |
+| `change` | yes / yes | `{ value: string, caret: number }` | Fired on every document change, including every keystroke. |
+| `selectionchange` | yes / yes | `{ caret: number }` | Fired when the primary caret position changes. |
+
+## Custom Preview Integration
+
+Set `preview="false"` when your app renders the preview itself. The editor
+package exports `highlightAtCaret()` so custom preview components can reuse the
+same caret-to-preview behavior as the built-in pane.
+
+```js
+import '@aretino-chant/editor';
+import { highlightAtCaret } from '@aretino-chant/editor';
+import { renderAretino } from '@aretino-chant/core';
+
+const editor = document.querySelector('aretino-editor');
+const preview = document.querySelector('#preview');
+
+editor.preview = false;
+
+function renderPreview() {
+  const zoom = editor.zoom;
+  const width = Math.max(120, Math.round((preview.clientWidth || 600) / zoom));
+  preview.innerHTML = renderAretino(editor.value, { width, zoom });
+  highlightAtCaret(preview, editor.caret);
+}
+
+editor.addEventListener('change', renderPreview);
+editor.addEventListener('selectionchange', event => {
+  highlightAtCaret(preview, event.detail.caret);
+});
+
+renderPreview();
+```
+
+### `highlightAtCaret(preview, caret, options?)`
+
+Highlights the source-mapped SVG element that corresponds to `caret`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `preview` | `Element` | Element containing rendered Aretino SVG, or the SVG element itself. |
+| `caret` | number | Absolute source offset, usually `editor.caret` or `textarea.selectionStart`. |
+| `options` | object | Optional styling controls. |
+
+The function clears the previous caret highlight in `preview` and returns the
+matched source-mapped element, or `null` when no rendered token matches.
+
+| Option | Default | Description |
+|---|---|---|
+| `mode` | `"background"` | `"background"` draws a translucent staff-height rectangle, `"class"` toggles `activeClass`, and `"both"` does both. |
+| `activeClass` | `"aretino-active"` | Class toggled in `"class"` and `"both"` modes. |
+| `cursorClass` | `"aretino-cursor-rect"` | Class used to find and clear the background rectangle. |
+| `cursorBackgroundClass` | `"aretino-cursor-bg"` | Additional class placed on the background rectangle. |
+| `fill` | `"rgba(234, 88, 12, 0.13)"` | Background rectangle fill. |
+| `verticalPadding` | `0.25` | Staff-height fraction added above and below the background rectangle. |
 
 ## CSS Customisation
 

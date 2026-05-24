@@ -6,6 +6,7 @@ import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { renderAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
+import { highlightAtCaret } from './caret.js';
 
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap';
 
@@ -96,7 +97,7 @@ class AretinoEditor extends HTMLElement {
                     aretino(),
                     EditorView.updateListener.of(update => {
                         if (update.docChanged) this._handleChange();
-                        else if (update.selectionSet) this._highlightAtCaret();
+                        if (update.selectionSet) this._handleSelectionChange();
                     }),
                 ],
             }),
@@ -139,6 +140,20 @@ class AretinoEditor extends HTMLElement {
         });
     }
 
+    get caret() {
+        return this._view?.state.selection.main.head ?? 0;
+    }
+
+    set caret(v) {
+        if (!this._view) return;
+        const position = Math.max(0, Math.min(this._view.state.doc.length, Number(v) || 0));
+        this._view.dispatch({
+            selection: { anchor: position },
+            scrollIntoView: true,
+        });
+        this._view.focus();
+    }
+
     get zoom() {
         return parseFloat(this.getAttribute('zoom') ?? '1');
     }
@@ -160,7 +175,16 @@ class AretinoEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent('change', {
             bubbles: true,
             composed: true,
-            detail: { value: this.value },
+            detail: { value: this.value, caret: this.caret },
+        }));
+    }
+
+    _handleSelectionChange() {
+        this._highlightAtCaret();
+        this.dispatchEvent(new CustomEvent('selectionchange', {
+            bubbles: true,
+            composed: true,
+            detail: { caret: this.caret },
         }));
     }
 
@@ -201,38 +225,7 @@ class AretinoEditor extends HTMLElement {
 
     _highlightAtCaret() {
         if (!this._previewEl || !this._view) return;
-        const caret = this._view.state.selection.main.head;
-
-        this._previewEl.querySelectorAll('.aretino-cursor-rect')
-            .forEach(el => el.remove());
-
-        const candidates = this._previewEl.querySelectorAll('[data-src-start]');
-        let best = null, bestA = 0, bestB = 0;
-        for (const el of candidates) {
-            const a = +el.dataset.srcStart, b = +el.dataset.srcEnd;
-            if (caret > a && caret <= b) {
-                if (!best || (b - a) < (bestB - bestA)) {
-                    best = el; bestA = a; bestB = b;
-                }
-            }
-        }
-
-        if (!best || best.dataset.staffBottom === undefined) return;
-
-        const staffBottom = +best.dataset.staffBottom;
-        const staffHeight = +best.dataset.staffHeight;
-        const bbox = best.getBBox();
-        if (bbox.width === 0) return;
-
-        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('class', 'aretino-cursor-rect aretino-cursor-bg');
-        rect.setAttribute('x', bbox.x);
-        rect.setAttribute('y', staffBottom - staffHeight - staffHeight/4);
-        rect.setAttribute('width', bbox.width);
-        rect.setAttribute('height', staffHeight + 2 * staffHeight/4);
-        rect.setAttribute('fill', 'rgba(234, 88, 12, 0.13)');
-        rect.setAttribute('stroke', 'none');
-        best.prepend(rect);
+        highlightAtCaret(this._previewEl, this.caret);
     }
 }
 

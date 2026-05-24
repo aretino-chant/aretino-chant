@@ -2,10 +2,11 @@
 
 Developer documentation for `@aretino-chant/core` — the parser and SVG renderer.
 
-This document is for people **embedding the library**: building editors, live
-previews, responsive or fixed-width score layouts, and controlling sizing. For
-the chant *notation format* itself (how to write the source text), see the
-[Syntax Reference](./syntax-reference.md).
+This document is for people **embedding the library**: rendering previews,
+responsive or fixed-width score layouts, and controlling sizing. For the chant
+*notation format* itself (how to write the source text), see the
+[Syntax Reference](./syntax-reference.md). For editor-specific caret behavior,
+use `@aretino-chant/editor`.
 
 ---
 
@@ -17,7 +18,7 @@ the chant *notation format* itself (how to write the source text), see the
 4. [Responsive previews](#4-responsive-previews)
 5. [Fixed-width previews](#5-fixed-width-previews)
 6. [The SVG output contract](#6-the-svg-output-contract)
-7. [Building an editor](#7-building-an-editor) — live preview, cursor highlight, error handling
+7. [Interactive rendering notes](#7-interactive-rendering-notes) — error handling and source maps
 8. [`parseAretino(source)`](#8-parsearetinosource) — the AST
 9. [Quick reference tables](#9-quick-reference-tables)
 
@@ -50,7 +51,7 @@ you can parse once and render many times if you need both the AST and the SVG.
 ## 2. `renderAretino(source, options)`
 
 Renders chant source to a self-contained SVG string. Throws on malformed input;
-wrap it in `try/catch` in interactive contexts (see [§7](#7-building-an-editor)).
+wrap it in `try/catch` in interactive contexts (see [§7](#7-interactive-rendering-notes)).
 
 ```js
 const svg = renderAretino(source, {
@@ -279,20 +280,21 @@ ligature with classes `aretino-accidental aretino-courtesy-accidental`; they do
 not correspond to a separate source span.
 
 `data-src-start` / `data-src-end` are **absolute character offsets into the
-source string** — they line up directly with a textarea's `selectionStart`.
+source string**.
 
 Adding the class **`aretino-active`** to any of these `<g>` elements turns its
-fill/stroke orange (`#ea580c`), via the embedded stylesheet. That is the
-highlight mechanism — you toggle a class, the SVG does the styling.
+fill/stroke orange (`#ea580c`), via the embedded stylesheet. This is only an SVG
+styling hook; caret behavior belongs to `@aretino-chant/editor`.
 
 ---
 
-## 7. Building an editor
+## 7. Interactive rendering notes
 
-A live editor is three pieces: a textarea, a preview that re-renders on input,
-and (optionally) cursor-synced highlighting using the source-map attributes.
+The core package renders notation and exposes source-map metadata in SVG. It
+does not provide editor behavior. Use `@aretino-chant/editor` for the
+CodeMirror web component and its caret-to-preview helper.
 
-### 7.1 Live preview + error handling
+### 7.1 Preview error handling
 
 `renderAretino` throws on bad input. Catch it and show the message rather than
 blanking the preview unexpectedly:
@@ -309,49 +311,14 @@ function renderBlock(preview, errorEl, source) {
     errorEl.hidden = false;
   }
 }
-
-textarea.addEventListener('input', () => renderBlock(preview, errorEl, textarea.value));
 ```
 
-### 7.2 Cursor-synced highlighting
+### 7.2 Choosing an on-screen zoom
 
-Map the caret position to the token whose source span contains it, and toggle
-`aretino-active`:
-
-```js
-function highlightAtCaret(preview, caret) {
-  // Clear previous highlight.
-  preview.querySelectorAll('.aretino-active')
-         .forEach(el => el.classList.remove('aretino-active'));
-
-  // Find the innermost element whose [src-start, src-end) contains the caret.
-  const candidates = preview.querySelectorAll('[data-src-start]');
-  let best = null;
-  for (const el of candidates) {
-    const a = +el.dataset.srcStart, b = +el.dataset.srcEnd;
-    if (caret >= a && caret < b) {
-      // Prefer the tightest (smallest) span — a note inside a ligature.
-      if (!best || (b - a) < (best._b - best._a)) {
-        best = el; best._a = a; best._b = b;
-      }
-    }
-  }
-  if (best) best.classList.add('aretino-active');
-}
-
-textarea.addEventListener('keyup', () => highlightAtCaret(preview, textarea.selectionStart));
-textarea.addEventListener('click', () => highlightAtCaret(preview, textarea.selectionStart));
-```
-
-The reverse direction (click a note → move the caret) is symmetric: read
-`data-src-start` off the clicked `<g>` and set `textarea.selectionStart`.
-
-### 7.3 Choosing an editing zoom
-
-The physical staff space (1.75 mm) is too small to edit comfortably on screen.
-Pick an `EDITOR_ZOOM` (the playground uses `1.4`) and keep layout at the logical
-width so the preview still reflects the true printed line breaks. `zoom` never
-affects layout, so it's safe to expose as a pure "magnification" slider.
+The physical staff space (1.75 mm) is small on screen. Pick a display zoom
+(the playground uses `1.4`) and keep layout at the logical width so the preview
+still reflects the true printed line breaks. `zoom` never affects layout, so
+it's safe to expose as a pure magnification control.
 
 ---
 

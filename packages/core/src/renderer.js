@@ -152,15 +152,18 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, lyricFont) {
     const topNoteY = state.minY < Infinity
         ? Math.min(state.minY, staffTopY)
         : staffTopY;
-    const markY = topNoteY - gap;
+    
     const { braceKind, startX, endX, isStart, placeIdx, label } = state;
-
+    let markY;
     let svg;
     if (braceKind === 'arc') {
+        markY = topNoteY - gap;
         svg = drawOverarc(ctx, startX, endX, markY);
     } else if (braceKind === 'line') {
+        markY = topNoteY - gap;
         svg = drawOverline(ctx, startX, endX, markY);
     } else {
+        markY = topNoteY - gap * 1.5;
         svg = drawOverbrace(ctx, startX, endX, markY, isStart !== false, isEnd);
     }
 

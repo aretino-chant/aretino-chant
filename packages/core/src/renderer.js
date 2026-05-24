@@ -487,6 +487,20 @@ export function renderAretino(source, options = {}) {
         // braceState tracks an open { } or \arc{ } span across rows similarly.
         let braceState = null;
 
+        // Pre-scan: only render a brace span when both { and } are present.
+        const completedBraceOpens = new Set();
+        let pendingBraceOpen = null;
+        for (const row of rows) {
+            for (const it of row.items) {
+                if (it.kind === 'brace-open') {
+                    pendingBraceOpen = it;
+                } else if (it.kind === 'brace-close' && pendingBraceOpen) {
+                    completedBraceOpens.add(pendingBraceOpen);
+                    pendingBraceOpen = null;
+                }
+            }
+        }
+
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
             const staffLeftX = ctx.leftMargin + rowIndent;
@@ -627,9 +641,11 @@ export function renderAretino(source, options = {}) {
                     }
                     cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
                 } else if (it.kind === 'brace-open') {
-                    const placeIdx = parts.length;
-                    parts.push('');
-                    braceState = { placeIdx, braceKind: it.braceKind, startX: cursorX, endX: cursorX, minY: Infinity, isStart: true };
+                    if (completedBraceOpens.has(it)) {
+                        const placeIdx = parts.length;
+                        parts.push('');
+                        braceState = { placeIdx, braceKind: it.braceKind, startX: cursorX, endX: cursorX, minY: Infinity, isStart: true };
+                    }
                 } else if (it.kind === 'brace-close') {
                     if (braceState) {
                         braceState.label = it.label ?? null;

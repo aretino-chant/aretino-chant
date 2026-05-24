@@ -209,5 +209,8 @@ const aretinoHighlightStyle = HighlightStyle.define([
 ]);
 
 export function aretino() {
-    return new LanguageSupport(aretinoLanguage, syntaxHighlighting(aretinoHighlightStyle));
+    return new LanguageSupport(aretinoLanguage, [
+        syntaxHighlighting(aretinoHighlightStyle),
+        aretinoLanguage.data.of({ closeBrackets: { brackets: ['(', '[', '{', '"', '`'] } }),
+    ]);
 }

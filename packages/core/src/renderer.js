@@ -459,7 +459,7 @@ export function renderAretino(source, options = {}) {
 
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
-                parts.push(c.svg);
+                parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight));
                 cursorX += c.advance - ss(ctx, METRICS.clefPostGap) + ss(ctx, METRICS.clefInlinePostGap);
             }
 
@@ -655,7 +655,8 @@ export function renderAretino(source, options = {}) {
                 y = lastLyricBottom + ctx.staffGap;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
-                    parts.push(`<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`);
+                    const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
+                    parts.push(wrapSrc(lyric, lyricSvg, 'aretino-lyric aretino-lyric-line'));
                     lyricY += lyricLineHeight;
                 }
                 const lastLyricBottom = lyricY - lyricLineHeight + ctx.lyricSize * 0.3;
@@ -734,7 +735,7 @@ function groupSections(lines) {
         if (item.type === 'music') {
             pending.tokens.push(...item.tokens);
         } else if (item.type === 'lyrics') {
-            pending.lyrics.push(item.text);
+            pending.lyrics.push(item);
         } else if (item.type === 'verse') {
             pending.verses.push(item.lines);
         }
@@ -1003,6 +1004,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
     let cur = [];
     let curWidth = 0;
     let rowStartClef = initialClef;
+    let rowStartClefSource = null;
     let runningClef = initialClef;
     let rowStartKeySig = initialKeySig ?? [];
     let runningKeySig = initialKeySig ?? [];
@@ -1049,6 +1051,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
             itemsWidth: curWidth,
             justify,
             startClef: rowStartClef,
+            startClefSource: rowStartClefSource,
             startKeySig: rowStartKeySig,
             drawStartClef: showClef,
             indentWidth: rowIsFirst ? firstRowIndentWidth : 0,
@@ -1059,6 +1062,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
         cur = [];
         curWidth = 0;
         rowStartClef = runningClef;
+        rowStartClefSource = null;
         rowStartKeySig = runningKeySig;
     }
 
@@ -1072,6 +1076,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
             runningClef = item.clef;
             if (cur.length === 0) {
                 rowStartClef = item.clef;
+                rowStartClefSource = item;
                 continue;
             }
         }
@@ -1131,6 +1136,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
                 finalize(true);
                 if (item.kind === 'clef') {
                     rowStartClef = item.clef;
+                    rowStartClefSource = item;
                     continue;
                 }
                 if (item.kind === 'keysig') {
@@ -1274,7 +1280,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
             if (note.accidental) {
                 const accX = cx - ss(ctx, METRICS.noteBoxWidth) * 0.5;
                 const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY, note.accidental.high ?? false);
-                parts.push(a.svg);
+                parts.push(wrapSrc(note.accidental, a.svg, 'aretino-accidental aretino-inline-accidental', staffBottomY, ctx.staffHeight));
                 cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
             }
             const cy = pitchY(ctx, note, staffBottomY);
@@ -1496,9 +1502,16 @@ function sliceSegments(segments, startChar) {
 //   +                dagger †
 //   ++               double dagger ‡
 //   \X               literal X (escape for any special char)
-function parseFormattingToSegments(text) {
+function parseFormattingToSegmentsInternal(text, sourceMap = null) {
+    text = String(text ?? '');
+    const withSource = Array.isArray(sourceMap);
     const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null }];
     const segments = [];
+
+    function sourceAt(idx) {
+        const value = sourceMap?.[idx];
+        return Number.isFinite(value) ? value : null;
+    }
 
     function effectiveState() {
         const s = { bold: false, italic: false, underline: false, color: null };
@@ -1511,15 +1524,25 @@ function parseFormattingToSegments(text) {
         return s;
     }
 
-    function addText(str) {
+    function addText(str, offsets = null) {
         if (!str) return;
         const st = effectiveState();
+        const sourceOffsets = withSource
+            ? (offsets ?? Array.from({ length: str.length }, () => null))
+            : null;
         const last = segments[segments.length - 1];
         if (last && last.bold === st.bold && last.italic === st.italic &&
                 last.underline === st.underline && last.color === st.color) {
             last.text += str;
+            if (withSource) {
+                last.sourceOffsets.push(...sourceOffsets);
+            }
         } else {
-            segments.push({ text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color });
+            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color };
+            if (withSource) {
+                segment.sourceOffsets = sourceOffsets.slice();
+            }
+            segments.push(segment);
         }
     }
 
@@ -1532,16 +1555,17 @@ function parseFormattingToSegments(text) {
     let i = 0;
     while (i < text.length) {
         if (text[i] === '+' && text[i + 1] === '+') {
-            addText('‡'); i += 2;
+            addText('‡', [sourceAt(i)]); i += 2;
         } else if (text[i] === '+') {
-            addText('†'); i++;
+            addText('†', [sourceAt(i)]); i++;
         } else if (text[i] === '\\') {
+            const slashIdx = i;
             i++;
-            if (i >= text.length) { addText('\\'); break; }
+            if (i >= text.length) { addText('\\', [sourceAt(slashIdx)]); break; }
             if (text[i] === 'R') {
-                addText('℟'); i++;
+                addText('℟', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text[i] === 'V') {
-                addText('℣'); i++;
+                addText('℣', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text.slice(i, i + 4) === 'red{') {
                 stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red' });
                 i += 4;
@@ -1553,10 +1577,10 @@ function parseFormattingToSegments(text) {
                     i = braceIdx + 1;
                     stack.push({ type: 'command', bold: false, italic: false, underline: false, color: colorName });
                 } else {
-                    addText('\\color:');
+                    addText('\\color:', Array.from({ length: 7 }, (_, k) => sourceAt(slashIdx + k)));
                 }
             } else {
-                addText(text[i]); i++;
+                addText(text[i], [sourceAt(i)]); i++;
             }
         } else if (text[i] === '{') {
             stack.push({ type: 'brace', bold: true, italic: false, underline: false, color: null }); i++;
@@ -1571,24 +1595,59 @@ function parseFormattingToSegments(text) {
         } else if (text[i] === ']') {
             popType('bracket'); i++;
         } else {
-            addText(text[i]); i++;
+            addText(text[i], [sourceAt(i)]); i++;
         }
     }
 
     return segments.filter(s => s.text !== '');
 }
 
-function parseSyllables(text) {
+function parseFormattingToSegments(text) {
+    return parseFormattingToSegmentsInternal(text);
+}
+
+function parseFormattingToSegmentsWithSource(text, sourceMap) {
+    return parseFormattingToSegmentsInternal(text, sourceMap);
+}
+
+function lyricText(input) {
+    return typeof input === 'string' ? input : (input?.text ?? '');
+}
+
+function lyricSourceMap(input) {
+    return typeof input === 'string' ? null : (Array.isArray(input?.sourceMap) ? input.sourceMap : null);
+}
+
+function sourceSpanFromOffsets(offsets) {
+    const real = offsets.filter(Number.isFinite);
+    if (real.length === 0) {
+        return {};
+    }
+    return { srcStart: Math.min(...real), srcEnd: Math.max(...real) + 1 };
+}
+
+function parseSyllables(input) {
+    const text = lyricText(input);
+    const sourceMap = lyricSourceMap(input);
     const result = [];
     // Parse formatting first, then reconstruct clean text + per-char format map.
-    const rawSegments = parseFormattingToSegments(text || '');
+    const rawSegments = sourceMap
+        ? parseFormattingToSegmentsWithSource(text || '', sourceMap)
+        : parseFormattingToSegments(text || '');
     let cleaned = '';
     const formatMap = [];
+    const cleanedSourceMap = [];
     for (const seg of rawSegments) {
-        for (const c of seg.text) {
+        for (let ci = 0; ci < seg.text.length; ci++) {
+            const c = seg.text[ci];
             cleaned += c;
             formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
+            cleanedSourceMap.push(seg.sourceOffsets?.[ci] ?? null);
         }
+    }
+
+    function sourceSpanForCleanedRange(start, end) {
+        return sourceSpanFromOffsets(cleanedSourceMap.slice(start, end));
     }
 
     // Build segments for a range [start, end) in cleaned, collapsing same-formatting runs.
@@ -1622,6 +1681,7 @@ function parseSyllables(text) {
             const end = cleaned.indexOf(')', i);
             const innerStart = i + 1;
             const innerEnd = end < 0 ? cleaned.length : end;
+            const fullEnd = end < 0 ? innerEnd : end + 1;
             const segments = buildSegments(innerStart, innerEnd, s => s.replace(/~/g, ' '));
             i = end < 0 ? cleaned.length : end + 1;
             result.push({
@@ -1630,6 +1690,7 @@ function parseSyllables(text) {
                 hyphenAfter: false,
                 kind: 'barline',
                 notesBefore: noteCount,
+                ...sourceSpanForCleanedRange(innerStart - 1, fullEnd),
             });
             continue;
         }
@@ -1663,6 +1724,7 @@ function parseSyllables(text) {
             const sylPos = word.indexOf(raw, posInWord);
             const absStart = wordCharIndexes[sylPos];
             const absEnd = wordCharIndexes[sylPos + raw.length - 1] + 1;
+            const sourceSpan = sourceSpanForCleanedRange(absStart, absEnd);
             posInWord = sylPos + raw.length + 1; // +1 for the hyphen
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;
@@ -1684,6 +1746,7 @@ function parseSyllables(text) {
                 alignSegments,
                 hyphenAfter: k < parts.length - 1,
                 kind: 'note',
+                ...sourceSpan,
             });
             noteCount++;
         }
@@ -1730,7 +1793,7 @@ function renderUnderlines(segments, textX, textY, fontSize, fontFamily, textAnch
 
 // Converts a lyric line with formatting syntax into SVG tspan elements.
 function formatLyricLine(text) {
-    return renderSegments(parseFormattingToSegments(text));
+    return renderSegments(parseFormattingToSegments(lyricText(text)));
 }
 
 // Renders parenthesized lyric tokens centered under their corresponding
@@ -1751,8 +1814,9 @@ function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         }
         const cx = barlines[i].centerX;
         const label = labels[i];
-        parts.push(`<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`);
-        parts.push(renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle'));
+        const labelSvg = `<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`
+            + renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle');
+        parts.push(wrapSrc(label, labelSvg, 'aretino-lyric aretino-barline-label'));
     }
     return parts.join('');
 }
@@ -1822,8 +1886,9 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         const right = left + fullW;
         const textCenter = left + fullW / 2;
 
-        parts.push(`<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`);
-        parts.push(renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle'));
+        const syllableSvg = `<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`
+            + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle');
+        parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable'));
         if (hyphenX !== null) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
         }

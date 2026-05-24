@@ -69,18 +69,20 @@ function addCursorBackground(target, options) {
 
     const staffBottom = datasetNumber(target, 'staffBottom');
     const staffHeight = datasetNumber(target, 'staffHeight');
-    if (staffBottom === null || staffHeight === null) return false;
 
     const bbox = target.getBBox();
-    if (bbox.width === 0) return false;
+    if (bbox.width === 0 || bbox.height === 0) return false;
 
-    const padding = staffHeight * options.verticalPadding;
+    const hasStaffBox = staffBottom !== null && staffHeight !== null;
+    const padding = hasStaffBox
+        ? staffHeight * options.verticalPadding
+        : bbox.height * options.verticalPadding;
     const rect = target.ownerDocument.createElementNS(SVG_NS, 'rect');
     rect.setAttribute('class', `${options.cursorClass} ${options.cursorBackgroundClass}`);
     rect.setAttribute('x', bbox.x);
-    rect.setAttribute('y', staffBottom - staffHeight - padding);
+    rect.setAttribute('y', hasStaffBox ? staffBottom - staffHeight - padding : bbox.y - padding);
     rect.setAttribute('width', bbox.width);
-    rect.setAttribute('height', staffHeight + 2 * padding);
+    rect.setAttribute('height', (hasStaffBox ? staffHeight : bbox.height) + 2 * padding);
     rect.setAttribute('fill', options.fill);
     rect.setAttribute('stroke', 'none');
     target.prepend(rect);

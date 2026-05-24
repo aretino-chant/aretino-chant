@@ -37,6 +37,30 @@ describe('parseAretino', () => {
     expect(lyrics).toEqual(['one two', 'uno dos']);
   });
 
+  it('preserves source offsets for continued lyric text', () => {
+    const source = 'c d\nw: one two\nn: e f\nw: three four';
+    const ast = parseAretino(source);
+    const lyric = ast.lines.find(l => l.type === 'lyrics');
+
+    expect(lyric.text).toBe('one two three four');
+    expect(lyric.srcStart).toBe(source.indexOf('one'));
+    expect(lyric.srcEnd).toBe(source.indexOf('four') + 'four'.length);
+    expect(lyric.sourceMap[0]).toBe(source.indexOf('one'));
+    expect(lyric.sourceMap['one two'.length]).toBeNull();
+    expect(lyric.sourceMap['one two '.length]).toBe(source.indexOf('three'));
+  });
+
+  it('preserves source offsets for inline accidentals', () => {
+    const source = 'i(b)j';
+    const ast = parseAretino(source);
+    const note = ast.lines[0].tokens[0].groups[0][1];
+
+    expect(note.accidental.srcStart).toBe(1);
+    expect(note.accidental.srcEnd).toBe(4);
+    expect(note.srcStart).toBe(4);
+    expect(note.srcEnd).toBe(5);
+  });
+
   // TODO: port representative parser assertions from cantores.hu fixtures.
 });
 

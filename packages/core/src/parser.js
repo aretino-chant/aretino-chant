@@ -10,7 +10,7 @@
 //     optionHeaders: string[],                         — repeated %option: renderer-option=value header lines
 //     lines: Array<
 //         | { type: 'music', tokens: Token[] }
-//         | { type: 'lyrics', text: string }
+//         | { type: 'lyrics', text: string, srcStart?: number, srcEnd?: number, sourceMap?: Array<number|null> }
 //         | { type: 'verse', lines: string[] }
 //         | { type: 'blank' }
 //         | { type: 'preprocessor', key: string, value: string }  — %[ key: value %] as a standalone body line
@@ -39,6 +39,55 @@
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
 //       modifiers: Array<'episema'|'mora'|'liquescens'|'ictus'>,
 //   }
+
+function sourceMapForText(text, srcStart) {
+    return Array.from({ length: text.length }, (_, i) => srcStart + i);
+}
+
+function updateLyricSourceSpan(item) {
+    const offsets = (item.sourceMap || []).filter(Number.isFinite);
+    if (offsets.length === 0) {
+        delete item.srcStart;
+        delete item.srcEnd;
+        return;
+    }
+    item.srcStart = Math.min(...offsets);
+    item.srcEnd = Math.max(...offsets) + 1;
+}
+
+function makeLyricItem(text, srcStart) {
+    return {
+        type: 'lyrics',
+        text,
+        srcStart,
+        srcEnd: srcStart + text.length,
+        sourceMap: sourceMapForText(text, srcStart),
+    };
+}
+
+function appendLyricChunk(item, text, sourceMap) {
+    if (!Array.isArray(item.sourceMap)) {
+        item.sourceMap = Array.from({ length: item.text.length }, () => null);
+    }
+    item.text += text;
+    item.sourceMap.push(...sourceMap);
+    updateLyricSourceSpan(item);
+}
+
+function appendLyricContinuation(item, text, srcStart) {
+    appendLyricChunk(item, ' ', [null]);
+    appendLyricChunk(item, text, sourceMapForText(text, srcStart));
+}
+
+function trimmedSourceText(text, srcStart) {
+    const leading = text.match(/^\s*/)[0].length;
+    const trailing = text.match(/\s*$/)[0].length;
+    const end = Math.max(leading, text.length - trailing);
+    return {
+        text: text.slice(leading, end),
+        srcStart: srcStart + leading,
+    };
+}
 
 export function parseAretino(source) {
     const src = source ?? '';
@@ -150,8 +199,10 @@ export function parseAretino(source) {
             pendingMusicContinuationLyricPos = 0;
             continue;
         }
-        if (/^\s*w:/.test(raw)) {
-            const text = raw.replace(/^\s*w:\s?/, '');
+        const lyricLine = raw.match(/^(\s*w:\s?)(.*)$/);
+        if (lyricLine) {
+            const text = lyricLine[2];
+            const textStart = lineStart + lyricLine[1].length;
             const hasMusicContinuationLyric = pendingMusicContinuationLyricIndices
                 && pendingMusicContinuationLyricPos < pendingMusicContinuationLyricIndices.length;
             const continuationIdx = hasMusicContinuationLyric
@@ -159,7 +210,8 @@ export function parseAretino(source) {
                 : null;
             const continuationTarget = continuationIdx !== null ? result[continuationIdx] : null;
             if (continuationTarget && continuationTarget.type === 'lyrics') {
-                continuationTarget.text += ' ' + text.trim();
+                const trimmed = trimmedSourceText(text, textStart);
+                appendLyricContinuation(continuationTarget, trimmed.text, trimmed.srcStart);
                 implicitLyricContinuationIdx = continuationIdx;
                 pendingMusicContinuationLyricPos++;
                 if (pendingMusicContinuationLyricPos >= pendingMusicContinuationLyricIndices.length) {
@@ -167,7 +219,7 @@ export function parseAretino(source) {
                     pendingMusicContinuationLyricPos = 0;
                 }
             } else {
-                result.push({ type: 'lyrics', text });
+                result.push(makeLyricItem(text, textStart));
                 implicitLyricContinuationIdx = result.length - 1;
                 sectionLyricIndices.push(implicitLyricContinuationIdx);
             }
@@ -193,7 +245,8 @@ export function parseAretino(source) {
                 ? result[implicitLyricContinuationIdx]
                 : result[result.length - 1];
             if (last && last.type === 'lyrics') {
-                last.text += ' ' + raw.trim();
+                const trimmed = trimmedSourceText(raw, lineStart);
+                appendLyricContinuation(last, trimmed.text, trimmed.srcStart);
             }
             continue;
         }
@@ -264,7 +317,10 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
         let pendingAcc = null;
         while (i < limit && (isPitchLetter(line[i]) || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
             if (line[i] === '(') {
+                const accStart = i;
                 pendingAcc = peekInlineAccidental(line, i);
+                pendingAcc.srcStart = lineStart + accStart;
+                pendingAcc.srcEnd = lineStart + pendingAcc.end;
                 i = pendingAcc.end;
                 continue;
             }
@@ -279,7 +335,13 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 modifiers: [],
             };
             if (pendingAcc) {
-                note.accidental = { pitch: pendingAcc.pitch, symbol: pendingAcc.symbol, ...(pendingAcc.high ? { high: pendingAcc.high } : {}) };
+                note.accidental = {
+                    pitch: pendingAcc.pitch,
+                    symbol: pendingAcc.symbol,
+                    ...(pendingAcc.high ? { high: pendingAcc.high } : {}),
+                    srcStart: pendingAcc.srcStart,
+                    srcEnd: pendingAcc.srcEnd,
+                };
                 pendingAcc = null;
             }
             while (i < limit) {

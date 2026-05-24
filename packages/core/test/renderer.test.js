@@ -36,6 +36,15 @@ function renderedHyphenCount(svg) {
   return (svg.match(/<text[^>]*>-<\/text>/g) || []).length;
 }
 
+function sourceMappedGroups(svg) {
+  return [...svg.matchAll(/<g class="([^"]*)" data-src-start="([^"]+)" data-src-end="([^"]+)"/g)]
+    .map(m => ({
+      className: m[1],
+      srcStart: Number(m[2]),
+      srcEnd: Number(m[3]),
+    }));
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -167,6 +176,62 @@ describe('renderAretino', () => {
 
       expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['Ky', 'ri', 'e']);
       expect(renderedHyphenCount(svg)).toBe(2);
+    });
+  });
+
+  describe('source-mapped caret elements', () => {
+    it('maps clefs, standalone accidentals, and barlines to source spans', () => {
+      const source = '(c3) (b) |';
+      const groups = sourceMappedGroups(renderAretino(source, { width: 400, hideRepeatClef: true }));
+
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-clef'),
+        srcStart: source.indexOf('(c3)'),
+        srcEnd: source.indexOf('(c3)') + 4,
+      }));
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-accidental'),
+        srcStart: source.indexOf('(b)'),
+        srcEnd: source.indexOf('(b)') + 3,
+      }));
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-barline'),
+        srcStart: source.indexOf('|'),
+        srcEnd: source.indexOf('|') + 1,
+      }));
+    });
+
+    it('maps inline accidentals independently from their note', () => {
+      const source = 'i(b)j';
+      const groups = sourceMappedGroups(renderAretino(source, { width: 400, hideRepeatClef: true }));
+
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-inline-accidental'),
+        srcStart: source.indexOf('(b)'),
+        srcEnd: source.indexOf('(b)') + 3,
+      }));
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-note'),
+        srcStart: source.indexOf('j'),
+        srcEnd: source.indexOf('j') + 1,
+      }));
+    });
+
+    it('maps aligned lyric syllables without mapping lyric hyphens', () => {
+      const source = 'c = = d\nw: Ky-ri';
+      const groups = sourceMappedGroups(renderAretino(source, { width: 600, hideRepeatClef: true }));
+
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-syllable'),
+        srcStart: source.indexOf('Ky'),
+        srcEnd: source.indexOf('Ky') + 2,
+      }));
+      expect(groups.some(g => g.className.includes('aretino-lyric-hyphen'))).toBe(false);
+      expect(groups).toContainEqual(expect.objectContaining({
+        className: expect.stringContaining('aretino-syllable'),
+        srcStart: source.indexOf('ri'),
+        srcEnd: source.indexOf('ri') + 2,
+      }));
     });
   });
 

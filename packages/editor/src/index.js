@@ -3,4 +3,4 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 export { AretinoEditor } from './editor.js';
-export { highlightAtCaret } from './caret.js';
+export { highlightAtCaret, sourceSpanFromPreviewClick } from './caret.js';

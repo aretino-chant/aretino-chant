@@ -21,6 +21,32 @@ function datasetNumber(el, name) {
     return Number.isFinite(value) ? value : null;
 }
 
+function findSourceMappedElement(target, preview) {
+    if (!target || typeof target.closest !== 'function') return null;
+
+    const el = target.closest('[data-src-start]');
+    if (!el) return null;
+    if (preview && typeof preview.contains === 'function' && !preview.contains(el)) {
+        return null;
+    }
+    return el;
+}
+
+function bestMatchingTarget(candidates, matches) {
+    let best = null, bestA = 0, bestB = 0;
+    for (const el of candidates) {
+        const a = datasetNumber(el, 'srcStart');
+        const b = datasetNumber(el, 'srcEnd');
+        if (a === null || b === null || !matches(a, b)) continue;
+        if (!best || (b - a) < (bestB - bestA)) {
+            best = el;
+            bestA = a;
+            bestB = b;
+        }
+    }
+    return best;
+}
+
 function findTargetAtCaret(preview, caret) {
     if (!preview || typeof preview.querySelectorAll !== 'function') return null;
 
@@ -28,20 +54,7 @@ function findTargetAtCaret(preview, caret) {
     if (!Number.isFinite(position)) return null;
 
     const candidates = preview.querySelectorAll('[data-src-start]');
-    let best = null, bestA = 0, bestB = 0;
-    for (const el of candidates) {
-        const a = datasetNumber(el, 'srcStart');
-        const b = datasetNumber(el, 'srcEnd');
-        if (a === null || b === null) continue;
-        if (position > a && position <= b) {
-            if (!best || (b - a) < (bestB - bestA)) {
-                best = el;
-                bestA = a;
-                bestB = b;
-            }
-        }
-    }
-    return best;
+    return bestMatchingTarget(candidates, (a, b) => position > a && position <= b);
 }
 
 function clearHighlight(preview, activeClass, cursorClass) {
@@ -97,4 +110,15 @@ export function highlightAtCaret(preview, caret, options = {}) {
     }
 
     return target;
+}
+
+export function sourceSpanFromPreviewClick(event, preview = event?.currentTarget) {
+    const target = findSourceMappedElement(event?.target, preview);
+    if (!target) return null;
+
+    const srcStart = datasetNumber(target, 'srcStart');
+    const srcEnd = datasetNumber(target, 'srcEnd');
+    if (srcStart === null || srcEnd === null) return null;
+
+    return { element: target, srcStart, srcEnd };
 }

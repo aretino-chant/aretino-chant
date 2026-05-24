@@ -20,11 +20,15 @@ Importing the package registers `<aretino-editor>` as a custom element:
 import '@aretino-chant/editor';
 ```
 
-If you need the class directly, or the preview caret helper, import them by
-name:
+If you need the class directly, or the preview/source-map helpers, import them
+by name:
 
 ```js
-import { AretinoEditor, highlightAtCaret } from '@aretino-chant/editor';
+import {
+  AretinoEditor,
+  highlightAtCaret,
+  sourceSpanFromPreviewClick,
+} from '@aretino-chant/editor';
 ```
 
 ## HTML
@@ -88,11 +92,13 @@ Every attribute has a matching JavaScript property of the same name.
 
 Set `preview="false"` when your app renders the preview itself. The editor
 package exports `highlightAtCaret()` so custom preview components can reuse the
-same caret-to-preview behavior as the built-in pane.
+same caret-to-preview behavior as the built-in pane. It also exports
+`sourceSpanFromPreviewClick()` so preview clicks can move the editor caret back
+to the source.
 
 ```js
 import '@aretino-chant/editor';
-import { highlightAtCaret } from '@aretino-chant/editor';
+import { highlightAtCaret, sourceSpanFromPreviewClick } from '@aretino-chant/editor';
 import { renderAretino } from '@aretino-chant/core';
 
 const editor = document.querySelector('aretino-editor');
@@ -110,6 +116,11 @@ function renderPreview() {
 editor.addEventListener('change', renderPreview);
 editor.addEventListener('selectionchange', event => {
   highlightAtCaret(preview, event.detail.caret);
+});
+
+preview.addEventListener('click', event => {
+  const span = sourceSpanFromPreviewClick(event, preview);
+  if (span) editor.caret = span.srcEnd;
 });
 
 renderPreview();
@@ -136,6 +147,27 @@ matched source-mapped element, or `null` when no rendered token matches.
 | `cursorBackgroundClass` | `"aretino-cursor-bg"` | Additional class placed on the background rectangle. |
 | `fill` | `"rgba(234, 88, 12, 0.13)"` | Background rectangle fill. |
 | `verticalPadding` | `0.25` | Staff-height fraction added above and below the background rectangle. |
+
+### `sourceSpanFromPreviewClick(event, preview?)`
+
+Returns the source span for a click inside a rendered SVG preview.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `event` | `MouseEvent` | Click event from the preview or one of its descendants. |
+| `preview` | `Element` | Optional preview boundary. Defaults to `event.currentTarget`. |
+
+The return value is `{ element, srcStart, srcEnd }`, where `element` is the
+source-mapped SVG element. It returns `null` when the click is outside a
+source-mapped token. The built-in preview uses `srcEnd`, placing the caret after
+the clicked token:
+
+```js
+preview.addEventListener('click', event => {
+  const span = sourceSpanFromPreviewClick(event, preview);
+  if (span) editor.caret = span.srcEnd;
+});
+```
 
 ## CSS Customisation
 

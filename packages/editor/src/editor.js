@@ -6,7 +6,7 @@ import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { renderAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
-import { highlightAtCaret } from './caret.js';
+import { highlightAtCaret, sourceSpanFromPreviewClick } from './caret.js';
 
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap';
 
@@ -50,6 +50,10 @@ const STYLE = `
   padding: 4px;
   white-space: pre-wrap;
 }
+
+.preview-pane [data-src-start] {
+  cursor: pointer;
+}
 `;
 
 function escapeHtml(s) {
@@ -68,6 +72,7 @@ class AretinoEditor extends HTMLElement {
         this._editorPane = null;
         this._previewEl = null;
         this._resizeObserver = null;
+        this._handlePreviewClick = this._handlePreviewClick.bind(this);
     }
 
     connectedCallback() {
@@ -113,6 +118,7 @@ class AretinoEditor extends HTMLElement {
         this._editorPane = null;
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
+        this._previewEl?.removeEventListener('click', this._handlePreviewClick);
         this._previewEl = null;
     }
 
@@ -195,6 +201,7 @@ class AretinoEditor extends HTMLElement {
             this._previewEl = document.createElement('div');
             this._previewEl.className = 'pane preview-pane';
             this._previewEl.setAttribute('part', 'preview');
+            this._previewEl.addEventListener('click', this._handlePreviewClick);
             this._shadow.append(this._previewEl);
 
             this._resizeObserver = new ResizeObserver(() => this._renderPreview());
@@ -205,6 +212,7 @@ class AretinoEditor extends HTMLElement {
 
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
+        this._previewEl?.removeEventListener('click', this._handlePreviewClick);
         this._previewEl?.remove();
         this._previewEl = null;
     }
@@ -226,6 +234,12 @@ class AretinoEditor extends HTMLElement {
     _highlightAtCaret() {
         if (!this._previewEl || !this._view) return;
         highlightAtCaret(this._previewEl, this.caret);
+    }
+
+    _handlePreviewClick(event) {
+        const span = sourceSpanFromPreviewClick(event, this._previewEl);
+        if (!span) return;
+        this.caret = span.srcEnd;
     }
 }
 

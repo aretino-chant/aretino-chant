@@ -57,13 +57,14 @@ function escapeHtml(s) {
 
 class AretinoEditor extends HTMLElement {
     static get observedAttributes() {
-        return ['value', 'zoom'];
+        return ['value', 'zoom', 'preview'];
     }
 
     constructor() {
         super();
         this._shadow = this.attachShadow({ mode: 'open' });
         this._view = null;
+        this._editorPane = null;
         this._previewEl = null;
         this._resizeObserver = null;
     }
@@ -82,12 +83,10 @@ class AretinoEditor extends HTMLElement {
         const editorPane = document.createElement('div');
         editorPane.className = 'pane editor-pane';
         editorPane.setAttribute('part', 'editor');
+        this._editorPane = editorPane;
 
-        this._previewEl = document.createElement('div');
-        this._previewEl.className = 'pane preview-pane';
-        this._previewEl.setAttribute('part', 'preview');
-
-        this._shadow.append(style, editorPane, this._previewEl);
+        this._shadow.append(style, editorPane);
+        this._syncPreviewPane();
 
         this._view = new EditorView({
             state: EditorState.create({
@@ -104,17 +103,16 @@ class AretinoEditor extends HTMLElement {
             parent: editorPane,
         });
 
-        this._resizeObserver = new ResizeObserver(() => this._renderPreview());
-        this._resizeObserver.observe(this._previewEl);
-
         this._renderPreview();
     }
 
     disconnectedCallback() {
         this._view?.destroy();
         this._view = null;
+        this._editorPane = null;
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
+        this._previewEl = null;
     }
 
     attributeChangedCallback(name, _old, value) {
@@ -124,6 +122,9 @@ class AretinoEditor extends HTMLElement {
         }
         if (name === 'zoom') {
             this._renderPreview();
+        }
+        if (name === 'preview') {
+            this._syncPreviewPane();
         }
     }
 
@@ -146,6 +147,14 @@ class AretinoEditor extends HTMLElement {
         this.setAttribute('zoom', String(v));
     }
 
+    get preview() {
+        return this.getAttribute('preview') !== 'false';
+    }
+
+    set preview(v) {
+        this.setAttribute('preview', v === false || v === 'false' ? 'false' : 'true');
+    }
+
     _handleChange() {
         this._renderPreview();
         this.dispatchEvent(new CustomEvent('change', {
@@ -153,6 +162,27 @@ class AretinoEditor extends HTMLElement {
             composed: true,
             detail: { value: this.value },
         }));
+    }
+
+    _syncPreviewPane() {
+        if (this.preview) {
+            if (this._previewEl || !this._editorPane) return;
+
+            this._previewEl = document.createElement('div');
+            this._previewEl.className = 'pane preview-pane';
+            this._previewEl.setAttribute('part', 'preview');
+            this._shadow.append(this._previewEl);
+
+            this._resizeObserver = new ResizeObserver(() => this._renderPreview());
+            this._resizeObserver.observe(this._previewEl);
+            this._renderPreview();
+            return;
+        }
+
+        this._resizeObserver?.disconnect();
+        this._resizeObserver = null;
+        this._previewEl?.remove();
+        this._previewEl = null;
     }
 
     _renderPreview() {

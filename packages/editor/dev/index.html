@@ -52,6 +52,9 @@ ed.value = '(g2) g h i ||';
 // Adjust the preview zoom
 ed.zoom = 1.4;
 
+// Omit the built-in preview pane if your app renders its own
+ed.preview = false;
+
 // React to edits
 ed.addEventListener('change', e =&gt; {
     console.log(e.detail.value);
@@ -85,6 +88,17 @@ ed.addEventListener('change', e =&gt; {
                             for editing.
                         </td>
                     </tr>
+                    <tr>
+                        <td><code>preview</code></td>
+                        <td>boolean</td>
+                        <td><code>true</code></td>
+                        <td>
+                            Whether to create the built-in live SVG preview pane.
+                            Set <code>preview="false"</code> or
+                            <code>editor.preview = false</code> when the embedding
+                            app provides its own preview.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
 
@@ -112,7 +126,7 @@ ed.addEventListener('change', e =&gt; {
                 <thead><tr><th>Part</th><th>Description</th></tr></thead>
                 <tbody>
                     <tr><td><code>editor</code></td><td>The CodeMirror editor pane (left).</td></tr>
-                    <tr><td><code>preview</code></td><td>The live SVG preview pane (right).</td></tr>
+                    <tr><td><code>preview</code></td><td>The live SVG preview pane (right), when enabled.</td></tr>
                 </tbody>
             </table>
             <pre><code>aretino-editor {

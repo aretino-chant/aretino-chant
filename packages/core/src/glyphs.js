@@ -500,8 +500,15 @@ export function drawClef(ctx, clef, x, staffBottomY) {
     return { svg: '', advance: 0 };
 }
 
-// Bravura (SMuFL) accidental glyph paths — extracted from the official OTF.
+// Bravura (SMuFL) glyph paths — extracted from the official OTF.
 // Coordinates are in font units (1 em = 1000 units = 4 staff spaces).
+
+// U+E4CE breathMarkComma — advance 153
+const BRAVURA_BREATH_MARK_COMMA = {
+    path: 'M72 251C29 251 1 223 1 188C1 154 24 132 57 132C82 132 85 111 85 111C86 107 87 104 87 100C87 86 80 73 71 61C54 39 28 24 26 22C22 20 18 18 18 12L19 11C20 4 23 2 26 2C59 2 110 46 126 71C146 102 152 137 152 166V173C152 220 118 251 72 251Z',
+    advance: 153,
+};
+
 const BRAVURA_ACCIDENTALS = {
     // U+E260 accidentalFlat — advance 226
     flat: {
@@ -616,14 +623,11 @@ export function drawBarline(ctx, kind, x, staffBottomY) {
             + `<line x1="${lineX2}" y1="${top5}" x2="${lineX2}" y2="${staffBottomY}" stroke="#000" stroke-width="${thickSw}"/>`;
         advance = ss(ctx, METRICS.barlineDoubleAdvance);
     } else if (kind === "'") {
-        // Breath mark — liquescent-shaped curve drawn on the 4th staff line
-        const cy = staffBottomY - 3 * ctx.staffSpace; // 4th line from bottom
-        const ax = lineX;
-        const topY = cy - ss(ctx, METRICS.liquescensTopY);
-        const bottomY = cy + ss(ctx, METRICS.liquescensBottomY);
-        const bulge = ss(ctx, METRICS.liquescensBulge);
-        const bsw = stroke(ctx, METRICS.liquescensStroke, METRICS.liquescensStrokeMinPx);
-        svg = `<path d="M ${ax} ${topY} C ${ax + bulge} ${topY} ${ax + bulge} ${bottomY} ${ax} ${bottomY}" fill="none" stroke="#000" stroke-width="${bsw}" stroke-linecap="round"/>`;
+        // Breath mark — Bravura U+E4CE breathMarkComma, anchored on top staff line.
+        // Font y-up → SVG y-down: scale(s, -s); glyph baseline sits at the top line.
+        const topLineY = staffBottomY - 3.5 * ctx.staffSpace;
+        const scale = ctx.staffSpace / 250;
+        svg = `<path d="${BRAVURA_BREATH_MARK_COMMA.path}" fill="#000" transform="translate(${lineX}, ${topLineY}) scale(${scale}, ${-scale})"/>`;
     }
     return { svg, advance };
 }

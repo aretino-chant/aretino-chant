@@ -436,6 +436,10 @@ export function renderAretino(source, options = {}) {
         let ligOffset = 0;
         let globalBarlineIdx = 0;
         let sectionContentBottom = y;
+        // parenState is kept across rows so that a parenthesised group that spans
+        // a line break still gets rendered (opening arc on each row, closing arc
+        // on each row where the group continues or ends).
+        let parenState = null;
 
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
@@ -450,7 +454,6 @@ export function renderAretino(source, options = {}) {
             }
 
             let cursorX = staffLeftX;
-            let parenState = null;
             const rowLigatures = [];
             const rowBarlines = [];
 
@@ -493,6 +496,17 @@ export function renderAretino(source, options = {}) {
                 } else if (gapCount > 0) {
                     extraPerGap = extra / gapCount;
                 }
+            }
+
+            // If a parenthesised group carried over from the previous row, open a
+            // new left-paren arc at the start of this row before the first item.
+            if (parenState) {
+                const placeIdx = parts.length;
+                parts.push('');
+                cursorX += ss(ctx, METRICS.parenthesisWidth);
+                const hingeX = cursorX;
+                cursorX += ss(ctx, METRICS.parenthesisInnerGap);
+                parenState = { placeIdx, hingeX, closeHingeX: hingeX, minY: Infinity, maxY: -Infinity };
             }
 
             for (let idx = 0; idx < row.items.length; idx++) {
@@ -583,6 +597,21 @@ export function renderAretino(source, options = {}) {
                         cursorX += extraPerGap;
                     }
                 }
+            }
+
+            // If a parenthesised group was opened on this row but its paren-close
+            // sits on a later row, close the arcs visually here and carry the open
+            // state to the next row.
+            if (parenState) {
+                const vPad = ss(ctx, METRICS.parenthesisVPadding);
+                const spanTop = parenState.minY < Infinity ? parenState.minY - vPad : staffBottomY - 4 * ctx.staffSpace - vPad;
+                const spanBot = parenState.maxY > -Infinity ? parenState.maxY + vPad : staffBottomY + vPad;
+                const parenWidth = ss(ctx, METRICS.parenthesisWidth);
+                const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
+                parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
+                parts.push(drawParenthesis(ctx, parenState.closeHingeX - innerGap - parenWidth, spanTop, spanBot, 'right'));
+                // Signal the next row to re-open the group (parenState truthy = continuation).
+                parenState = { continuation: true };
             }
 
             const isLastRow = rowIdx === rows.length - 1;
@@ -1058,6 +1087,20 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
         let w = measureItem(ctx, item);
         if (item.kind === 'accidental' && ii + 1 < items.length && items[ii + 1].kind === 'ligature') {
             w += measureItem(ctx, items[ii + 1]);
+        }
+        // Parenthesised groups are atomic: measure open+contents+close together
+        // so the opening bracket never gets stranded at the end of a line with
+        // the content wrapping to the next.  Only apply when the group fits in a
+        // single row; if it is wider than a full row we let items wrap normally.
+        if (item.kind === 'paren-open') {
+            let groupW = w;
+            for (let j = ii + 1; j < items.length; j++) {
+                groupW += measureItem(ctx, items[j]);
+                if (items[j].kind === 'paren-close') break;
+            }
+            if (groupW <= rowItemsAvailable()) {
+                w = groupW;
+            }
         }
         // If the previous item was an accidental glued to this item, skip the
         // overflow check (it was already accounted for).

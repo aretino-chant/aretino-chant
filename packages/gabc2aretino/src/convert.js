@@ -49,11 +49,11 @@ function convertAlteration(content, noteMap) {
 //           ~ (liquescent/oriscus), > or >. (oriscus, with optional mora), < (augmentum),
 //           w/W (quilisma / quilisma+virga), . (mora), v/V (virga), '/`'0/`'1 (ictus),
 //           _/_0/_1 (episema).
-const GABC_NOTE_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01])?/g;
+const GABC_NOTE_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]\.?|'[01]?|_\d?|[01])?/g;
 
 // Matches a note token OR an intra-neume separator within a segment.
 // Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
-const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01]|[xy#])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
+const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]\.?|'[01]?|_\d?|[01]|[xy#])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
 
 function convertNeumeToken(token, noteMap) {
     const isSmall = token[0] === '-';
@@ -67,6 +67,7 @@ function convertNeumeToken(token, noteMap) {
     if (suffix === 'W') return base + "w'";                         // quilisma with virga
     if (suffix === '~') return base + 's';                          // liquescent → small notehead
     if (suffix === '>.') return base + '.';                         // oriscus with mora → mora only
+    if (suffix === 'v.' || suffix === 'V.') return base + "'.";                  // virga with mora
     if (suffix === 'O' || suffix === 'O1' || suffix === 'v' || suffix === 'V') return base + "'"; // virga
     if (suffix in GABC_ACCENT_SIGN) return base + '"' + GABC_ACCENT_SIGN[suffix] + '"'; // rhythmic accent
     if (suffix === '<r' || /^[rR]\d?$/.test(suffix)) return base + 't'; // tenor (empty notehead)

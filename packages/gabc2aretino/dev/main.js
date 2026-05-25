@@ -19,6 +19,8 @@ const INITIAL_ROWS = [
     // rhythmic accents: r1–r5 → ´ ` ○ ᴖ ᴗ
     '(gr1)(gr2)(gr3)(gr4)(gr5)',
     '(g.)',
+    // virga with mora: hv. → h'.
+    '(hv.)(hV.)',
     // trailing repeated mora distributed to last N notes: gh.. → g.h.
     '(gh..)(ghi...)',
     "(g')(g'1)(g'0)",

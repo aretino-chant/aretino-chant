@@ -14,8 +14,10 @@ const INITIAL_ROWS = [
     '(gss)(gsss)',
     // repeated virga: gvv→g′g′, gvvv→g′g′g′
     '(gvv)(gvvv)',
-    // tenor notes: r/R suffix and <r variant all → gt
+    // tenor notes: r/R suffix (no accent digit) and <r variant all → gt
     '(gr)(Gr)(G<r)(gR)(gr0)',
+    // rhythmic accents: r1–r5 → ´ ` ○ ᴖ ᴗ
+    '(gr1)(gr2)(gr3)(gr4)(gr5)',
     '(g.)',
     "(g')(g'1)(g'0)",
     '(g_)(g_0)(g_1)(g_2)',

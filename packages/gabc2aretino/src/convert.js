@@ -32,6 +32,9 @@ function buildNoteMap(transpose) {
 // GABC alteration suffixes: x = flat, y = natural, # = sharp.
 const GABC_ALTER_SIGN = { x: 'b', y: 'n', '#': '#' };
 
+// GABC rhythmic accent suffixes r1–r5 → Aretino quoted accent characters.
+const GABC_ACCENT_SIGN = { r1: '´', r2: '`', r3: '○', r4: 'ᴖ', r5: 'ᴗ' };
+
 function convertAlteration(content, noteMap) {
     const m = content.match(/^([a-mA-M])([xy#])$/);
     if (!m) return null;
@@ -65,6 +68,7 @@ function convertNeumeToken(token, noteMap) {
     if (suffix === '~') return base + 's';                          // liquescent → small notehead
     if (suffix === '>.') return base + '.';                         // oriscus with mora → mora only
     if (suffix === 'O' || suffix === 'O1' || suffix === 'v' || suffix === 'V') return base + "'"; // virga
+    if (suffix in GABC_ACCENT_SIGN) return base + '"' + GABC_ACCENT_SIGN[suffix] + '"'; // rhythmic accent
     if (suffix === '<r' || /^[rR]\d?$/.test(suffix)) return base + 't'; // tenor (empty notehead)
     if (suffix === '.') return base + '.';                          // mora
     if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus

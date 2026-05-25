@@ -19,6 +19,14 @@ const INITIAL_ROWS = [
     '(g.)',
     "(g')(g'1)(g'0)",
     '(g_)(g_0)(g_1)(g_2)',
+    // initio debilis: leading - makes first note small
+    '(-eg)',
+    // quilisma with virga
+    '(eW)',
+    // oriscus with mora: >. → just mora
+    '(e>.)',
+    // leading @ in neume: all notes get virga suppression
+    '(@ge)',
     '(g@e)',
     // complex neumes (multiple notes, no spaces within group)
     '(gfwge) (hi~)',

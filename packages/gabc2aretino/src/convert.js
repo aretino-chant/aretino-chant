@@ -21,24 +21,30 @@ function convertAlteration(content) {
     return '(' + base + GABC_ALTER_SIGN[m[2]] + ')';
 }
 
-// Matches a single gabc note token: a note letter (upper or lower) plus optional suffix.
+// Matches a single gabc note token: optional - prefix (initio debilis), a note letter
+// (upper or lower) plus optional suffix.
 // Suffixes: o (apostropha), o~ o< (variants), s (stropha), s< (variant),
-//           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma),
-//           . (mora), v/V (virga), '/`'0/`'1 (ictus), _/_0/_1 (episema).
-const GABC_NOTE_RE = /[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|[~>w.]|[vV]|'[01]?|_\d?|[01])?/g;
+//           ~ (liquescent/oriscus), > or >. (oriscus, with optional mora), < (augmentum),
+//           w/W (quilisma / quilisma+virga), . (mora), v/V (virga), '/`'0/`'1 (ictus),
+//           _/_0/_1 (episema).
+const GABC_NOTE_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01])?/g;
 
 // Matches a note token OR an intra-neume separator within a segment.
 // Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
-const SEGMENT_TOKEN_RE = /[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|[~>w.]|[vV]|'[01]?|_\d?|[01])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
+const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
 
 function convertNeumeToken(token) {
-    const letter = token[0].toLowerCase();
+    const isSmall = token[0] === '-';
+    const idx = isSmall ? 1 : 0;
+    const letter = token[idx].toLowerCase();
     const base = NOTE_MAP[letter];
     if (base === undefined) return null;
-    const isLowercase = token[0] >= 'a';
-    const suffix = token.slice(1);
+    const suffix = token.slice(idx + 1);
+    if (isSmall && suffix === '') return base + 's';                // initio debilis → small notehead
     if (suffix === 'w') return base + 'w';                          // quilisma
-    if (suffix === '~') return base + 's';                          // liquescent/oriscus → small notehead
+    if (suffix === 'W') return base + "w'";                         // quilisma with virga
+    if (suffix === '~') return base + 's';                          // liquescent → small notehead
+    if (suffix === '>.') return base + '.';                         // oriscus with mora → mora only
     if (suffix === 'O' || suffix === 'O1' || suffix === 'v' || suffix === 'V') return base + "'"; // virga
     if (suffix === '<r' || /^[rR]\d?$/.test(suffix)) return base + 't'; // tenor (empty notehead)
     if (suffix === '.') return base + '.';                          // mora
@@ -108,12 +114,18 @@ export function gabcToAretino(gabc) {
         for (const segment of content.split(/\s+/)) {
             const parts = [];
             let pendingSep = null;
+            let suppressVirga = false;
             for (const tokenMatch of expandRepeatedSuffixes(segment).matchAll(SEGMENT_TOKEN_RE)) {
                 const tok = tokenMatch[0];
-                if (/^[a-mA-M]/.test(tok)) {
-                    const note = convertNeumeToken(tok);
+                if (tok === '@' && parts.length === 0) {
+                    suppressVirga = true;
+                    continue;
+                }
+                if (/^-?[a-mA-M]/.test(tok)) {
+                    let note = convertNeumeToken(tok);
                     if (note !== null) {
                         if (pendingSep !== null) parts.push(pendingSep);
+                        if (suppressVirga) note = note + '`';
                         parts.push(note);
                         pendingSep = null;
                     }

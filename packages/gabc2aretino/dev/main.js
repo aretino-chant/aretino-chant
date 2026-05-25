@@ -15,10 +15,15 @@ const INITIAL_ROWS = [
     '(g_)(g_0)(g_1)(g_2)',
     '(g@e)',
     // complex neumes (multiple notes, no spaces within group)
-    '(gfwge)',
-    '(hi~)',
+    '(gfwge) (hi~)',
     // alterations: x=flat, y=natural, #=sharp
     '(gx)(gh) (gy)(gh) (g#)(gh)',
+    // intra-neume separators: / (single gap), // (double gap)
+    '(f/g) (f//g)',
+    // !, @, /0 all map to single gap /
+    '(f!g) (f@g) (f/0g)',
+    // /[N]: gap / unless N >= 2, then //
+    '(f/[-1]g) (f/[1]g) (f/[2]g) (f/[3]g)',
     // lyrics: syllable-neume pairs; {braces} stripped, words space-separated
     `AL(def)le(fefgwhg)lú(fhhh){ia}.(hiHFfe.)`,
 ];

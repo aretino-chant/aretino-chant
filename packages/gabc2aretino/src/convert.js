@@ -27,6 +27,10 @@ function convertAlteration(content) {
 //           . (mora), v/V (virga), '/`'0/`'1 (ictus), _/_0/_1 (episema).
 const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_\d?)?/g;
 
+// Matches a note token OR an intra-neume separator within a segment.
+// Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
+const SEGMENT_TOKEN_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_\d?)?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
+
 function convertNeumeToken(token) {
     const letter = token[0].toLowerCase();
     const base = NOTE_MAP[letter];
@@ -40,6 +44,12 @@ function convertNeumeToken(token) {
     if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus
     if (suffix === '_' || suffix.startsWith('_')) return base + '_';             // episema
     return base;
+}
+
+function convertSeparator(sep, bracketNum) {
+    if (sep === '//') return '//';
+    if (bracketNum !== undefined) return parseInt(bracketNum, 10) >= 2 ? '//' : '/';
+    return '/';
 }
 
 function gabcBody(gabc) {
@@ -87,12 +97,22 @@ export function gabcToAretino(gabc) {
         const alt = convertAlteration(content.trim());
         if (alt !== null) { neumes.push(alt); continue; }
         for (const segment of content.split(/\s+/)) {
-            const notes = [];
-            for (const tokenMatch of segment.replace(/@/g, '').matchAll(GABC_NOTE_RE)) {
-                const note = convertNeumeToken(tokenMatch[0]);
-                if (note !== null) notes.push(note);
+            const parts = [];
+            let pendingSep = null;
+            for (const tokenMatch of segment.matchAll(SEGMENT_TOKEN_RE)) {
+                const tok = tokenMatch[0];
+                if (/^[a-mA-M]/.test(tok)) {
+                    const note = convertNeumeToken(tok);
+                    if (note !== null) {
+                        if (pendingSep !== null) parts.push(pendingSep);
+                        parts.push(note);
+                        pendingSep = null;
+                    }
+                } else {
+                    if (parts.length > 0) pendingSep = convertSeparator(tok, tokenMatch[1]);
+                }
             }
-            if (notes.length > 0) neumes.push(notes.join(''));
+            if (parts.length > 0) neumes.push(parts.join(''));
         }
     }
     if (neumes.length === 0) return '';

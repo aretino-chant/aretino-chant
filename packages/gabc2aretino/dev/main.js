@@ -2,7 +2,12 @@ import { renderAretino } from '@aretino-chant/core';
 import { gabcToAretino } from '../src/convert.js';
 
 const INITIAL_ROWS = [
+    // simple notes
     '(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)(m)',
+    // one-note neumes: all render as plain note
+    '(g)(G)(G~)(G>)(g<)(g>)(go)(go~)(go<)(gs)(gs<)',
+    // one-note neumes: special noteheads
+    '(gw)(g~)',
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

@@ -25,11 +25,11 @@ function convertAlteration(content) {
 // Suffixes: o (apostropha), o~ o< (variants), s (stropha), s< (variant),
 //           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma),
 //           . (mora), v/V (virga), '/`'0/`'1 (ictus), _/_0/_1 (episema).
-const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_\d?)?/g;
+const GABC_NOTE_RE = /[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|[~>w.]|[vV]|'[01]?|_\d?|[01])?/g;
 
 // Matches a note token OR an intra-neume separator within a segment.
 // Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
-const SEGMENT_TOKEN_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_\d?)?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
+const SEGMENT_TOKEN_RE = /[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|[~>w.]|[vV]|'[01]?|_\d?|[01])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
 
 function convertNeumeToken(token) {
     const letter = token[0].toLowerCase();
@@ -38,12 +38,20 @@ function convertNeumeToken(token) {
     const isLowercase = token[0] >= 'a';
     const suffix = token.slice(1);
     if (suffix === 'w') return base + 'w';                          // quilisma
-    if (isLowercase && suffix === '~') return base + 's';           // liquescent → small notehead
-    if (suffix === 'v' || suffix === 'V') return base + "'";        // virga
+    if (suffix === '~') return base + 's';                          // liquescent/oriscus → small notehead
+    if (suffix === 'O' || suffix === 'O1' || suffix === 'v' || suffix === 'V') return base + "'"; // virga
+    if (suffix === '<r' || /^[rR]\d?$/.test(suffix)) return base + 't'; // tenor (empty notehead)
     if (suffix === '.') return base + '.';                          // mora
     if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus
     if (suffix === '_' || suffix.startsWith('_')) return base + '_';             // episema
     return base;
+}
+
+// Expand repeated strophae/virga: gss→gsgs, gsss→gsgsgs, gvv→gvgv, gvvv→gvgvgv
+function expandRepeatedSuffixes(segment) {
+    return segment.replace(/([a-mA-M])(s|v|V)(\2+)/g, (_, note, suffix, extra) => {
+        return (note + suffix).repeat(1 + extra.length);
+    });
 }
 
 function convertSeparator(sep, bracketNum) {
@@ -94,13 +102,13 @@ export function gabcToAretino(gabc) {
     const neumes = [];
     for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
-        if (/^[cfgCFG]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
+        if (/^[cfg]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
         const alt = convertAlteration(content.trim());
         if (alt !== null) { neumes.push(alt); continue; }
         for (const segment of content.split(/\s+/)) {
             const parts = [];
             let pendingSep = null;
-            for (const tokenMatch of segment.matchAll(SEGMENT_TOKEN_RE)) {
+            for (const tokenMatch of expandRepeatedSuffixes(segment).matchAll(SEGMENT_TOKEN_RE)) {
                 const tok = tokenMatch[0];
                 if (/^[a-mA-M]/.test(tok)) {
                     const note = convertNeumeToken(tok);

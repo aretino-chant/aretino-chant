@@ -2,14 +2,20 @@ import { renderAretino } from '@aretino-chant/core';
 import { gabcToAretino } from '../src/convert.js';
 
 const INITIAL_ROWS = [
-    // simple notes
-    '(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)(m)',
+    // pitches
+    '(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)(m)',    
     // one-note neumes: all render as plain note
-    '(g)(G)(G~)(G>)(g<)(g>)(go)(go~)(go<)(gs)(gs<)',
+    'g(g) G(G) gk(g<) gn(g>) Gn(G>) go(go) got(go~) gok(go<) gs(gs) gsk(gs<) Gn(G0) gn1(G1) go0(go0) go1(go1)',
     // one-note neumes: special noteheads
-    '(gw)(g~)',
-    // modifiers: virga, mora, ictus, episema, @ connector
-    '(gv)(gV)',
+    '(g~)(G~)(gw)',
+    // virga: gv, gV, gO, gO1 all → g′
+    '(gv)(gV)(gO)(gO1)',
+    // repeated strophae: gss→gg, gsss→ggg
+    '(gss)(gsss)',
+    // repeated virga: gvv→g′g′, gvvv→g′g′g′
+    '(gvv)(gvvv)',
+    // tenor notes: r/R suffix and <r variant all → gt
+    '(gr)(Gr)(G<r)(gR)(gr0)',
     '(g.)',
     "(g')(g'1)(g'0)",
     '(g_)(g_0)(g_1)(g_2)',
@@ -21,7 +27,7 @@ const INITIAL_ROWS = [
     // intra-neume separators: / (single gap), // (double gap)
     '(f/g) (f//g)',
     // ! = auto virga off (backtick), @, /0 map to single gap /
-    '(f!g)',
+    '(f!d)',
     '(f@g) (f/0g)',
     // /[N]: gap / unless N >= 2, then //
     '(f/[-1]g) (f/[1]g) (f/[2]g) (f/[3]g)',

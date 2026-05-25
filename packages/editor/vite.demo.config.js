@@ -11,6 +11,10 @@ export default defineConfig({
         outDir: resolve(__dirname, 'dist-demo'),
         emptyOutDir: true,
         rollupOptions: {
+            input: {
+                main: resolve(__dirname, 'dev/index.html'),
+                'test-cases': resolve(__dirname, 'dev/test-cases.html'),
+            },
             // editor/package.json declares sideEffects:false for library consumers,
             // but the demo relies on the customElements.define side effect inside
             // editor.js, so disable tree-shaking for this demo-only build.

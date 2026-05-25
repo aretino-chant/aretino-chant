@@ -12,7 +12,7 @@ const INITIAL_ROWS = [
     '(gv)(gV)',
     '(g.)',
     "(g')(g'1)(g'0)",
-    '(g_)(g_0)(g_1)',
+    '(g_)(g_0)(g_1)(g_2)',
     '(g@e)',
     // complex neumes (multiple notes, no spaces within group)
     '(gfwge)',

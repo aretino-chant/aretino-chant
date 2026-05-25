@@ -14,7 +14,7 @@ const NOTE_MAP = {
 // Suffixes: o (apostropha), o~ o< (variants), s (stropha), s< (variant),
 //           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma),
 //           . (mora), v/V (virga), '/`'0/`'1 (ictus), _/_0/_1 (episema).
-const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_[01]?)?/g;
+const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_\d?)?/g;
 
 function convertNeumeToken(token) {
     const letter = token[0].toLowerCase();
@@ -27,7 +27,7 @@ function convertNeumeToken(token) {
     if (suffix === 'v' || suffix === 'V') return base + "'";        // virga
     if (suffix === '.') return base + '.';                          // mora
     if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus
-    if (suffix === '_' || suffix === '_0' || suffix === '_1') return base + '_'; // episema
+    if (suffix === '_' || suffix.startsWith('_')) return base + '_';             // episema
     return base;
 }
 
@@ -72,7 +72,7 @@ export function gabcToAretino(gabc) {
     const neumes = [];
     for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
-        if (/\d/.test(content)) continue; // skip clefs (e.g. c4, f3)
+        if (/^[cfgCFG]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
         for (const segment of content.split(/\s+/)) {
             const notes = [];
             for (const tokenMatch of segment.replace(/@/g, '').matchAll(GABC_NOTE_RE)) {

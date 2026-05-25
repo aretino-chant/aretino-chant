@@ -333,6 +333,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 high: pitchChar !== pitchChar.toLowerCase(),
                 shape: 'punctum',
                 modifiers: [],
+                modifierSpans: [],
             };
             if (pendingAcc) {
                 note.accidental = {
@@ -346,14 +347,15 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             }
             while (i < limit) {
                 const m = line[i];
+                const span = { srcStart: lineStart + i, srcEnd: lineStart + i + 1 };
                 if (m === "'") { note.virga = true; i++; continue; }
-                if (m === '_') { note.modifiers.push('episema'); i++; continue; }
-                if (m === '-') { note.modifiers.push('ictus'); i++; continue; }
-                if (m === '.') { note.modifiers.push('mora'); i++; continue; }
-                if (m === '~') { note.modifiers.push('liquescens'); i++; continue; }
+                if (m === '_') { note.modifiers.push('episema'); note.modifierSpans.push(span); i++; continue; }
+                if (m === '-') { note.modifiers.push('ictus'); note.modifierSpans.push(span); i++; continue; }
+                if (m === '.') { note.modifiers.push('mora'); note.modifierSpans.push(span); i++; continue; }
+                if (m === '~') { note.modifiers.push('liquescens'); note.modifierSpans.push(span); i++; continue; }
                 if (m === 'w') { note.shape = 'quilisma'; i++; continue; }
                 if (m === 't') { note.shape = 'tenor'; i++; continue; }
-                if (m === 's') { note.modifiers.push('small'); i++; continue; }
+                if (m === 's') { note.modifiers.push('small'); note.modifierSpans.push(span); i++; continue; }
                 break;
             }
             note.srcStart = lineStart + noteStart;

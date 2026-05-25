@@ -182,6 +182,86 @@ describe('caret preview highlighting', () => {
         expect(preview.querySelectorAll('.aretino-cursor-rect')).toHaveLength(1);
     });
 
+    it('frames a modifier glyph in a square box (not a band) when the caret follows it', () => {
+        const note = sourceMapped(0, 3, { className: 'aretino-note' });
+        const mora = sourceMapped(2, 3, { className: 'aretino-modifier aretino-mod-mora' });
+        note.append(mora);
+        const preview = previewWith(note);
+
+        // Default mode is background, but a modifier target gets recolored + boxed.
+        const target = highlightAtCaret(preview, 3);
+
+        expect(target).toBe(mora);
+        expect(mora.classList.contains('aretino-active')).toBe(true);
+        const boxes = preview.querySelectorAll('.aretino-cursor-modbox');
+        expect(boxes).toHaveLength(1);
+        expect(boxes[0].attributes.fill).toBe('none');
+        expect(boxes[0].attributes.stroke).not.toBe('none');
+        // The box is the only cursor rect; no translucent band is drawn.
+        expect(preview.querySelectorAll('.aretino-cursor-bg')).toHaveLength(0);
+    });
+
+    it('draws a thin line at the next token when the caret abuts it (AB |C)', () => {
+        // "AB |C": ligature AB at [0,2], note C at [3,4]; caret = 3 (just before C).
+        const ab = sourceMapped(0, 2, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '0', bboxWidth: '10' } });
+        const c = sourceMapped(3, 4, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '30', bboxWidth: '10' } });
+        const preview = previewWith(ab, c);
+
+        const target = highlightAtCaret(preview, 3);
+
+        expect(target).toBeNull();
+        const lines = preview.querySelectorAll('.aretino-cursor-line');
+        expect(lines).toHaveLength(1);
+        // Line hugs C's left edge (x=30), centered on it.
+        const width = Number(lines[0].attributes.width);
+        expect(Number(lines[0].attributes.x)).toBeCloseTo(30 - width / 2);
+    });
+
+    it('draws a midway line when the caret sits in whitespace before a token (AB | C)', () => {
+        // "AB  C": ligature AB at [0,2], note C at [4,5]; caret = 3 (between two spaces).
+        const ab = sourceMapped(0, 2, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '0', bboxWidth: '10' } });
+        const c = sourceMapped(4, 5, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '30', bboxWidth: '10' } });
+        const preview = previewWith(ab, c);
+
+        highlightAtCaret(preview, 3);
+
+        const lines = preview.querySelectorAll('.aretino-cursor-line');
+        expect(lines).toHaveLength(1);
+        // Midway between AB right edge (10) and C left edge (30) → 20.
+        const width = Number(lines[0].attributes.width);
+        expect(Number(lines[0].attributes.x)).toBeCloseTo(20 - width / 2);
+    });
+
+    it('targets the barline (not the later note) when the caret abuts a barline (AB |, C)', () => {
+        // "AB , C": ligature AB [0,2], barline [3,4] (no bbox → getBBox), note C [5,6]; caret = 3.
+        const ab = sourceMapped(0, 2, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '0', bboxWidth: '10' } });
+        const bar = sourceMapped(3, 4, { className: 'aretino-token aretino-barline', dataset: { staffBottom: '40', staffHeight: '20' }, bbox: { x: 25, y: 20, width: 2, height: 20 } });
+        const c = sourceMapped(5, 6, { className: 'aretino-token aretino-ligature', dataset: { staffBottom: '40', staffHeight: '20', bboxX: '30', bboxWidth: '10' } });
+        const preview = previewWith(ab, bar, c);
+
+        highlightAtCaret(preview, 3);
+
+        const lines = preview.querySelectorAll('.aretino-cursor-line');
+        expect(lines).toHaveLength(1);
+        // Hugs the barline's left edge (getBBox x = 25).
+        const width = Number(lines[0].attributes.width);
+        expect(Number(lines[0].attributes.x)).toBeCloseTo(25 - width / 2);
+        // The line is parented to the barline, so Delete-target is unambiguous.
+        expect(lines[0].parentNode).toBe(bar);
+    });
+
+    it('excludes modifier glyphs from non-empty selection highlighting', () => {
+        const note = sourceMapped(0, 3, { className: 'aretino-note' });
+        const mora = sourceMapped(2, 3, { className: 'aretino-modifier aretino-mod-mora' });
+        note.append(mora);
+        const preview = previewWith(note);
+
+        const highlighted = highlightAtSelection(preview, { from: 0, to: 3 }, { mode: 'class' });
+
+        expect(highlighted).toEqual([note]);
+        expect(activeSpans(preview)).toEqual([[0, 3]]);
+    });
+
     it('scrolls the caret target into view when requested', () => {
         const target = sourceMapped(0, 1);
         const preview = previewWith(target);

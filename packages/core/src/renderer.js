@@ -1486,22 +1486,27 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
             const prevCy = i > 0 ? positions[i - 1].cy : null;
             const drawnNote = autoVirga[i] ? { ...p.note, virga: true } : p.note;
             const noteParts = [drawNoteHead(ctx, drawnNote, p.cx, p.cy, staffBottomY, prevCy)];
-            for (const mod of p.note.modifiers) {
+            const modifierSpans = p.note.modifierSpans ?? [];
+            for (let mi = 0; mi < p.note.modifiers.length; mi++) {
+                const mod = p.note.modifiers[mi];
+                let glyph = null;
                 if (mod === 'episema') {
                     if (!episemaInGroup.has(i)) {
                         const onLine = pitchToPos(p.note) % 2 === 0;
-                        noteParts.push(drawEpisema(ctx, p.cx, p.cy, onLine));
+                        glyph = drawEpisema(ctx, p.cx, p.cy, onLine);
                     }
                 } else if (mod === 'mora') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
-                    noteParts.push(drawMora(ctx, p.cx, p.cy, onLine));
+                    glyph = drawMora(ctx, p.cx, p.cy, onLine);
                 } else if (mod === 'ictus') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
                     const below = p.note.modifiers.includes('episema');
-                    noteParts.push(drawIctus(ctx, p.cx, p.cy, onLine, below));
+                    glyph = drawIctus(ctx, p.cx, p.cy, onLine, below);
                 } else if (mod === 'liquescens') {
-                    noteParts.push(drawLiquescens(ctx, p.cx, p.cy, 'down'));
+                    glyph = drawLiquescens(ctx, p.cx, p.cy, 'down');
                 }
+                if (glyph === null) continue;
+                noteParts.push(wrapSrc(modifierSpans[mi] ?? {}, glyph, `aretino-modifier aretino-mod-${mod}`));
             }
             parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight, p.cx - ss(ctx, METRICS.noteBoxWidth) * 0.5, ss(ctx, METRICS.noteBoxWidth)));
         }

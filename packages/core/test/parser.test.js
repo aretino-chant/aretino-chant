@@ -61,6 +61,32 @@ describe('parseAretino', () => {
     expect(note.srcEnd).toBe(5);
   });
 
+  it('records a source span for each note modifier', () => {
+    const source = 'g-.';
+    const ast = parseAretino(source);
+    const note = ast.lines[0].tokens[0].groups[0][0];
+
+    expect(note.modifiers).toEqual(['ictus', 'mora']);
+    expect(note.modifierSpans).toEqual([
+      { srcStart: 1, srcEnd: 2 },
+      { srcStart: 2, srcEnd: 3 },
+    ]);
+  });
+
+  it('keeps modifier spans aligned when virga interleaves', () => {
+    const source = "g'_.";
+    const ast = parseAretino(source);
+    const note = ast.lines[0].tokens[0].groups[0][0];
+
+    expect(note.virga).toBe(true);
+    expect(note.modifiers).toEqual(['episema', 'mora']);
+    // The virga (') at offset 1 carries no glyph, so spans skip it.
+    expect(note.modifierSpans).toEqual([
+      { srcStart: 2, srcEnd: 3 },
+      { srcStart: 3, srcEnd: 4 },
+    ]);
+  });
+
   // TODO: port representative parser assertions from cantores.hu fixtures.
 });
 

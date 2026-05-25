@@ -53,6 +53,20 @@ describe('renderAretino', () => {
     expect(svg).toContain('<svg');
   });
 
+  it('wraps each note modifier glyph in its own source-mapped group', () => {
+    const svg = renderAretino('(g2) g-.');
+    const groups = sourceMappedGroups(svg);
+    const ictus = groups.find(g => g.className.includes('aretino-mod-ictus'));
+    const mora = groups.find(g => g.className.includes('aretino-mod-mora'));
+
+    const noteStart = '(g2) '.length;
+    expect(ictus).toMatchObject({ srcStart: noteStart + 1, srcEnd: noteStart + 2 });
+    expect(mora).toMatchObject({ srcStart: noteStart + 2, srcEnd: noteStart + 3 });
+    for (const g of [ictus, mora]) {
+      expect(g.className).toContain('aretino-modifier');
+    }
+  });
+
   describe('lyricDistance option', () => {
     // Source with a music line and a matching lyric line.
     const source = 'c d e f\nw: a b c d';

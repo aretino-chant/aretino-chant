@@ -98,6 +98,12 @@ Longer neumes and automatic virga on peaks:
 (g2) dfd ihgfghghjijigh
 ```
 
+Suppress auto-virga with backtick `` ` `` (peak loses stem, loosens connection without extra space):
+
+```aretino
+(g2) ihg ih`g
+```
+
 Neume-separator gap `/` — visual grouping within one ligature:
 
 ```aretino

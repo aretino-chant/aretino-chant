@@ -1413,7 +1413,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
                 for (let i = 0; i < notes.length; i++) {
                     const atLeastAsHighAsLeft = i === 0 || pitchPositions[i] >= pitchPositions[i - 1];
                     const higherThanRight = i === notes.length - 1 || pitchPositions[i] > pitchPositions[i + 1];
-                    if (atLeastAsHighAsLeft && higherThanRight) {
+                    if (atLeastAsHighAsLeft && higherThanRight && !notes[i].noVirga) {
                         autoVirga[i] = true;
                     }
                 }

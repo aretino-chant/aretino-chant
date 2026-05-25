@@ -35,6 +35,7 @@
 //   {
 //       pitch: 'a'..'n',
 //       virga: boolean,                  — uppercase letter
+//       noVirga: boolean,                — backtick ` suppresses auto-virga
 //       high: boolean,                   — trailing apostrophe (octave up)
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
 //       modifiers: Array<'episema'|'mora'|'liquescens'|'ictus'>,
@@ -330,6 +331,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             const note = {
                 pitch: pitchChar.toLowerCase(),
                 virga: false,
+                noVirga: false,
                 high: pitchChar !== pitchChar.toLowerCase(),
                 shape: 'punctum',
                 modifiers: [],
@@ -349,6 +351,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 const m = line[i];
                 const span = { srcStart: lineStart + i, srcEnd: lineStart + i + 1 };
                 if (m === "'") { note.virga = true; i++; continue; }
+                if (m === '`') { note.noVirga = true; i++; continue; }
                 if (m === '_') { note.modifiers.push('episema'); note.modifierSpans.push(span); i++; continue; }
                 if (m === '-') { note.modifiers.push('ictus'); note.modifierSpans.push(span); i++; continue; }
                 if (m === '.') { note.modifiers.push('mora'); note.modifierSpans.push(span); i++; continue; }

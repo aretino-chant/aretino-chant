@@ -147,6 +147,7 @@ function convertLyricText(text) {
     text = text.replace(/<sc>(.*?)<\/sc>/g, (_, s) => '\\sc{' + s.toLowerCase() + '}');
     text = text.replace(/<tt>(.*?)<\/tt>/g, '\\mono{$1}');
     text = text.replace(/<c>(.*?)<\/c>/g, '\\red{$1}');
+    text = text.replace(/<clear>/g, '');
     return text;
 }
 
@@ -165,9 +166,18 @@ function extractLyricWords(body) {
                 if (trailing) syllables.push(trailing);
                 break;
             }
-            syllables.push(convertLyricText(token.slice(pos, openParen).replace(/[{}]/g, '')));
+            const lyricText = convertLyricText(token.slice(pos, openParen).replace(/[{}]/g, ''));
             const closeParen = token.indexOf(')', openParen);
-            if (closeParen === -1) break;
+            if (closeParen === -1) { syllables.push(lyricText); break; }
+            const notation = token.slice(openParen + 1, closeParen);
+            if (BARLINE_MAP[notation.trim()] !== undefined) {
+                // Flush preceding syllables first so order is preserved
+                if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s))) words.push(syllables.join('-'));
+                syllables.length = 0;
+                if (lyricText.trim()) words.push('(' + lyricText + ')');
+            } else {
+                syllables.push(lyricText);
+            }
             pos = closeParen + 1;
         }
         // Remove trailing empty syllables (melismas after last lyric syllable)
@@ -175,7 +185,7 @@ function extractLyricWords(body) {
             syllables.pop();
         }
         // Skip tokens that contain no alphabetic text (clefs, barlines, GABC markers)
-        if (syllables.some(s => /[a-zA-ZÀ-ÿ]/.test(s))) {
+        if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s))) {
             words.push(syllables.join('-'));
         }
     }

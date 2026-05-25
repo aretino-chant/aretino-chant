@@ -71,6 +71,11 @@ const INITIAL_ROWS = [
     // lyric text markup: <b>→{}  <i>→<>  <ul>→[]  <sc>→\sc{}  <tt>→\mono{}  <c>→\red{}
     `<b>Ky</b>(g)ri(f)e(e) <i>e</i>(g)lei(f)son(e) <ul>A</ul>(g)men(f)`,
     `<sc>Glo</sc>(g)ri(f)a(e) <tt>et</tt>(g) <c>lux</c>(f)`,
+    // lyric under barline: * → (*),  <i>bis</i> → (<bis>)
+    `Al(g)le(f)*(,) lu(e)ia(d)`,
+    // * as lyric before notes (not a barline): * passes through to lyrics
+    `Al(g)le(f)*(gh) lu(e)ia(d)`,
+    `(c) <i>bis</i>(::)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

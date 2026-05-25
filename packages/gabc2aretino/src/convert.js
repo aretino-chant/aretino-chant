@@ -137,7 +137,7 @@ function gabcBody(gabc) {
     return sepIdx !== -1 ? gabc.slice(sepIdx + 2) : gabc;
 }
 
-const SP_MAP = { 'R/': '\\R', 'V/': '\\V', 'A/': 'A' };
+const SP_MAP = { 'R/': '\\R', 'V/': '\\V', 'A/': 'A' , "'ae": 'ǽ'};
 
 function convertLyricText(text) {
     text = text.replace(/<sp>([^<]*)<\/sp>/g, (_, sym) => SP_MAP[sym] ?? sym);

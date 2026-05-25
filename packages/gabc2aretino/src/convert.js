@@ -27,15 +27,19 @@ function convertNeumeToken(token) {
 }
 
 export function gabcToAretino(gabc) {
-    const notes = [];
+    const neumes = [];
     for (const match of gabc.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
         if (/\d/.test(content)) continue; // skip clefs (e.g. c4, f3)
-        for (const tokenMatch of content.matchAll(GABC_NOTE_RE)) {
-            const note = convertNeumeToken(tokenMatch[0]);
-            if (note !== null) notes.push(note);
+        for (const segment of content.split(/\s+/)) {
+            const notes = [];
+            for (const tokenMatch of segment.matchAll(GABC_NOTE_RE)) {
+                const note = convertNeumeToken(tokenMatch[0]);
+                if (note !== null) notes.push(note);
+            }
+            if (notes.length > 0) neumes.push(notes.join(''));
         }
     }
-    if (notes.length === 0) return '';
-    return '(g2) ' + notes.join(' ');
+    if (neumes.length === 0) return '';
+    return '(g2) ' + neumes.join(' ');
 }

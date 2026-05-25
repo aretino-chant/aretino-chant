@@ -8,6 +8,9 @@ const INITIAL_ROWS = [
     '(g)(G)(G~)(G>)(g<)(g>)(go)(go~)(go<)(gs)(gs<)',
     // one-note neumes: special noteheads
     '(gw)(g~)',
+    // complex neumes (multiple notes, no spaces within group)
+    '(gfwge)',
+    '(hi~)',
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

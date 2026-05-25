@@ -32,6 +32,8 @@ const INITIAL_ROWS = [
     '(gfwge) (hi~)',
     // alterations: x=flat, y=natural, #=sharp
     '(gx)(gh) (gy)(gh) (g#)(gh)',
+    // spaces inside a neume → // (double gap between segments)
+    '(g f e)',
     // intra-neume separators: / (single gap), // (double gap)
     '(f/g) (f//g)',
     // ! = auto virga off (backtick), @, /0 map to single gap /

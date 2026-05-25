@@ -75,8 +75,9 @@ function gabcBody(gabc) {
 // Extract lyric words from GABC body. Each space-separated token is a word;
 // within a token, text before each (...) group is a syllable. {braces} are stripped.
 function extractLyricWords(body) {
+    const normalized = body.replace(/\(([^)]*)\)/g, (_, inner) => '(' + inner.replace(/\s+/g, '') + ')');
     const words = [];
-    for (const token of body.trim().split(/\s+/)) {
+    for (const token of normalized.trim().split(/\s+/)) {
         const syllables = [];
         let pos = 0;
         while (pos < token.length) {
@@ -111,6 +112,7 @@ export function gabcToAretino(gabc) {
         if (/^[cfg]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
         const alt = convertAlteration(content.trim());
         if (alt !== null) { neumes.push(alt); continue; }
+        const neumeSegments = [];
         for (const segment of content.split(/\s+/)) {
             const parts = [];
             let pendingSep = null;
@@ -133,8 +135,9 @@ export function gabcToAretino(gabc) {
                     if (parts.length > 0) pendingSep = convertSeparator(tok, tokenMatch[1]);
                 }
             }
-            if (parts.length > 0) neumes.push(parts.join(''));
+            if (parts.length > 0) neumeSegments.push(parts.join(''));
         }
+        if (neumeSegments.length > 0) neumes.push(neumeSegments.join('//'))
     }
     if (neumes.length === 0) return '';
 

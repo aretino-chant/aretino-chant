@@ -68,6 +68,13 @@ Combined modifiers:
 w: (,) (;) (|) (||) (|||) (:|) (|:) (:|:)
 ```
 
+Dotted barline and invisible barline:
+
+```aretino
+(g2) g h |? g h |0 g h
+w: (dotted) (invisible)
+```
+
 Breath mark:
 
 ```aretino

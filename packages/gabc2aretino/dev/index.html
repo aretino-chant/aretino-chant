@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GABC → Aretino converter</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="https://cdn.jsdelivr.net/gh/bbloomf/exsurge@v1.22.1/dist/exsurge.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>GABC → Aretino</h1>
+        <p>Edit the GABC column; Aretino is derived automatically.</p>
+    </header>
+    <main>
+        <table id="conversion-table">
+            <thead>
+                <tr>
+                    <th>GABC source</th>
+                    <th>GABC rendered</th>
+                    <th>Aretino source</th>
+                    <th>Aretino rendered</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+        <button id="add-row">+ Add row</button>
+    </main>
+    <script type="module" src="./main.js"></script>
+</body>
+</html>

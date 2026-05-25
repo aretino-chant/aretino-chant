@@ -1,0 +1,30 @@
+{
+  "name": "@aretino-chant/gabc2aretino",
+  "version": "0.1.0",
+  "description": "Converter from Gregorio GABC to Aretino chant notation.",
+  "type": "module",
+  "exports": {
+    ".": "./src/convert.js"
+  },
+  "files": [
+    "src",
+    "NOTICE"
+  ],
+  "scripts": {
+    "dev": "vite"
+  },
+  "keywords": [
+    "gregorian",
+    "chant",
+    "gabc",
+    "converter"
+  ],
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "peerDependencies": {
+    "@aretino-chant/core": "*"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21"
+  }
+}

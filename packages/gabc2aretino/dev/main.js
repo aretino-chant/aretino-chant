@@ -20,8 +20,9 @@ const INITIAL_ROWS = [
     '(gx)(gh) (gy)(gh) (g#)(gh)',
     // intra-neume separators: / (single gap), // (double gap)
     '(f/g) (f//g)',
-    // !, @, /0 all map to single gap /
-    '(f!g) (f@g) (f/0g)',
+    // ! = auto virga off (backtick), @, /0 map to single gap /
+    '(f!g)',
+    '(f@g) (f/0g)',
     // /[N]: gap / unless N >= 2, then //
     '(f/[-1]g) (f/[1]g) (f/[2]g) (f/[3]g)',
     // lyrics: syllable-neume pairs; {braces} stripped, words space-separated

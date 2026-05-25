@@ -49,6 +49,7 @@ function convertNeumeToken(token) {
 function convertSeparator(sep, bracketNum) {
     if (sep === '//') return '//';
     if (bracketNum !== undefined) return parseInt(bracketNum, 10) >= 2 ? '//' : '/';
+    if (sep === '!') return '`';
     return '/';
 }
 

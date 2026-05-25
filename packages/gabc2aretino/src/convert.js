@@ -26,9 +26,46 @@ function convertNeumeToken(token) {
     return base;
 }
 
+function gabcBody(gabc) {
+    const sepIdx = gabc.indexOf('%%');
+    return sepIdx !== -1 ? gabc.slice(sepIdx + 2) : gabc;
+}
+
+// Extract lyric words from GABC body. Each space-separated token is a word;
+// within a token, text before each (...) group is a syllable. {braces} are stripped.
+function extractLyricWords(body) {
+    const words = [];
+    for (const token of body.trim().split(/\s+/)) {
+        const syllables = [];
+        let pos = 0;
+        while (pos < token.length) {
+            const openParen = token.indexOf('(', pos);
+            if (openParen === -1) {
+                const trailing = token.slice(pos).replace(/[{}]/g, '');
+                if (trailing) syllables.push(trailing);
+                break;
+            }
+            syllables.push(token.slice(pos, openParen).replace(/[{}]/g, ''));
+            const closeParen = token.indexOf(')', openParen);
+            if (closeParen === -1) break;
+            pos = closeParen + 1;
+        }
+        // Remove trailing empty syllables (melismas after last lyric syllable)
+        while (syllables.length > 0 && syllables[syllables.length - 1] === '') {
+            syllables.pop();
+        }
+        // Skip tokens that contain no alphabetic text (clefs, barlines, GABC markers)
+        if (syllables.some(s => /[a-zA-ZÀ-ÿ]/.test(s))) {
+            words.push(syllables.join('-'));
+        }
+    }
+    return words;
+}
+
 export function gabcToAretino(gabc) {
+    const body = gabcBody(gabc);
     const neumes = [];
-    for (const match of gabc.matchAll(/\(([^)]*)\)/g)) {
+    for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
         if (/\d/.test(content)) continue; // skip clefs (e.g. c4, f3)
         for (const segment of content.split(/\s+/)) {
@@ -41,5 +78,9 @@ export function gabcToAretino(gabc) {
         }
     }
     if (neumes.length === 0) return '';
-    return '(g2) ' + neumes.join(' ');
+
+    let result = '(g2) ' + neumes.join(' ');
+    const lyricWords = extractLyricWords(body);
+    if (lyricWords.length > 0) result += '\nw: ' + lyricWords.join(' ');
+    return result;
 }

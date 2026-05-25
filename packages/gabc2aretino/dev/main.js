@@ -11,6 +11,8 @@ const INITIAL_ROWS = [
     // complex neumes (multiple notes, no spaces within group)
     '(gfwge)',
     '(hi~)',
+    // lyrics: syllable-neume pairs; {braces} stripped, words space-separated
+    `AL(def)le(fefgwhg)lú(fhhh){ia}.(hiHFfe.)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

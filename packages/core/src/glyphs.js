@@ -562,6 +562,10 @@ export function drawBarline(ctx, kind, x, staffBottomY) {
         svg = `<line x1="${lineX}" y1="${y1}" x2="${lineX}" y2="${y2}" stroke="#000" stroke-width="${sw}"/>`;
     } else if (kind === '|') {
         svg = `<line x1="${lineX}" y1="${top5}" x2="${lineX}" y2="${staffBottomY}" stroke="#000" stroke-width="${sw}"/>`;
+    } else if (kind === '|0') {
+        const midY = (top5 + staffBottomY) / 2;
+        const r = ss(ctx, METRICS.staffLineStroke / 2);
+        svg = `<circle cx="${lineX}" cy="${midY}" r="${r}" fill="#000"/>`;
     } else if (kind === '||') {
         const lineX2 = x + ss(ctx, METRICS.barlineDoubleSecondOffsetX);
         svg = `<line x1="${lineX}" y1="${top5}" x2="${lineX}" y2="${staffBottomY}" stroke="#000" stroke-width="${sw}"/>`

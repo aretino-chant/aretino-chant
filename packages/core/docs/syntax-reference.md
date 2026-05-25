@@ -345,6 +345,7 @@ attaching to a neighbouring spacer or expander.
 | `,` | quarter bar (minor division) |
 | `;` | half bar |
 | `\|` | full bar |
+| `\|0` | empty bar (invisible, same width as full bar) |
 | `\|\|` | double bar |
 | `\|\|\|` | triple bar |
 | `\|:` | repeat start |

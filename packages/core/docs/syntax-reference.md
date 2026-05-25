@@ -76,9 +76,9 @@ w: O Lord, hear my hum-ble call to you!
 
 | Key | Alias | Renders as |
 |---|---|---|
-| `title` | `cím` | Bold centered heading above the score |
-| `caption` | `felirat` | Italic heading, right-aligned |
-| `indent` | `behúzás` | Mode/incipit label drawn in the first-line indent |
+| `title` | Bold centered heading above the score |
+| `caption` | Italic heading, right-aligned |
+| `indent` | Mode/incipit label drawn in the first-line indent |
 | `option` | — | Renderer option, one per line; repeatable |
 
 `option` headers set renderer options from the source. Write one option per

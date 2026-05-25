@@ -328,11 +328,11 @@ export function drawLiquescens(ctx, cx, cy, direction = 'down') {
     return `<path d="M ${x1} ${y1} C ${x1 + bulge} ${y1} ${x2 + bulge} ${y2} ${x2} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 
-function noteheadEdgeOffset(ctx) {
+function noteheadEdgeOffset(ctx, scale = 1) {
     // Geometric horizontal extent of the rotated notehead ellipse — used to
     // attach ligature connectors at the true left/right tip of each oval.
-    const rx = ss(ctx, METRICS.noteheadRx);
-    const ry = ss(ctx, METRICS.noteheadRy);
+    const rx = ss(ctx, METRICS.noteheadRx) * scale;
+    const ry = ss(ctx, METRICS.noteheadRy) * scale;
     const θ = METRICS.noteheadRotationDeg * Math.PI / 180;
     const cosθ = Math.cos(θ);
     const sinθ = Math.sin(θ);
@@ -341,13 +341,13 @@ function noteheadEdgeOffset(ctx) {
     return { dx: d, dy: yShift };
 }
 
-export function noteheadRightPoint(ctx, cx, cy) {
-    const { dx, dy } = noteheadEdgeOffset(ctx);
+export function noteheadRightPoint(ctx, cx, cy, scale = 1) {
+    const { dx, dy } = noteheadEdgeOffset(ctx, scale);
     return { x: cx + dx, y: cy + dy };
 }
 
-export function noteheadLeftPoint(ctx, cx, cy) {
-    const { dx, dy } = noteheadEdgeOffset(ctx);
+export function noteheadLeftPoint(ctx, cx, cy, scale = 1) {
+    const { dx, dy } = noteheadEdgeOffset(ctx, scale);
     return { x: cx - dx, y: cy - dy };
 }
 

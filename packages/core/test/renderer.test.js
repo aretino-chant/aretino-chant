@@ -177,6 +177,57 @@ describe('renderAretino', () => {
       expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['Ky', 'ri', 'e']);
       expect(renderedHyphenCount(svg)).toBe(2);
     });
+
+    describe('Hungarian double consonant rule', () => {
+      // noteSpacing:0.3 puts notes so close together that the inter-syllable hyphen
+      // has no room and is collapsed.  noteSpacing:3 spreads notes wide enough that
+      // the hyphen IS rendered — the transform must NOT fire in that case.
+
+      it('transforms sz+sz boundary to osszad when the hyphen is collapsed', () => {
+        const svg = renderAretino('c d\nw: osz-szad', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('oss');
+        expect(texts).toContain('zad');
+        expect(renderedHyphenCount(svg)).toBe(0);
+      });
+
+      it('does NOT transform sz+sz when the hyphen has room to be shown', () => {
+        const svg = renderAretino('c d\nw: osz-szad', { width: 400, noteSpacing: 3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('osz');
+        expect(texts).toContain('szad');
+        expect(renderedHyphenCount(svg)).toBe(1);
+      });
+
+      it('transforms cs+cs boundary when collapsed (e.g. ecs-cset)', () => {
+        const svg = renderAretino('c d\nw: ecs-cset', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('ecc');
+        expect(texts).toContain('set');
+        expect(renderedHyphenCount(svg)).toBe(0);
+      });
+
+      it('transforms gy+gy boundary when collapsed (egy-gyel)', () => {
+        const svg = renderAretino('c d\nw: egy-gyel', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('egg');
+        expect(texts).toContain('yel');
+      });
+
+      it('does not alter a simple tt boundary (naive concatenation is correct)', () => {
+        const svg = renderAretino('c d\nw: kat-tán', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('kat');
+        expect(texts).toContain('tán');
+      });
+
+      it('does not affect syllables from different words', () => {
+        const svg = renderAretino('c d\nw: osz szad', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('osz');
+        expect(texts).toContain('szad');
+      });
+    });
   });
 
   describe('source-mapped caret elements', () => {

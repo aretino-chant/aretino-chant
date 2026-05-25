@@ -1931,6 +1931,71 @@ function emitBarlineLabels(ctx, labels, barlines, lyricY) {
     return parts.join('');
 }
 
+// Hungarian digraphs that form doubled consonants at hyphenated syllable boundaries
+// (longest first to prevent partial matches, e.g. 'dzs' before 'dz').
+const HU_DIGRAPHS = ['dzs', 'cs', 'dz', 'gy', 'ly', 'ny', 'sz', 'ty', 'zs'];
+
+// Returns a new segment array with the last `removeCount` chars removed and `appendStr` appended.
+// Appended text inherits the formatting of the last segment.
+function modifySegsSuffix(segs, removeCount, appendStr) {
+    let result = segs.map(s => ({ ...s }));
+    let rem = removeCount;
+    for (let i = result.length - 1; i >= 0 && rem > 0; i--) {
+        const len = result[i].text.length;
+        if (len <= rem) { rem -= len; result[i].text = ''; }
+        else { result[i].text = result[i].text.slice(0, len - rem); rem = 0; }
+    }
+    result = result.filter(s => s.text !== '');
+    if (appendStr) {
+        if (result.length > 0) {
+            const last = result[result.length - 1];
+            result[result.length - 1] = { ...last, text: last.text + appendStr };
+        } else {
+            const orig = segs[segs.length - 1] || {};
+            result.push({ text: appendStr, bold: orig.bold || false, italic: orig.italic || false, underline: orig.underline || false, color: orig.color || null });
+        }
+    }
+    return result;
+}
+
+// Returns a new segment array with the first `removeCount` chars removed.
+function modifySegsPrefix(segs, removeCount) {
+    let result = segs.map(s => ({ ...s }));
+    let rem = removeCount;
+    for (let i = 0; i < result.length && rem > 0; i++) {
+        const len = result[i].text.length;
+        if (len <= rem) { rem -= len; result[i].text = ''; }
+        else { result[i].text = result[i].text.slice(rem); rem = 0; }
+    }
+    return result.filter(s => s.text !== '');
+}
+
+// Returns [newSyl1, newSyl2] if a Hungarian doubled digraph is found at the boundary,
+// null otherwise.  Called only when the inter-syllable hyphen is being collapsed.
+// When digraph G ends syl1 and starts syl2, syl1 loses its trailing G[1:] and gains G[0]
+// (e.g. osz → oss), while syl[i+1] loses its leading G[0] (e.g. szad → zad).
+// Combined they display as osszad when collapsed — correct.
+function hungarianDigraphTransformPair(syl1, syl2) {
+    const text1 = syl1.segments.map(s => s.text).join('');
+    const text2 = syl2.segments.map(s => s.text).join('');
+    for (const g of HU_DIGRAPHS) {
+        if (text1.endsWith(g) && text2.startsWith(g)) {
+            const gRest = g.slice(1);
+            const newSegs1 = modifySegsSuffix(syl1.segments, gRest.length, g[0]);
+            const newSegs2 = modifySegsPrefix(syl2.segments, 1);
+            const oldAlign1 = syl1.alignSegments;
+            const oldAlign2 = syl2.alignSegments;
+            const newAlign1 = oldAlign1 === syl1.segments ? newSegs1 : modifySegsSuffix(oldAlign1, gRest.length, g[0]);
+            const newAlign2 = oldAlign2 === syl2.segments ? newSegs2 : modifySegsPrefix(oldAlign2, 1);
+            return [
+                { ...syl1, segments: newSegs1, alignSegments: newAlign1 },
+                { ...syl2, segments: newSegs2, alignSegments: newAlign2 },
+            ];
+        }
+    }
+    return null;
+}
+
 // Lays out a row's worth of syllables centered under their corresponding
 // ligature centers. Adjusts for collisions and emits hyphens between
 // syllables of the same word when there's room.
@@ -1953,13 +2018,18 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     const parts = [];
     let prevRight = -Infinity;
     let lastRight = null;
+    // Track the parts[] index and left position of the previous syllable so it can be
+    // re-rendered in-place when a Hungarian digraph transform fires on collapse.
+    let prevSylIdx = -1;
+    let prevLeft = 0;
+    const workSyllables = syllables.slice();
 
-    for (let i = 0; i < syllables.length; i++) {
-        const syl = syllables[i];
-        const fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
-        const alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
+    for (let i = 0; i < workSyllables.length; i++) {
+        let syl = workSyllables[i];
+        let fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
+        let alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
         // Offset from the left edge of fullW to the left edge of alignText portion
-        const prefixW = fullW - alignW;
+        let prefixW = fullW - alignW;
         let center;
         if (i < ligatures.length) {
             const lig = ligatures[i];
@@ -1980,11 +2050,29 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         let left = center - alignW / 2 - prefixW;
         let hyphenX = null;
         if (i > 0) {
-            const needsHyphen = syllables[i - 1].hyphenAfter;
+            const needsHyphen = workSyllables[i - 1].hyphenAfter;
             if (needsHyphen) {
                 if (left - prevRight >= hyphenSpaceW) {
                     hyphenX = (left + prevRight) / 2;
                 } else {
+                    // Hyphen collapsed: apply Hungarian double-consonant rule if applicable.
+                    // The previous syllable's SVG is re-rendered in-place at the same left
+                    // position; the current syllable is re-measured with the new text.
+                    const transformed = hungarianDigraphTransformPair(workSyllables[i - 1], syl);
+                    if (transformed) {
+                        workSyllables[i - 1] = transformed[0];
+                        syl = transformed[1];
+                        workSyllables[i] = syl;
+                        const newFullW1 = measureSegmentsWidth(transformed[0].segments, fontSize, fontFamily);
+                        const newTC1 = prevLeft + newFullW1 / 2;
+                        const newSvg1 = `<text xml:space="preserve" x="${newTC1}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(transformed[0].segments)}</text>`
+                            + renderUnderlines(transformed[0].segments, newTC1, lyricY, fontSize, fontFamily, 'middle');
+                        parts[prevSylIdx] = wrapSrc(transformed[0], newSvg1, 'aretino-lyric aretino-syllable');
+                        prevRight = prevLeft + newFullW1;
+                        fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
+                        alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
+                        prefixW = fullW - alignW;
+                    }
                     left = prevRight;
                     center = left + prefixW + alignW / 2;
                 }
@@ -1998,6 +2086,8 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
 
         const syllableSvg = `<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`
             + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle');
+        prevSylIdx = parts.length;
+        prevLeft = left;
         parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable'));
         if (hyphenX !== null) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
@@ -2008,7 +2098,7 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
 
     // Word broken at the row boundary: render a trailing hyphen so the reader
     // knows the syllable continues on the next row.
-    const lastSyl = syllables[syllables.length - 1];
+    const lastSyl = workSyllables[workSyllables.length - 1];
     if (lastSyl && lastSyl.hyphenAfter && lastRight !== null) {
         const hyphenX = lastRight + hyphenSpaceW / 2;
         parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);

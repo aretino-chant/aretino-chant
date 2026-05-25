@@ -6,7 +6,7 @@ import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { renderAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
-import { highlightAtCaret, sourceSpanFromPreviewClick } from './caret.js';
+import { highlightAtSelection, sourceSpanFromPreviewClick } from './caret.js';
 
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap';
 
@@ -160,6 +160,10 @@ class AretinoEditor extends HTMLElement {
         this._view.focus();
     }
 
+    get selection() {
+        return this._sourceSelection();
+    }
+
     get zoom() {
         return parseFloat(this.getAttribute('zoom') ?? '1');
     }
@@ -181,16 +185,16 @@ class AretinoEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent('change', {
             bubbles: true,
             composed: true,
-            detail: { value: this.value, caret: this.caret },
+            detail: { value: this.value, caret: this.caret, selection: this.selection },
         }));
     }
 
     _handleSelectionChange() {
-        this._highlightAtCaret();
+        this._highlightAtSelection();
         this.dispatchEvent(new CustomEvent('selectionchange', {
             bubbles: true,
             composed: true,
-            detail: { caret: this.caret },
+            detail: { caret: this.caret, selection: this.selection },
         }));
     }
 
@@ -228,12 +232,23 @@ class AretinoEditor extends HTMLElement {
         } catch (err) {
             this._previewEl.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
         }
-        this._highlightAtCaret();
+        this._highlightAtSelection();
     }
 
-    _highlightAtCaret() {
+    _sourceSelection() {
+        const selection = this._view?.state.selection.main;
+        if (!selection) return { anchor: 0, head: 0, from: 0, to: 0 };
+        return {
+            anchor: selection.anchor,
+            head: selection.head,
+            from: selection.from,
+            to: selection.to,
+        };
+    }
+
+    _highlightAtSelection() {
         if (!this._previewEl || !this._view) return;
-        highlightAtCaret(this._previewEl, this.caret);
+        highlightAtSelection(this._previewEl, this._view.state.selection.main, { scrollIntoView: true });
     }
 
     _handlePreviewClick(event) {

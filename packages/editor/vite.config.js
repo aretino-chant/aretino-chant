@@ -4,8 +4,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-export default defineConfig(({ command }) => {
-    if (command === 'serve') {
+export default defineConfig(({ command, mode }) => {
+    if (command === 'serve' && mode !== 'test') {
         return {
             root: resolve(__dirname, 'dev'),
             server: { open: true },

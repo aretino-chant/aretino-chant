@@ -80,25 +80,27 @@ Every attribute has a matching JavaScript property of the same name.
 | Name | Type | Description |
 |---|---|---|
 | `caret` | number | Primary CodeMirror caret offset in the source string. Setting it moves the caret, scrolls it into view, and focuses the editor. |
+| `selection` | object | Primary CodeMirror selection as `{ anchor, head, from, to }`. |
 
 ## Events
 
 | Event | Bubbles / composed | Detail | Description |
 |---|---|---|---|
-| `change` | yes / yes | `{ value: string, caret: number }` | Fired on every document change, including every keystroke. |
-| `selectionchange` | yes / yes | `{ caret: number }` | Fired when the primary caret position changes. |
+| `change` | yes / yes | `{ value: string, caret: number, selection: object }` | Fired on every document change, including every keystroke. |
+| `selectionchange` | yes / yes | `{ caret: number, selection: object }` | Fired when the primary selection changes. |
 
 ## Custom Preview Integration
 
 Set `preview="false"` when your app renders the preview itself. The editor
-package exports `highlightAtCaret()` so custom preview components can reuse the
-same caret-to-preview behavior as the built-in pane. It also exports
+package exports `highlightAtSelection()` and `highlightAtCaret()` so custom
+preview components can reuse the same source-to-preview behavior as the built-in
+pane. It also exports
 `sourceSpanFromPreviewClick()` so preview clicks can move the editor caret back
 to the source.
 
 ```js
 import '@aretino-chant/editor';
-import { highlightAtCaret, sourceSpanFromPreviewClick } from '@aretino-chant/editor';
+import { highlightAtSelection, sourceSpanFromPreviewClick } from '@aretino-chant/editor';
 import { renderAretino } from '@aretino-chant/core';
 
 const editor = document.querySelector('aretino-editor');
@@ -110,12 +112,12 @@ function renderPreview() {
   const zoom = editor.zoom;
   const width = Math.max(120, Math.round((preview.clientWidth || 600) / zoom));
   preview.innerHTML = renderAretino(editor.value, { width, zoom });
-  highlightAtCaret(preview, editor.caret);
+  highlightAtSelection(preview, editor.selection);
 }
 
 editor.addEventListener('change', renderPreview);
 editor.addEventListener('selectionchange', event => {
-  highlightAtCaret(preview, event.detail.caret);
+  highlightAtSelection(preview, event.detail.selection);
 });
 
 preview.addEventListener('click', event => {
@@ -125,6 +127,21 @@ preview.addEventListener('click', event => {
 
 renderPreview();
 ```
+
+### `highlightAtSelection(preview, selection, options?)`
+
+Highlights all source-mapped SVG elements that overlap a source selection. A
+collapsed selection uses the same single-token matching as `highlightAtCaret()`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `preview` | `Element` | Element containing rendered Aretino SVG, or the SVG element itself. |
+| `selection` | object or number | Source selection such as `{ from, to }` or `{ anchor, head }`. A number is treated as a collapsed caret. |
+| `options` | object | Optional styling controls. |
+
+The function clears the previous highlight in `preview` and returns an array of
+matched source-mapped elements. It accepts the same options as
+`highlightAtCaret()`.
 
 ### `highlightAtCaret(preview, caret, options?)`
 
@@ -147,6 +164,7 @@ matched source-mapped element, or `null` when no rendered token matches.
 | `cursorBackgroundClass` | `"aretino-cursor-bg"` | Additional class placed on the background rectangle. |
 | `fill` | `"rgba(234, 88, 12, 0.13)"` | Background rectangle fill. |
 | `verticalPadding` | `0.25` | Staff-height fraction added above and below the background rectangle. |
+| `scrollIntoView` | `false` | `true` scrolls the matched SVG element into the nearest visible area. An object is passed through to `Element.scrollIntoView()`. |
 
 ### `sourceSpanFromPreviewClick(event, preview?)`
 

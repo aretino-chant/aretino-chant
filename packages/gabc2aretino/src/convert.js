@@ -12,8 +12,9 @@ const NOTE_MAP = {
 
 // Matches a single gabc note token: a note letter (upper or lower) plus optional suffix.
 // Suffixes: o (apostropha), o~ o< (variants), s (stropha), s< (variant),
-//           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma).
-const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w])?/g;
+//           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma),
+//           . (mora), v/V (virga), '/`'0/`'1 (ictus), _/_0/_1 (episema).
+const GABC_NOTE_RE = /[a-mA-M](?:o[~<]?|s<?|[~><w.]|[vV]|'[01]?|_[01]?)?/g;
 
 function convertNeumeToken(token) {
     const letter = token[0].toLowerCase();
@@ -21,8 +22,12 @@ function convertNeumeToken(token) {
     if (base === undefined) return null;
     const isLowercase = token[0] >= 'a';
     const suffix = token.slice(1);
-    if (suffix === 'w') return base + 'w';           // quilisma
-    if (isLowercase && suffix === '~') return base + 's'; // liquescent → small notehead
+    if (suffix === 'w') return base + 'w';                          // quilisma
+    if (isLowercase && suffix === '~') return base + 's';           // liquescent → small notehead
+    if (suffix === 'v' || suffix === 'V') return base + "'";        // virga
+    if (suffix === '.') return base + '.';                          // mora
+    if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus
+    if (suffix === '_' || suffix === '_0' || suffix === '_1') return base + '_'; // episema
     return base;
 }
 
@@ -70,7 +75,7 @@ export function gabcToAretino(gabc) {
         if (/\d/.test(content)) continue; // skip clefs (e.g. c4, f3)
         for (const segment of content.split(/\s+/)) {
             const notes = [];
-            for (const tokenMatch of segment.matchAll(GABC_NOTE_RE)) {
+            for (const tokenMatch of segment.replace(/@/g, '').matchAll(GABC_NOTE_RE)) {
                 const note = convertNeumeToken(tokenMatch[0]);
                 if (note !== null) notes.push(note);
             }

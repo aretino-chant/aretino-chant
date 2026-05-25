@@ -8,6 +8,12 @@ const INITIAL_ROWS = [
     '(g)(G)(G~)(G>)(g<)(g>)(go)(go~)(go<)(gs)(gs<)',
     // one-note neumes: special noteheads
     '(gw)(g~)',
+    // modifiers: virga, mora, ictus, episema, @ connector
+    '(gv)(gV)',
+    '(g.)',
+    "(g')(g'1)(g'0)",
+    '(g_)(g_0)(g_1)',
+    '(g@e)',
     // complex neumes (multiple notes, no spaces within group)
     '(gfwge)',
     '(hi~)',

@@ -80,6 +80,24 @@ function expandRepeatedSuffixes(segment) {
     });
 }
 
+const BARLINE_MAP = {
+    ',':  ',',
+    "'":  "'",
+    ';':  ';',
+    ':':  '|',
+    ':?': '|?',
+    '::': '||',
+    ',1': ';',
+    ',2': ';',
+    ',3': ';',
+    ',4': ';',
+    ',5': ';',
+    ',6': ';',
+    ";'": ';',
+    ',_': ',',
+    ',0': ',',
+};
+
 function convertSeparator(sep, bracketNum) {
     if (sep === '//') return '//';
     if (bracketNum !== undefined) return parseInt(bracketNum, 10) >= 2 ? '//' : '/';
@@ -142,6 +160,8 @@ export function gabcToAretino(gabc) {
     for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
         if (/^[cfg]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
+        const bar = BARLINE_MAP[content.trim()];
+        if (bar !== undefined) { neumes.push(bar); continue; }
         const alt = convertAlteration(content.trim(), noteMap);
         if (alt !== null) { neumes.push(alt); continue; }
         const neumeSegments = [];

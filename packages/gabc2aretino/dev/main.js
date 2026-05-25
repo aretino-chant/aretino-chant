@@ -54,6 +54,10 @@ const INITIAL_ROWS = [
     '(f4) (abcd)',   // f4: up 3 → d e f g
     '(cb3) (bcde)',  // cb3: up 2, key sig Bb → d e f g + K:b
     '(cb4) (defg)',  // cb4: no transposition, key sig Bb → d e f g + K:b
+    // barlines: , ' ; : :? :: → , ' ; | |? ||
+    "(g)(,)(g) (g)(')(g) (g)(;)(g) (g)(:)(g) (g)(:?)(g) (g)(::)(g)",
+    // barlines: numbered commas → ; and ;' ,_ ,0 variants
+    "(g)(,1)(g) (g)(,3)(g) (g)(,6)(g) (g)(;')(g) (g)(,_)(g) (g)(,0)(g)",
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

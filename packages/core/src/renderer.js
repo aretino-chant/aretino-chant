@@ -132,14 +132,17 @@ function ss(ctx, n) {
     return n * ctx.staffSpace;
 }
 
-function wrapSrc(item, svg, cls, staffBottomY, staffHeight) {
+function wrapSrc(item, svg, cls, staffBottomY, staffHeight, bboxX, bboxWidth) {
     if (item.srcStart === undefined || item.srcEnd === undefined) {
         return svg;
     }
     const staffAttrs = (staffBottomY !== undefined)
         ? ` data-staff-bottom="${staffBottomY}" data-staff-height="${staffHeight}"`
         : '';
-    return `<g class="${cls}" data-src-start="${item.srcStart}" data-src-end="${item.srcEnd}"${staffAttrs}>${svg}</g>`;
+    const bboxAttrs = (bboxX !== undefined && bboxWidth !== undefined)
+        ? ` data-bbox-x="${bboxX}" data-bbox-width="${bboxWidth}"`
+        : '';
+    return `<g class="${cls}" data-src-start="${item.srcStart}" data-src-end="${item.srcEnd}"${staffAttrs}${bboxAttrs}>${svg}</g>`;
 }
 
 // CSS rules embedded in the SVG so a cursor-tracking script can toggle a
@@ -661,7 +664,7 @@ export function renderAretino(source, options = {}) {
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
                         ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
-                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight));
+                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
@@ -1500,7 +1503,7 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
                     noteParts.push(drawLiquescens(ctx, p.cx, p.cy, 'down'));
                 }
             }
-            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight));
+            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight, p.cx - ss(ctx, METRICS.noteBoxWidth) * 0.5, ss(ctx, METRICS.noteBoxWidth)));
         }
 
         if (g < groups.length - 1) {

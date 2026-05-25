@@ -4,6 +4,8 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+const _highlightCache = new WeakMap();
+
 const DEFAULT_ACTIVE_CLASS = 'aretino-active';
 const DEFAULT_CURSOR_CLASS = 'aretino-cursor-rect';
 const DEFAULT_CURSOR_BACKGROUND_CLASS = 'aretino-cursor-bg';
@@ -75,30 +77,50 @@ function findTargetAtCaret(preview, caret) {
 function clearHighlight(preview, activeClass, cursorClass) {
     if (!preview || typeof preview.querySelectorAll !== 'function') return;
 
-    preview.querySelectorAll(classSelector(cursorClass)).forEach(el => el.remove());
-    preview.querySelectorAll(classSelector(activeClass)).forEach(el => el.classList.remove(activeClass));
+    const cache = _highlightCache.get(preview);
+    if (cache) {
+        cache.cursorRect?.remove();
+        cache.activeEl?.classList.remove(activeClass);
+        _highlightCache.delete(preview);
+    } else {
+        preview.querySelectorAll(classSelector(cursorClass)).forEach(el => el.remove());
+        preview.querySelectorAll(classSelector(activeClass)).forEach(el => el.classList.remove(activeClass));
+    }
 }
 
 function addCursorBackground(target, options) {
-    if (typeof target.getBBox !== 'function') return false;
-
     const staffBottom = datasetNumber(target, 'staffBottom');
     const staffHeight = datasetNumber(target, 'staffHeight');
-
-    const bbox = target.getBBox();
-    if (bbox.height === 0) return false;
-
     const hasStaffBox = staffBottom !== null && staffHeight !== null;
-    const padding = hasStaffBox
-        ? staffHeight * options.verticalPadding
-        : bbox.height * options.verticalPadding;
 
-    // Zero-width elements (e.g., barlines rendered as a vertical <line>) need
-    // a minimum cursor width so the highlight rect is visible.
-    let rectX = bbox.x;
-    let rectWidth = bbox.width;
+    const bboxX = datasetNumber(target, 'bboxX');
+    const bboxWidth = datasetNumber(target, 'bboxWidth');
+
+    let rectX, rectWidth, rectY, rectHeight;
+
+    if (bboxX !== null && bboxWidth !== null && hasStaffBox) {
+        const padding = staffHeight * options.verticalPadding;
+        rectX = bboxX;
+        rectWidth = bboxWidth;
+        rectY = staffBottom - staffHeight - padding;
+        rectHeight = staffHeight + 2 * padding;
+    } else {
+        // Zero-width elements (e.g., barlines rendered as a vertical <line>) need
+        // a minimum cursor width so the highlight rect is visible.
+        if (typeof target.getBBox !== 'function') return false;
+        const bbox = target.getBBox();
+        if (bbox.height === 0) return false;
+        const padding = hasStaffBox
+            ? staffHeight * options.verticalPadding
+            : bbox.height * options.verticalPadding;
+        rectX = bbox.x;
+        rectWidth = bbox.width;
+        rectY = hasStaffBox ? staffBottom - staffHeight - padding : bbox.y - padding;
+        rectHeight = (hasStaffBox ? staffHeight : bbox.height) + 2 * padding;
+    }
+
     if (rectWidth === 0) {
-        const minW = (hasStaffBox ? staffHeight : bbox.height) * 0.15;
+        const minW = (hasStaffBox ? staffHeight : rectHeight) * 0.15;
         rectX -= minW / 2;
         rectWidth = minW;
     }
@@ -106,13 +128,13 @@ function addCursorBackground(target, options) {
     const rect = target.ownerDocument.createElementNS(SVG_NS, 'rect');
     rect.setAttribute('class', `${options.cursorClass} ${options.cursorBackgroundClass}`);
     rect.setAttribute('x', rectX);
-    rect.setAttribute('y', hasStaffBox ? staffBottom - staffHeight - padding : bbox.y - padding);
+    rect.setAttribute('y', rectY);
     rect.setAttribute('width', rectWidth);
-    rect.setAttribute('height', (hasStaffBox ? staffHeight : bbox.height) + 2 * padding);
+    rect.setAttribute('height', rectHeight);
     rect.setAttribute('fill', options.fill);
     rect.setAttribute('stroke', 'none');
     target.prepend(rect);
-    return true;
+    return rect;
 }
 
 export function highlightAtCaret(preview, caret, options = {}) {
@@ -130,13 +152,15 @@ export function highlightAtCaret(preview, caret, options = {}) {
     const target = findTargetAtCaret(preview, caret);
     if (!target) return null;
 
+    let cursorRect = null;
     if (normalized.mode === 'class' || normalized.mode === 'both') {
         target.classList.add(normalized.activeClass);
     }
     if (normalized.mode === 'background' || normalized.mode === 'both') {
-        addCursorBackground(target, normalized);
+        cursorRect = addCursorBackground(target, normalized) || null;
     }
 
+    _highlightCache.set(preview, { activeEl: target, cursorRect });
     return target;
 }
 

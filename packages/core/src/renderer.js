@@ -1437,8 +1437,10 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
             if (curPos === prevPos) {
                 continue;
             }
-            const from = noteheadRightPoint(ctx, prev.cx, prev.cy);
-            const to = noteheadLeftPoint(ctx, cur.cx, cur.cy);
+            const prevScale = prev.note.modifiers && prev.note.modifiers.includes('small') ? METRICS.smallNoteScale : 1;
+            const curScale = cur.note.modifiers && cur.note.modifiers.includes('small') ? METRICS.smallNoteScale : 1;
+            const from = noteheadRightPoint(ctx, prev.cx, prev.cy, prevScale);
+            const to = noteheadLeftPoint(ctx, cur.cx, cur.cy, curScale);
             const kind = curPos > prevPos ? 'up' : 'down';
             parts.push(drawLigatureConnector(ctx, from.x - halfSW, from.y, to.x + halfSW, to.y, kind));
         }

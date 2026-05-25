@@ -2,21 +2,40 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-// GABC letters a-g map to Aretino a-g (lower octave),
-// GABC letters h-m map to Aretino A-F (upper octave).
-// Uppercase GABC letters are virga and map to the same Aretino note as lowercase.
-const NOTE_MAP = {
-    a: 'a', b: 'b', c: 'c', d: 'd', e: 'e', f: 'f', g: 'g',
-    h: 'A', i: 'B', j: 'C', k: 'D', l: 'E', m: 'F',
+// GABC letters a-m (index 0–12) map to Aretino pitches at the same index with
+// zero transposition.  Different clefs shift this mapping by a fixed offset.
+const ARETINO_NOTES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'A', 'B', 'C', 'D', 'E', 'F'];
+const GABC_LOWER   = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
+
+// Transposition (in scale steps) and optional key signature for each GABC clef.
+// (c4) = 0 transposition, which is the reference.
+const CLEF_SETTINGS = {
+    c4:  { transpose: 0,  keySig: null },
+    c1:  { transpose: -1, keySig: null },
+    c2:  { transpose: 4,  keySig: null },
+    c3:  { transpose: 2,  keySig: null },
+    f3:  { transpose: -2, keySig: null },
+    f4:  { transpose: 3,  keySig: null },
+    cb3: { transpose: 2,  keySig: 'b' },
+    cb4: { transpose: 0,  keySig: 'b' },
 };
+
+function buildNoteMap(transpose) {
+    const map = {};
+    for (let i = 0; i < GABC_LOWER.length; i++) {
+        const pos = i + transpose;
+        if (pos >= 0 && pos < ARETINO_NOTES.length) map[GABC_LOWER[i]] = ARETINO_NOTES[pos];
+    }
+    return map;
+}
 
 // GABC alteration suffixes: x = flat, y = natural, # = sharp.
 const GABC_ALTER_SIGN = { x: 'b', y: 'n', '#': '#' };
 
-function convertAlteration(content) {
+function convertAlteration(content, noteMap) {
     const m = content.match(/^([a-mA-M])([xy#])$/);
     if (!m) return null;
-    const base = NOTE_MAP[m[1].toLowerCase()];
+    const base = noteMap[m[1].toLowerCase()];
     if (base === undefined) return null;
     return '(' + base + GABC_ALTER_SIGN[m[2]] + ')';
 }
@@ -33,11 +52,11 @@ const GABC_NOTE_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[
 // Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
 const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
 
-function convertNeumeToken(token) {
+function convertNeumeToken(token, noteMap) {
     const isSmall = token[0] === '-';
     const idx = isSmall ? 1 : 0;
     const letter = token[idx].toLowerCase();
-    const base = NOTE_MAP[letter];
+    const base = noteMap[letter];
     if (base === undefined) return null;
     const suffix = token.slice(idx + 1);
     if (isSmall && suffix === '') return base + 's';                // initio debilis → small notehead
@@ -104,13 +123,25 @@ function extractLyricWords(body) {
     return words;
 }
 
+function extractClef(body) {
+    for (const match of body.matchAll(/\(([^)]*)\)/g)) {
+        const content = match[1].trim();
+        if (/^[cfg]b?\d$/.test(content)) return content;
+    }
+    return 'c4';
+}
+
 export function gabcToAretino(gabc) {
     const body = gabcBody(gabc);
+    const clef = extractClef(body);
+    const { transpose, keySig } = CLEF_SETTINGS[clef] ?? CLEF_SETTINGS.c4;
+    const noteMap = buildNoteMap(transpose);
+
     const neumes = [];
     for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
         if (/^[cfg]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
-        const alt = convertAlteration(content.trim());
+        const alt = convertAlteration(content.trim(), noteMap);
         if (alt !== null) { neumes.push(alt); continue; }
         const neumeSegments = [];
         for (const segment of content.split(/\s+/)) {
@@ -124,7 +155,7 @@ export function gabcToAretino(gabc) {
                     continue;
                 }
                 if (/^-?[a-mA-M]/.test(tok)) {
-                    let note = convertNeumeToken(tok);
+                    let note = convertNeumeToken(tok, noteMap);
                     if (note !== null) {
                         if (pendingSep !== null) parts.push(pendingSep);
                         if (suppressVirga) note = note + '`';
@@ -141,7 +172,8 @@ export function gabcToAretino(gabc) {
     }
     if (neumes.length === 0) return '';
 
-    let result = '(g2) ' + neumes.join(' ');
+    const keySigToken = keySig ? `(K:${keySig}) ` : '';
+    let result = `(g2) ${keySigToken}` + neumes.join(' ');
     const lyricWords = extractLyricWords(body);
     if (lyricWords.length > 0) result += '\nw: ' + lyricWords.join(' ');
     return result;

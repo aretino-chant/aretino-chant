@@ -84,6 +84,28 @@ function expandRepeatedSuffixes(segment) {
     });
 }
 
+// Redistribute trailing repeated mora (.) or episema (_) onto the last N notes.
+// e.g., gh.. → g.h.   gh__ → g_h_
+function redistributeTrailingSuffixes(segment) {
+    for (const [char, re] of [['.', /\.+$/], ['_', /_+$/]]) {
+        const tm = segment.match(re);
+        if (!tm) continue;
+        const n = tm[0].length;
+        const base = segment.slice(0, segment.length - n);
+        const noteMatches = [...base.matchAll(GABC_NOTE_RE)];
+        if (noteMatches.length === 0) continue;
+        const count = Math.min(n, noteMatches.length);
+        let result = base;
+        for (let i = count - 1; i >= 0; i--) {
+            const m = noteMatches[noteMatches.length - count + i];
+            const pos = m.index + m[0].length;
+            result = result.slice(0, pos) + char + result.slice(pos);
+        }
+        segment = result;
+    }
+    return segment;
+}
+
 const BARLINE_MAP = {
     ',':  ',',
     "'":  "'",
@@ -173,7 +195,7 @@ export function gabcToAretino(gabc) {
             const parts = [];
             let pendingSep = null;
             let suppressVirga = false;
-            for (const tokenMatch of expandRepeatedSuffixes(segment).matchAll(SEGMENT_TOKEN_RE)) {
+            for (const tokenMatch of expandRepeatedSuffixes(redistributeTrailingSuffixes(segment)).matchAll(SEGMENT_TOKEN_RE)) {
                 const tok = tokenMatch[0];
                 if (tok === '@' && parts.length === 0) {
                     suppressVirga = true;

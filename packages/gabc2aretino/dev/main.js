@@ -19,8 +19,12 @@ const INITIAL_ROWS = [
     // rhythmic accents: r1–r5 → ´ ` ○ ᴖ ᴗ
     '(gr1)(gr2)(gr3)(gr4)(gr5)',
     '(g.)',
+    // trailing repeated mora distributed to last N notes: gh.. → g.h.
+    '(gh..)(ghi...)',
     "(g')(g'1)(g'0)",
     '(g_)(g_0)(g_1)(g_2)',
+    // trailing repeated episema distributed to last N notes: gh__ → g_h_
+    '(gh__)(ghi___)',
     // initio debilis: leading - makes first note small
     '(-eg)',
     // quilisma with virga

@@ -66,6 +66,11 @@ const INITIAL_ROWS = [
     "(g)(,)(g) (g)(')(g) (g)(;)(g) (g)(:)(g) (g)(:?)(g) (g)(::)(g)",
     // barlines: numbered commas → ; and ;' ,_ ,0 variants
     "(g)(,1)(g) (g)(,3)(g) (g)(,6)(g) (g)(;')(g) (g)(,_)(g) (g)(,0)(g)",
+    // lyric text: special symbols <sp>R/</sp>→\R  <sp>V/</sp>→\V  <sp>A/</sp>→A
+    `<sp>R/</sp>(g) <sp>V/</sp>(f) <sp>A/</sp>(e)`,
+    // lyric text markup: <b>→{}  <i>→<>  <ul>→[]  <sc>→\sc{}  <tt>→\mono{}  <c>→\red{}
+    `<b>Ky</b>(g)ri(f)e(e) <i>e</i>(g)lei(f)son(e) <ul>A</ul>(g)men(f)`,
+    `<sc>Glo</sc>(g)ri(f)a(e) <tt>et</tt>(g) <c>lux</c>(f)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

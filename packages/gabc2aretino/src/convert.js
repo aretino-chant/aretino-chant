@@ -137,6 +137,19 @@ function gabcBody(gabc) {
     return sepIdx !== -1 ? gabc.slice(sepIdx + 2) : gabc;
 }
 
+const SP_MAP = { 'R/': '\\R', 'V/': '\\V', 'A/': 'A' };
+
+function convertLyricText(text) {
+    text = text.replace(/<sp>([^<]*)<\/sp>/g, (_, sym) => SP_MAP[sym] ?? sym);
+    text = text.replace(/<b>(.*?)<\/b>/g, '{$1}');
+    text = text.replace(/<i>(.*?)<\/i>/g, '<$1>');
+    text = text.replace(/<ul>(.*?)<\/ul>/g, '[$1]');
+    text = text.replace(/<sc>(.*?)<\/sc>/g, (_, s) => '\\sc{' + s.toLowerCase() + '}');
+    text = text.replace(/<tt>(.*?)<\/tt>/g, '\\mono{$1}');
+    text = text.replace(/<c>(.*?)<\/c>/g, '\\red{$1}');
+    return text;
+}
+
 // Extract lyric words from GABC body. Each space-separated token is a word;
 // within a token, text before each (...) group is a syllable. {braces} are stripped.
 function extractLyricWords(body) {
@@ -148,11 +161,11 @@ function extractLyricWords(body) {
         while (pos < token.length) {
             const openParen = token.indexOf('(', pos);
             if (openParen === -1) {
-                const trailing = token.slice(pos).replace(/[{}]/g, '');
+                const trailing = convertLyricText(token.slice(pos).replace(/[{}]/g, ''));
                 if (trailing) syllables.push(trailing);
                 break;
             }
-            syllables.push(token.slice(pos, openParen).replace(/[{}]/g, ''));
+            syllables.push(convertLyricText(token.slice(pos, openParen).replace(/[{}]/g, '')));
             const closeParen = token.indexOf(')', openParen);
             if (closeParen === -1) break;
             pos = closeParen + 1;

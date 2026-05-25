@@ -50,7 +50,7 @@ const GABC_NOTE_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[
 
 // Matches a note token OR an intra-neume separator within a segment.
 // Separators: // (double gap), /[N] (bracketed offset), /0 (near-zero), /, !, @.
-const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
+const SEGMENT_TOKEN_RE = /-?[a-mA-M](?:O[01]?|o[~<01]?|s<?|[rR]\d?|<r?|>\.?|[~wW.]|[vV]|'[01]?|_\d?|[01]|[xy#])?|\/\/|\/\[(-?\d+)\]|\/\d|\/|[!@]/g;
 
 function convertNeumeToken(token, noteMap) {
     const isSmall = token[0] === '-';
@@ -69,6 +69,7 @@ function convertNeumeToken(token, noteMap) {
     if (suffix === '.') return base + '.';                          // mora
     if (suffix === "'" || suffix === "'0" || suffix === "'1") return base + '-'; // ictus
     if (suffix === '_' || suffix.startsWith('_')) return base + '_';             // episema
+    if (suffix === 'x' || suffix === 'y' || suffix === '#') return '(' + base + GABC_ALTER_SIGN[suffix] + ')'; // intra-neume accidental sign
     return base;
 }
 

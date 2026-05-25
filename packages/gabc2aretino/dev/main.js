@@ -32,6 +32,8 @@ const INITIAL_ROWS = [
     '(gfwge) (hi~)',
     // alterations: x=flat, y=natural, #=sharp
     '(gx)(gh) (gy)(gh) (g#)(gh)',
+    // intra-neume accidentals: accidental sign embedded within a longer neume
+    '(ixhfg) (iyefg) (i#hfg)',
     // spaces inside a neume → // (double gap between segments)
     '(g f e)',
     // intra-neume separators: / (single gap), // (double gap)

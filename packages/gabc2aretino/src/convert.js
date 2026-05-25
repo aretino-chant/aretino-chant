@@ -10,6 +10,17 @@ const NOTE_MAP = {
     h: 'A', i: 'B', j: 'C', k: 'D', l: 'E', m: 'F',
 };
 
+// GABC alteration suffixes: x = flat, y = natural, # = sharp.
+const GABC_ALTER_SIGN = { x: 'b', y: 'n', '#': '#' };
+
+function convertAlteration(content) {
+    const m = content.match(/^([a-mA-M])([xy#])$/);
+    if (!m) return null;
+    const base = NOTE_MAP[m[1].toLowerCase()];
+    if (base === undefined) return null;
+    return '(' + base + GABC_ALTER_SIGN[m[2]] + ')';
+}
+
 // Matches a single gabc note token: a note letter (upper or lower) plus optional suffix.
 // Suffixes: o (apostropha), o~ o< (variants), s (stropha), s< (variant),
 //           ~ (liquescent/oriscus), > (oriscus), < (augmentum), w (quilisma),
@@ -73,6 +84,8 @@ export function gabcToAretino(gabc) {
     for (const match of body.matchAll(/\(([^)]*)\)/g)) {
         const content = match[1];
         if (/^[cfgCFG]b?\d$/.test(content.trim())) continue; // skip clefs (e.g. c4, f3, cb3)
+        const alt = convertAlteration(content.trim());
+        if (alt !== null) { neumes.push(alt); continue; }
         for (const segment of content.split(/\s+/)) {
             const notes = [];
             for (const tokenMatch of segment.replace(/@/g, '').matchAll(GABC_NOTE_RE)) {

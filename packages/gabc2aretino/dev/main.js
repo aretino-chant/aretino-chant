@@ -17,6 +17,8 @@ const INITIAL_ROWS = [
     // complex neumes (multiple notes, no spaces within group)
     '(gfwge)',
     '(hi~)',
+    // alterations: x=flat, y=natural, #=sharp
+    '(gx)(gh) (gy)(gh) (g#)(gh)',
     // lyrics: syllable-neume pairs; {braces} stripped, words space-separated
     `AL(def)le(fefgwhg)lú(fhhh){ia}.(hiHFfe.)`,
 ];

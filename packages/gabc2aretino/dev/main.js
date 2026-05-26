@@ -100,8 +100,10 @@ const INITIAL_ROWS = [
     `Do(c)mi(d)ne(e) (f)`,
     // direct syllable continuation (no space): → Do-mi-ne-De
     `Do(c)mi(d)ne(e)De(f)`,
-    // hanging text before lyric note: joined with ~ → Do-mi-ne *~De
+    // hanging text before lyric note: joined with ~~ → Do-mi-ne *~~De
     `Do(c)mi(d)ne(e) * De(f)`,
+    // multi-word hanging text before lyric note: last ~ becomes ~~ → V.~~Ec
+    `V. Ec(g)`,
     // hanging text before standalone neume: hanging parts get ~~ suffix → Do-mi-ne *~De~~
     `Do(c)mi(d)ne(e) * De (f)`,
     // macros [xx:y] inside neume notation are ignored

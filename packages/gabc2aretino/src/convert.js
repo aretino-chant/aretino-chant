@@ -225,7 +225,7 @@ function extractLyricWords(body) {
             // Note-bearing neume: start a new syllable or extend the current one
             if (lyricText) {
                 const combined = hangingParts.length > 0
-                    ? hangingParts.join('~') + '~' + lyricText
+                    ? hangingParts.join('~') + '~~' + lyricText
                     : lyricText;
                 syllables.push({ text: combined, count: 1 });
                 hangingParts = [];

@@ -4,7 +4,8 @@ Monorepo for the Aretino chant notation format.
 
 ## Documentation
 
-- See the User Guide at [aretino-chant.github.io](https://aretino-chant.github.io)
+- See the full User Guide at [aretino-chant.github.io](https://aretino-chant.github.io)
+- Rendering test cases for the latest build are at [aretino-chant.github.io/aretino-chant](https://aretino-chant.github.io/aretino-chant)
 
 ## Packages
 
@@ -13,15 +14,6 @@ Monorepo for the Aretino chant notation format.
 | [`@aretino-chant/core`](packages/core) | Text format, parser, and SVG renderer |
 | [`@aretino-chant/editor`](packages/editor) | CodeMirror-based editor web component |
 | [`@aretino-chant/gabc2aretino`](packages/gabc2aretino) | Converter from GABC to Aretino notation |
-
-## Development
-
-```bash
-npm install          # install all workspace dependencies
-npm test             # run tests across all packages
-npm run dev          # start the core dev server
-npm run build        # build all packages
-```
 
 ## License
 

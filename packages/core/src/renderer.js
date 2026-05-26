@@ -326,7 +326,7 @@ export function renderAretino(source, options = {}) {
         const drawClefForRows = hasSeenClef;
 
         const verseSyllables = sec.lyrics.map(parseSyllables);
-        const verseNotes = verseSyllables.map(arr => arr.filter(s => s.kind === 'note'));
+        const verseNotes = verseSyllables.map(arr => expandSyllablesForLigatures(arr.filter(s => s.kind === 'note')));
         const verseBarlines = verseSyllables.map(arr => arr.filter(s => s.kind === 'barline'));
         const verseCount = sec.lyrics.length;
         const totalLigatures = items.reduce((n, it) => n + (it.kind === 'ligature' ? 1 : 0), 0);
@@ -1820,6 +1820,30 @@ function sourceSpanFromOffsets(offsets) {
     return { srcStart: Math.min(...real), srcEnd: Math.max(...real) + 1 };
 }
 
+// Expands a per-syllable array into a per-ligature array. A syllable with
+// noteGroupCount=N occupies N consecutive ligature slots: the first slot
+// carries the real text; subsequent slots are empty placeholders with
+// hyphenAfter=true so the hyphen-connector and snug spacing still apply.
+function expandSyllablesForLigatures(notes) {
+    const expanded = [];
+    for (const syl of notes) {
+        const n = syl.noteGroupCount || 1;
+        expanded.push(syl);
+        for (let k = 1; k < n; k++) {
+            expanded.push({
+                text: '',
+                alignText: '',
+                segments: [],
+                alignSegments: [],
+                suffixSegments: [],
+                hyphenAfter: k < n - 1 ? true : syl.hyphenAfter,
+                kind: 'note',
+            });
+        }
+    }
+    return expanded;
+}
+
 function parseSyllables(input) {
     const text = lyricText(input);
     const sourceMap = lyricSourceMap(input);
@@ -1902,6 +1926,13 @@ function parseSyllables(input) {
                     j++;
                     continue;
                 }
+                // Peek past spaces: if a hyphen follows, continue (handles "Al - le")
+                let peek = j + 1;
+                while (peek < cleaned.length && (cleaned[peek] === ' ' || cleaned[peek] === '\t')) peek++;
+                if (peek < cleaned.length && cleaned[peek] === '-') {
+                    j++;
+                    continue;
+                }
                 break;
             }
             wordChars.push(c);
@@ -1911,15 +1942,24 @@ function parseSyllables(input) {
         }
         const word = wordChars.join('');
         i = j;
-        const parts = word.split('-').filter(p => p !== '');
-        let posInWord = 0;
-        for (let k = 0; k < parts.length; k++) {
-            const raw = parts[k];
-            const sylPos = word.indexOf(raw, posInWord);
-            const absStart = wordCharIndexes[sylPos];
-            const absEnd = wordCharIndexes[sylPos + raw.length - 1] + 1;
+        // Parse syllables and consecutive-hyphen counts. N hyphens between
+        // syllables means the left syllable spans N note groups (split melisma).
+        const sylParts = [];
+        let wPos = 0;
+        while (wPos < word.length) {
+            const sylStart = wPos;
+            while (wPos < word.length && word[wPos] !== '-') wPos++;
+            const sylEnd = wPos;
+            let trailingHyphens = 0;
+            while (wPos < word.length && word[wPos] === '-') { trailingHyphens++; wPos++; }
+            if (sylEnd > sylStart) {
+                sylParts.push({ raw: word.slice(sylStart, sylEnd), startIdx: sylStart, endIdx: sylEnd, trailingHyphens });
+            }
+        }
+        for (const { raw, startIdx, endIdx, trailingHyphens } of sylParts) {
+            const absStart = wordCharIndexes[startIdx];
+            const absEnd = wordCharIndexes[endIdx - 1] + 1;
             const sourceSpan = sourceSpanForCleanedRange(absStart, absEnd);
-            posInWord = sylPos + raw.length + 1; // +1 for the hyphen
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;
             if (tildeIdx !== -1) {
@@ -1948,7 +1988,8 @@ function parseSyllables(input) {
                 segments,
                 alignSegments,
                 suffixSegments,
-                hyphenAfter: k < parts.length - 1,
+                hyphenAfter: trailingHyphens > 0,
+                noteGroupCount: Math.max(1, trailingHyphens),
                 kind: 'note',
                 ...sourceSpan,
             });

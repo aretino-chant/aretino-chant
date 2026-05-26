@@ -232,6 +232,16 @@ w: O Lord, hear my hum-ble call to you!
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
 ```
+
+## Split Melisma (Multi-group syllable)
+
+Double (or more) hyphens assign multiple note groups to one syllable.
+`Al--le` means "Al" spans 2 note groups; `lu---ia` means "lu" spans 3.
+
+```aretino
+(g2) cd ef gA gf ef ed c. (z)
+w: Al- - le -lu - - - ia.
+```
 ---
 
 ## Text and formatting

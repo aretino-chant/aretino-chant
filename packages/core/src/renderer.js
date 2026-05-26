@@ -1306,8 +1306,8 @@ function measureBarline(ctx, kind) {
 
 // A mora on a non-final note within a group acts like an implicit '/' cut:
 // the group is split after that note so the remaining notes form a new group.
-// Exception: when multiple notes in the group carry a mora, the group is kept
-// intact and all moras are drawn together after the last notehead (like episema).
+// Exception: when the last 2 notes of the group both carry a mora, no split is
+// inserted between them and both moras are drawn after the last notehead.
 // Returns { groups, gaps } where gaps[i] is the gap type after groups[i]:
 //   'mora'  — implicit split from an internal mora (compact spacing)
 //   N (number) — explicit '/' separator repeated N times (N × neumeGapAdvance)
@@ -1316,23 +1316,20 @@ function splitGroupsAtInternalMora(groups, gaps = []) {
     const resultGaps = [];
     for (let gi = 0; gi < groups.length; gi++) {
         const group = groups[gi];
-        // When multiple notes carry a mora, keep the group intact —
-        // all moras will be drawn together after the last notehead.
-        const moraNoteCount = group.filter(n => n.modifiers && n.modifiers.includes('mora')).length;
-        if (moraNoteCount >= 2) {
-            resultGroups.push(group);
-            if (gi < groups.length - 1) {
-                resultGaps.push(gaps[gi] ?? 1);
-            }
-            continue;
-        }
         let current = [];
         for (let i = 0; i < group.length; i++) {
             current.push(group[i]);
-            if (i < group.length - 1 && group[i].modifiers && group[i].modifiers.includes('mora')) {
-                resultGroups.push(current);
-                resultGaps.push('mora');
-                current = [];
+            const hasMora = group[i].modifiers && group[i].modifiers.includes('mora');
+            if (i < group.length - 1 && hasMora) {
+                // Don't split between the last two notes when both carry a mora.
+                const isSecondToLast = i === group.length - 2;
+                const nextHasMora = isSecondToLast &&
+                    group[i + 1].modifiers && group[i + 1].modifiers.includes('mora');
+                if (!nextHasMora) {
+                    resultGroups.push(current);
+                    resultGaps.push('mora');
+                    current = [];
+                }
             }
         }
         if (current.length > 0) {

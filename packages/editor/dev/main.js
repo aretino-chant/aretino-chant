@@ -4,6 +4,7 @@ import { AretinoEditor } from '../src/index.js';
 void AretinoEditor;
 
 const DEMO_SOURCE =`%title: Alleluia | Second line
+%subtitle: Graduale Romanum
 (g2) g A B g. , AB A g e_d_ , g {AB Ag} g. ||
 w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.`;
 

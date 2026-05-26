@@ -264,17 +264,31 @@ export function renderAretino(source, options = {}) {
 
     if (ast.header && Object.keys(ast.header).length) {
         const title = ast.header['title'];
-        if (title) {
-            const fontSize = ctx.lyricSize * 1.2;
-            const lineHeight = fontSize * 1.2;
+        const subtitle = ast.header['subtitle'];
+        const titleFontSize = ctx.lyricSize * 1.2;
+        const titleLineHeight = titleFontSize * 1.2;
+        if (title) {                        
             const lines = title.split('|').map(l => l.trim());
-            y += fontSize;
+            y += titleFontSize;
             for (let li = 0; li < lines.length; li++) {
-                if (li > 0) y += lineHeight;
-                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+                if (li > 0) y += titleLineHeight;
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${titleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }
-            y += lineHeight;
         }
+        if (subtitle) {
+            const subTitleFontSize = titleFontSize * 0.7;            
+            const subTitleLineHeight = subTitleFontSize * 1.2;
+            const lines = subtitle.split('|').map(l => l.trim());
+            if (title) {
+                y += titleLineHeight;
+            }
+            if (!title) y += subTitleFontSize;
+            for (let li = 0; li < lines.length; li++) {
+                if (li > 0) y += subTitleLineHeight;
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+            }            
+        }
+        y += titleLineHeight * 1.2;        
         const caption = ast.header['caption'];
         const rubric = ast.header['rubric'];
         if (caption || rubric) {

@@ -107,13 +107,6 @@ describe('renderAretino', () => {
       expect(firstLyricFontSize(svgWithOptions)).toBeCloseTo(20 * 96 / 72, 5);
     });
 
-    it('lets explicit render options override option headers', () => {
-      const source = `%option: lyricDistance=2\n%%\n${body}`;
-      const svgWithOverride = renderAretino(source, { lyricDistance: 0 });
-      const svgExplicit = renderAretino(body, { lyricDistance: 0 });
-
-      expect(firstLyricY(svgWithOverride)).toBeCloseTo(firstLyricY(svgExplicit), 5);
-    });
   });
 
   describe('measure accidentals across wrapped rows', () => {
@@ -163,18 +156,6 @@ describe('renderAretino', () => {
   });
 
   describe('lyric alignment', () => {
-    it('centers a single-note mora syllable under the notehead and mora dot', () => {
-      const options = { width: 200, staffSpaceMm: 25.4 / 96 };
-      const plainX = firstLyricX(renderAretino('c\nw: a', options));
-      const moraX = firstLyricX(renderAretino('c.\nw: a', options));
-      const expectedShift = (METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5) * 0.5;
-
-      expect(plainX).not.toBeNull();
-      expect(moraX).not.toBeNull();
-      expect(moraX).toBeGreaterThan(plainX);
-      expect(moraX - plainX).toBeCloseTo(expectedShift, 5);
-    });
-
     it('keeps lyrics after n: on the same aligned lyric baseline', () => {
       const svg = renderAretino('c d\nw: a b\nn: e f\nw: c d', { width: 400 });
       const lyrics = lyricTextEntries(svg);

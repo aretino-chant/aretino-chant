@@ -1593,12 +1593,9 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
     const hasMora = lastNoteHasMora || allMoraNoteCount >= 2;
     const isTenor = groups.some(g => g.some(n => n.shape === 'tenor'));
     const shouldAlignLeft = totalNotes > 1 || isTenor;
-    // Single mora notes remain centered, but their visual span extends to the mora dot's right edge.
-    const singleMoraCenterOffset = totalNotes === 1 && lastNoteHasMora && !shouldAlignLeft
-        ? ss(ctx, (METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5) * 0.5)
-        : 0;
+    // centerX is the notehead center used for lyric alignment — mora and gap are excluded.
     const centerX = firstNoteCx !== null
-        ? (firstNoteCx + lastNoteCx) / 2 + singleMoraCenterOffset
+        ? (firstNoteCx + lastNoteCx) / 2
         : x + advance / 2;
     const leftX = firstNoteCx !== null
         ? firstNoteCx - ss(ctx, METRICS.noteBoxWidth) * 0.5
@@ -2137,7 +2134,7 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
                 // Align left edge: multi-note neume or tenor note.
                 center = lig.leftX + alignW / 2 - ctx.staffSpace * 0.1;
             } else {
-                // Center syllable: single note, including any mora in lig.centerX.
+                // Center syllable on the notehead width only (mora excluded).
                 center = lig.centerX;
             }
         } else {

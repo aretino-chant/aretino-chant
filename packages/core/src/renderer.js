@@ -242,10 +242,13 @@ export function renderAretino(source, options = {}) {
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
     const indentText = hasIndent ? (ast.header['indent'] ?? ast.header['behúzás'] ?? '') : '';
     const indentFontSize = ctx.lyricSize * 0.85;
+    const indentLines = indentText ? indentText.split('|').map(l => l.trim()) : [];
     let indentWidth = 0;
     if (hasIndent) {
-        const textW = indentText ? measureSegmentsWidth(parseFormattingToSegments(indentText), indentFontSize, lyricFont) : 0;
-        indentWidth = Math.max(textW + ctx.staffSpace * 1.5, ctx.staffSpace * 2);
+        const maxTextW = indentLines.length > 0
+            ? Math.max(...indentLines.map(l => measureSegmentsWidth(parseFormattingToSegments(l), indentFontSize, lyricFont)))
+            : 0;
+        indentWidth = Math.max(maxTextW + ctx.staffSpace * 1.5, ctx.staffSpace * 2);
     }
 
     const sections = groupSections(ast.lines);
@@ -263,20 +266,36 @@ export function renderAretino(source, options = {}) {
         const title = ast.header['title'];
         if (title) {
             const fontSize = ctx.lyricSize * 1.2;
+            const lineHeight = fontSize * 1.2;
+            const lines = title.split('|').map(l => l.trim());
             y += fontSize;
-            parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(title))}</text>`);
-            y += fontSize * 1.2;
+            for (let li = 0; li < lines.length; li++) {
+                if (li > 0) y += lineHeight;
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+            }
+            y += lineHeight;
         }
         const caption = ast.header['caption'];
         const rubric = ast.header['rubric'];
         if (caption || rubric) {
             const fontSize = ctx.lyricSize * 0.95;
+            const lineHeight = fontSize * 1.2;
+            const rubricLines = rubric ? rubric.split('|').map(l => l.trim()) : [];
+            const captionLines = caption ? caption.split('|').map(l => l.trim()) : [];
+            const maxLines = Math.max(rubricLines.length, captionLines.length);
+            const rubricTop = maxLines - rubricLines.length;
+            const captionTop = maxLines - captionLines.length;
             y += fontSize;
-            if (rubric) {
-                parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubric))}</text>`);
-            }
-            if (caption) {
-                parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(caption))}</text>`);
+            for (let li = 0; li < maxLines; li++) {
+                if (li > 0) y += lineHeight;
+                const ri = li - rubricTop;
+                const ci = li - captionTop;
+                if (ri >= 0) {
+                    parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubricLines[ri]))}</text>`);
+                }
+                if (ci >= 0) {
+                    parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(captionLines[ci]))}</text>`);
+                }
             }
             y += fontSize * 0.4;
         }
@@ -510,10 +529,14 @@ export function renderAretino(source, options = {}) {
             const staffBottomY = y + ctx.staffHeight;
             parts.push(drawStaffLines(ctx, staffLeftX, staffRightX, staffBottomY));
 
-            if (rowIndent > 0 && indentText) {
+            if (rowIndent > 0 && indentLines.length > 0) {
                 const tx = ctx.leftMargin + rowIndent / 2;
-                const ty = staffBottomY - ctx.staffHeight / 2 + indentFontSize * 0.35;
-                parts.push(`<text x="${tx}" y="${ty}" font-family="${escapeAttr(lyricFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentText))}</text>`);
+                const indentLineHeight = indentFontSize * 1.2;
+                const blockFirstY = staffBottomY - ctx.staffHeight / 2 + indentFontSize * 0.35
+                    - (indentLines.length - 1) * indentLineHeight / 2;
+                for (let li = 0; li < indentLines.length; li++) {
+                    parts.push(`<text x="${tx}" y="${blockFirstY + li * indentLineHeight}" font-family="${escapeAttr(lyricFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentLines[li]))}</text>`);
+                }
             }
 
             let cursorX = staffLeftX;
@@ -1648,6 +1671,7 @@ function trimSegmentsEnd(segments, length) {
 // Each segment: { text, bold, italic, underline, color }
 // Syntax:
 //   {text}           bold
+//   \sc{text}        small caps
 //   <text>           italic
 //   [text]           underline
 //   \R               responsory sign ℟
@@ -1660,7 +1684,7 @@ function trimSegmentsEnd(segments, length) {
 function parseFormattingToSegmentsInternal(text, sourceMap = null) {
     text = String(text ?? '');
     const withSource = Array.isArray(sourceMap);
-    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null }];
+    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null, smallCaps: false }];
     const segments = [];
 
     function sourceAt(idx) {
@@ -1669,12 +1693,13 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
     }
 
     function effectiveState() {
-        const s = { bold: false, italic: false, underline: false, color: null };
+        const s = { bold: false, italic: false, underline: false, color: null, smallCaps: false };
         for (const e of stack) {
             if (e.bold) s.bold = true;
             if (e.italic) s.italic = true;
             if (e.underline) s.underline = true;
             if (e.color !== null) s.color = e.color;
+            if (e.smallCaps) s.smallCaps = true;
         }
         return s;
     }
@@ -1687,13 +1712,13 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             : null;
         const last = segments[segments.length - 1];
         if (last && last.bold === st.bold && last.italic === st.italic &&
-                last.underline === st.underline && last.color === st.color) {
+                last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps) {
             last.text += str;
             if (withSource) {
                 last.sourceOffsets.push(...sourceOffsets);
             }
         } else {
-            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color };
+            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color, smallCaps: st.smallCaps };
             if (withSource) {
                 segment.sourceOffsets = sourceOffsets.slice();
             }
@@ -1721,8 +1746,11 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 addText('℟', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text[i] === 'V') {
                 addText('℣', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
+            } else if (text.slice(i, i + 3) === 'sc{') {
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: true });
+                i += 3;
             } else if (text.slice(i, i + 4) === 'red{') {
-                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red' });
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red', smallCaps: false });
                 i += 4;
             } else if (text.slice(i, i + 6) === 'color:') {
                 i += 6;
@@ -1796,7 +1824,7 @@ function parseSyllables(input) {
         for (let ci = 0; ci < seg.text.length; ci++) {
             const c = seg.text[ci];
             cleaned += c;
-            formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
+            formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color, smallCaps: seg.smallCaps });
             cleanedSourceMap.push(seg.sourceOffsets?.[ci] ?? null);
         }
     }
@@ -1810,17 +1838,17 @@ function parseSyllables(input) {
         const segments = [];
         if (start >= end) return segments;
         let runStart = start;
-        let f0 = formatMap[start] || { bold: false, italic: false, underline: false, color: null };
-        let runBold = f0.bold, runItalic = f0.italic, runUnderline = f0.underline, runColor = f0.color;
+        let f0 = formatMap[start] || { bold: false, italic: false, underline: false, color: null, smallCaps: false };
+        let runBold = f0.bold, runItalic = f0.italic, runUnderline = f0.underline, runColor = f0.color, runSmallCaps = f0.smallCaps;
         for (let p = start + 1; p < end; p++) {
-            const f = formatMap[p] || { bold: false, italic: false, underline: false, color: null };
-            if (f.bold !== runBold || f.italic !== runItalic || f.underline !== runUnderline || f.color !== runColor) {
-                segments.push({ text: displayFn(cleaned.slice(runStart, p)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor });
+            const f = formatMap[p] || { bold: false, italic: false, underline: false, color: null, smallCaps: false };
+            if (f.bold !== runBold || f.italic !== runItalic || f.underline !== runUnderline || f.color !== runColor || f.smallCaps !== runSmallCaps) {
+                segments.push({ text: displayFn(cleaned.slice(runStart, p)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps });
                 runStart = p;
-                runBold = f.bold; runItalic = f.italic; runUnderline = f.underline; runColor = f.color;
+                runBold = f.bold; runItalic = f.italic; runUnderline = f.underline; runColor = f.color; runSmallCaps = f.smallCaps;
             }
         }
-        segments.push({ text: displayFn(cleaned.slice(runStart, end)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor });
+        segments.push({ text: displayFn(cleaned.slice(runStart, end)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps });
         return segments;
     }
 
@@ -1922,7 +1950,7 @@ function parseSyllables(input) {
 // Renders a syllable's segments array as SVG text content (plain or with tspans).
 function renderSegments(segments) {
     if (!segments || segments.length === 0) return '';
-    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color)) {
+    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color && !s.smallCaps)) {
         return escapeText(segments.map(s => s.text).join(''));
     }
     return segments.map(s => {
@@ -1930,6 +1958,7 @@ function renderSegments(segments) {
         if (s.bold) attrs += ' font-weight="bold"';
         if (s.italic) attrs += ' font-style="italic"';
         if (s.color) attrs += ` fill="${escapeAttr(s.color)}"`;
+        if (s.smallCaps) attrs += ' font-variant="small-caps"';
         if (!attrs) return escapeText(s.text);
         return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
     }).join('');

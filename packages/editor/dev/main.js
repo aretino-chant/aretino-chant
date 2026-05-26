@@ -3,7 +3,7 @@ import { AretinoEditor } from '../src/index.js';
 // Suppress the unused-import warning — the import registers <aretino-editor>.
 void AretinoEditor;
 
-const DEMO_SOURCE =`%title: Alleluia
+const DEMO_SOURCE =`%title: Alleluia | Second line
 (g2) g A B g. , AB A g e_d_ , g {AB Ag} g. ||
 w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.`;
 

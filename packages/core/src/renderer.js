@@ -1620,6 +1620,20 @@ function sliceSegments(segments, startChar) {
     return result;
 }
 
+// Return a copy of `segments` covering only the first `length` characters.
+function trimSegmentsEnd(segments, length) {
+    const result = [];
+    let pos = 0;
+    for (const seg of segments) {
+        if (pos >= length) break;
+        const segEnd = pos + seg.text.length;
+        const cutEnd = Math.min(segEnd, length);
+        result.push({ ...seg, text: seg.text.slice(0, cutEnd - pos) });
+        pos = segEnd;
+    }
+    return result;
+}
+
 // "San-ctus, (M.:) Do-mi-nus" → [
 //   {text:'San', hyphenAfter:true,  kind:'note'},
 //   {text:'ctus,', hyphenAfter:false, kind:'note'},
@@ -1877,14 +1891,24 @@ function parseSyllables(input) {
                 alignText = text;
             }
             const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' '));
-            const alignSegments = text === alignText
+            let alignSegments = text === alignText
                 ? segments
                 : sliceSegments(segments, text.length - alignText.length);
+            // Trailing punctuation must not be included in the centering width.
+            // Strip it from alignSegments and record it as suffixSegments.
+            const trailingPunctMatch = alignText.match(/[.,;:!?]+$/);
+            let suffixSegments = [];
+            if (trailingPunctMatch) {
+                const coreLen = alignText.length - trailingPunctMatch[0].length;
+                suffixSegments = sliceSegments(alignSegments, coreLen);
+                alignSegments = trimSegmentsEnd(alignSegments, coreLen);
+            }
             result.push({
                 text,
                 alignText,
                 segments,
                 alignSegments,
+                suffixSegments,
                 hyphenAfter: k < parts.length - 1,
                 kind: 'note',
                 ...sourceSpan,
@@ -2059,8 +2083,10 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         let syl = workSyllables[i];
         let fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
         let alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
-        // Offset from the left edge of fullW to the left edge of alignText portion
-        let prefixW = fullW - alignW;
+        let suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily) : 0;
+        // Offset from the left edge of fullW to the left edge of alignText portion.
+        // Subtract suffixW because trailing punctuation sits after the centered core.
+        let prefixW = fullW - alignW - suffixW;
         let center;
         if (i < ligatures.length) {
             const lig = ligatures[i];
@@ -2102,7 +2128,8 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
                         prevRight = prevLeft + newFullW1;
                         fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
                         alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
-                        prefixW = fullW - alignW;
+                        suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily) : 0;
+                        prefixW = fullW - alignW - suffixW;
                     }
                     left = prevRight;
                     center = left + prefixW + alignW / 2;

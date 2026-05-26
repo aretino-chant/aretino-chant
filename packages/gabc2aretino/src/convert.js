@@ -165,6 +165,17 @@ function convertLyricText(text) {
 
 // Extract lyric words from GABC body. Each space-separated token is a word;
 // within a token, text before each (...) group is a syllable. {braces} are stripped.
+// A note-bearing neume with no lyric extends the previous syllable; each such extension
+// adds a hyphen, so a syllable sung on N neumes is joined to the next with N hyphens.
+function joinSyllables(syllables) {
+    let result = '';
+    for (let i = 0; i < syllables.length; i++) {
+        result += syllables[i].text;
+        if (i < syllables.length - 1) result += '-'.repeat(syllables[i].count);
+    }
+    return result;
+}
+
 function extractLyricWords(body) {
     const normalized = body.replace(/\(([^)]*)\)/g, (_, inner) => '(' + inner.replace(/\s+/g, '') + ')');
     const words = [];
@@ -175,36 +186,38 @@ function extractLyricWords(body) {
             if (text && /[a-zA-ZÀ-ÿ*]/.test(text)) words.push('(' + text + ')');
             continue;
         }
-        const syllables = [];
+        const syllables = []; // [{text: string, count: number}]
         let pos = 0;
         while (pos < token.length) {
             const openParen = token.indexOf('(', pos);
-            if (openParen === -1) {
-                const trailing = convertLyricText(token.slice(pos).replace(/[{}]/g, ''));
-                if (trailing) syllables.push(trailing);
-                break;
-            }
+            if (openParen === -1) break;
             const lyricText = convertLyricText(token.slice(pos, openParen).replace(/[{}]/g, ''));
             const closeParen = token.indexOf(')', openParen);
-            if (closeParen === -1) { syllables.push(lyricText); break; }
-            const notation = token.slice(openParen + 1, closeParen);
-            if (BARLINE_MAP[notation.trim()] !== undefined) {
-                // Flush preceding syllables first so order is preserved
-                if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s))) words.push(syllables.join('-'));
-                syllables.length = 0;
-                if (lyricText.trim()) words.push('(' + lyricText + ')');
-            } else {
-                syllables.push(lyricText);
-            }
+            if (closeParen === -1) break;
+            const notation = token.slice(openParen + 1, closeParen).trim();
             pos = closeParen + 1;
+            if (/^[cfg]b?\d$/.test(notation)) continue; // skip clefs
+            if (BARLINE_MAP[notation] !== undefined) {
+                // Non-empty text before a barline: flush current word, push text as hanging element
+                if (lyricText.trim()) {
+                    if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text))) {
+                        words.push(joinSyllables(syllables));
+                        syllables.length = 0;
+                    }
+                    words.push('(' + lyricText.trim() + ')');
+                }
+                // Empty text before a barline: just a separator within a melisma, skip
+                continue;
+            }
+            // Note-bearing neume: start a new syllable or extend the current one
+            if (lyricText) {
+                syllables.push({ text: lyricText, count: 1 });
+            } else if (syllables.length > 0) {
+                syllables[syllables.length - 1].count++;
+            }
         }
-        // Remove trailing empty syllables (melismas after last lyric syllable)
-        while (syllables.length > 0 && syllables[syllables.length - 1] === '') {
-            syllables.pop();
-        }
-        // Skip tokens that contain no alphabetic text (clefs, barlines, GABC markers)
-        if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s))) {
-            words.push(syllables.join('-'));
+        if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text))) {
+            words.push(joinSyllables(syllables));
         }
     }
     return words;

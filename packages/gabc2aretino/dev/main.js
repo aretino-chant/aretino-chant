@@ -82,6 +82,9 @@ const INITIAL_ROWS = [
     `name: Test;\nannotation: I. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
     // annotation: multiline → %indent: text1 | text2
     `name: Test;\nannotation: I. ant.\nannotation: II. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
+    // neume continuation: empty-lyric neumes extend the previous syllable with extra hyphens
+    // "cae" spans 3 neumes → "cae---", giving "in cae---lis."
+    `in(h) cae(j./kjjg//j./kjj'jj/kjjh)(,)(ji/jjvI'G//hjhjvHF.1)(,)(gh!jvvI'G//hjHF'g)lis.(g/hhg.)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

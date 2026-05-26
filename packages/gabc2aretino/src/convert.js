@@ -137,6 +137,18 @@ function gabcBody(gabc) {
     return sepIdx !== -1 ? gabc.slice(sepIdx + 2) : gabc;
 }
 
+function parseGabcAnnotations(gabc) {
+    const sepIdx = gabc.indexOf('%%');
+    if (sepIdx === -1) return [];
+    const header = gabc.slice(0, sepIdx);
+    const annotations = [];
+    for (const line of header.split('\n')) {
+        const m = line.match(/^annotation:\s*(.*?)\s*;?\s*$/);
+        if (m && m[1]) annotations.push(m[1]);
+    }
+    return annotations;
+}
+
 const SP_MAP = { 'R/': '\\R', 'V/': '\\V', 'A/': 'A' , "'ae": 'ǽ'};
 
 function convertLyricText(text) {
@@ -201,6 +213,7 @@ function extractClef(body) {
 }
 
 export function gabcToAretino(gabc) {
+    const annotations = parseGabcAnnotations(gabc);
     const body = gabcBody(gabc);
     const clef = extractClef(body);
     const { transpose, keySig } = CLEF_SETTINGS[clef] ?? CLEF_SETTINGS.c4;
@@ -245,6 +258,7 @@ export function gabcToAretino(gabc) {
 
     const keySigToken = keySig ? `(K:${keySig}) ` : '';
     let result = `(g2) ${keySigToken}` + neumes.join(' ');
+    if (annotations.length > 0) result = `%indent: ${annotations.join(' | ')}\n` + result;
     const lyricWords = extractLyricWords(body);
     if (lyricWords.length > 0) result += '\nw: ' + lyricWords.join(' ');
     return result;

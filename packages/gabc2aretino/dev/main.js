@@ -76,6 +76,10 @@ const INITIAL_ROWS = [
     // * as lyric before notes (not a barline): * passes through to lyrics
     `Al(g)le(f)*(gh) lu(e)ia(d)`,
     `(c) <i>bis</i>(::)`,
+    // annotation: single → %indent: text
+    `name: Test;\nannotation: I. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
+    // annotation: multiline → %indent: text1 | text2
+    `name: Test;\nannotation: I. ant.\nannotation: II. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

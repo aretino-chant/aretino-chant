@@ -1993,7 +1993,7 @@ function parseSyllables(input) {
                 kind: 'note',
                 ...sourceSpan,
             });
-            noteCount++;
+            noteCount += Math.max(1, trailingHyphens);
         }
     }
     return result;

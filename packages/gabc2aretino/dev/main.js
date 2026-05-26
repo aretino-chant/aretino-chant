@@ -76,8 +76,10 @@ const INITIAL_ROWS = [
     // * as lyric before notes (not a barline): * passes through to lyrics
     `Al(g)le(f)*(gh) lu(e)ia(d)`,
     `(c) <i>bis</i>(::)`,
-    // hanging text: ~~~~* between barline and note → (*) in lyrics
+    // hanging text: ~~~~* before a note-with-lyric is dropped (not pushed as lyrics)
     `Al(c) le(d) lu(e) ia(f) (::) ~~~~* Al(e)`,
+    // hanging text before standalone neumes: spaces→~ for first neume, ~ for continuation
+    `sum : (g) (f)`,
     // annotation: single → %indent: text
     `name: Test;\nannotation: I. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
     // annotation: multiline → %indent: text1 | text2

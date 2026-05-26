@@ -179,11 +179,13 @@ function joinSyllables(syllables) {
 function extractLyricWords(body) {
     const normalized = body.replace(/\(([^)]*)\)/g, (_, inner) => '(' + inner.replace(/\s+/g, '') + ')');
     const words = [];
+    let hangingParts = []; // text tokens before a standalone neume, spaces become ~
+    let afterHangingNeume = false; // true after a neume received hanging text as its lyric
     for (const token of normalized.trim().split(/\s+/)) {
-        // Hanging text: token with no notation parens — strip ~ positioning chars and wrap
+        // Hanging text: token with no notation parens — accumulate for the next neume
         if (!token.includes('(')) {
             const text = convertLyricText(token.replace(/~/g, '').replace(/[{}]/g, ''));
-            if (text && /[a-zA-ZÀ-ÿ*]/.test(text)) words.push('(' + text + ')');
+            if (text) hangingParts.push(text);
             continue;
         }
         const syllables = []; // [{text: string, count: number}]
@@ -206,17 +208,28 @@ function extractLyricWords(body) {
                     }
                     words.push('(' + lyricText.trim() + ')');
                 }
-                // Empty text before a barline: just a separator within a melisma, skip
+                hangingParts = [];
+                afterHangingNeume = false;
                 continue;
             }
             // Note-bearing neume: start a new syllable or extend the current one
             if (lyricText) {
                 syllables.push({ text: lyricText, count: 1 });
+                hangingParts = [];
+                afterHangingNeume = false;
             } else if (syllables.length > 0) {
                 syllables[syllables.length - 1].count++;
+            } else if (hangingParts.length > 0) {
+                // Standalone neume with no lyric preceded by hanging text — use it as lyric
+                syllables.push({ text: hangingParts.join('~') + '~', count: 1 });
+                hangingParts = [];
+                afterHangingNeume = true;
+            } else if (afterHangingNeume) {
+                // Closing syllable continues on another standalone neume
+                syllables.push({ text: '~', count: 1 });
             }
         }
-        if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text))) {
+        if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text) || s.text === '~')) {
             words.push(joinSyllables(syllables));
         }
     }

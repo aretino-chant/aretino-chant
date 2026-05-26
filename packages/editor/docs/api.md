@@ -156,14 +156,24 @@ Highlights the source-mapped SVG element that corresponds to `caret`.
 The function clears the previous caret highlight in `preview` and returns the
 matched source-mapped element, or `null` when no rendered token matches.
 
+When the caret lands inside a source-mapped token the token is highlighted with a
+translucent band (the "background" rectangle). When the caret sits in a whitespace
+gap between tokens a thin vertical bar is drawn at the caret's inferred x position
+instead. When the caret lands on a modifier glyph (mora, ictus, …) the glyph is
+recolored and framed in a square outline rather than banded.
+
 | Option | Default | Description |
 |---|---|---|
-| `mode` | `"background"` | `"background"` draws a translucent staff-height rectangle, `"class"` toggles `activeClass`, and `"both"` does both. |
+| `mode` | `"background"` | `"background"` draws a translucent staff-height rectangle behind the matched token, `"class"` toggles `activeClass` on the token element, and `"both"` does both. Has no effect on gap-caret lines or modifier boxes, which always use their own rendering. |
 | `activeClass` | `"aretino-active"` | Class toggled in `"class"` and `"both"` modes. |
-| `cursorClass` | `"aretino-cursor-rect"` | Class used to find and clear the background rectangle. |
-| `cursorBackgroundClass` | `"aretino-cursor-bg"` | Additional class placed on the background rectangle. |
-| `fill` | `"rgba(234, 88, 12, 0.13)"` | Background rectangle fill. |
-| `verticalPadding` | `0.25` | Staff-height fraction added above and below the background rectangle. |
+| `cursorClass` | `"aretino-cursor-rect"` | Class placed on every injected cursor element (background rectangle, caret line, modifier box). Used to find and remove stale cursor elements when the highlight is updated. |
+| `cursorBackgroundClass` | `"aretino-cursor-bg"` | Additional class placed on the token-band background rectangle. |
+| `cursorLineClass` | `"aretino-cursor-line"` | Additional class placed on the thin vertical caret-line rectangle drawn in gaps. |
+| `modifierBoxClass` | `"aretino-cursor-modbox"` | Additional class placed on the square outline drawn around modifier glyphs. |
+| `fill` | `"rgba(234, 88, 12, 0.13)"` | Fill color for the token-band background rectangle. |
+| `lineFill` | `"rgba(234, 88, 12, 0.85)"` | Fill/stroke color for the gap caret line and the modifier outline box. |
+| `verticalPadding` | `0.25` | Staff-height fraction added above and below the background rectangle and the caret line. |
+| `lineWidthFactor` | `0.045` | Caret-line thickness as a fraction of the staff height. |
 | `scrollIntoView` | `false` | `true` scrolls the matched SVG element into the nearest visible area. An object is passed through to `Element.scrollIntoView()`. |
 
 ### `sourceSpanFromPreviewClick(event, preview?)`

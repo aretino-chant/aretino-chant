@@ -192,6 +192,20 @@ describe('renderAretino', () => {
       expect(renderedHyphenCount(svg)).toBe(2);
     });
 
+    it('excludes trailing punctuation from centering so the core text is centered', () => {
+      const options = { width: 200, staffSpaceMm: 25.4 / 96 };
+      // Without trailing punctuation the text element x equals the ligature center.
+      const xNoPunct = firstLyricX(renderAretino('c\nw: ia', options));
+      // With trailing "." the core "ia" must still be centered, so the text
+      // element x (text-anchor="middle" over the full "ia.") shifts right by
+      // half the dot's width.
+      const xWithPunct = firstLyricX(renderAretino('c\nw: ia.', options));
+
+      expect(xNoPunct).not.toBeNull();
+      expect(xWithPunct).not.toBeNull();
+      expect(xWithPunct).toBeGreaterThan(xNoPunct);
+    });
+
     describe('Hungarian double consonant rule', () => {
       // noteSpacing:0.3 puts notes so close together that the inter-syllable hyphen
       // has no room and is collapsed.  noteSpacing:3 spreads notes wide enough that

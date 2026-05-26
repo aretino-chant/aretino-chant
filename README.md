@@ -12,6 +12,7 @@ Monorepo for the Aretino chant notation format.
 |---------|-------------|
 | [`@aretino-chant/core`](packages/core) | Text format, parser, and SVG renderer |
 | [`@aretino-chant/editor`](packages/editor) | CodeMirror-based editor web component |
+| [`@aretino-chant/gabc2aretino`](packages/gabc2aretino) | Converter from GABC to Aretino notation |
 
 ## Development
 

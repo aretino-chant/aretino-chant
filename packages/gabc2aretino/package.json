@@ -8,6 +8,8 @@
   },
   "files": [
     "src",
+    "README.md",
+    "LICENSE",
     "NOTICE"
   ],
   "scripts": {

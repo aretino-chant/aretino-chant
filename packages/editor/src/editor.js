@@ -180,6 +180,10 @@ class AretinoEditor extends HTMLElement {
         this.setAttribute('preview', v === false || v === 'false' ? 'false' : 'true');
     }
 
+    focus() {
+        this._view?.focus();
+    }
+
     _handleChange() {
         this._renderPreview();
         this.dispatchEvent(new CustomEvent('change', {

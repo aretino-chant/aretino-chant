@@ -169,6 +169,12 @@ function extractLyricWords(body) {
     const normalized = body.replace(/\(([^)]*)\)/g, (_, inner) => '(' + inner.replace(/\s+/g, '') + ')');
     const words = [];
     for (const token of normalized.trim().split(/\s+/)) {
+        // Hanging text: token with no notation parens — strip ~ positioning chars and wrap
+        if (!token.includes('(')) {
+            const text = convertLyricText(token.replace(/~/g, '').replace(/[{}]/g, ''));
+            if (text && /[a-zA-ZÀ-ÿ*]/.test(text)) words.push('(' + text + ')');
+            continue;
+        }
         const syllables = [];
         let pos = 0;
         while (pos < token.length) {

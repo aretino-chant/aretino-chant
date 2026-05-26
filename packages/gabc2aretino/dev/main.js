@@ -76,10 +76,12 @@ const INITIAL_ROWS = [
     // * as lyric before notes (not a barline): * passes through to lyrics
     `Al(g)le(f)*(gh) lu(e)ia(d)`,
     `(c) <i>bis</i>(::)`,
-    // hanging text: ~~~~* before a note-with-lyric is dropped (not pushed as lyrics)
+    // hanging text before note-with-lyric: prepend with ~ (~~~~* Al → *~Al)
     `Al(c) le(d) lu(e) ia(f) (::) ~~~~* Al(e)`,
     // hanging text before standalone neumes: spaces→~ for first neume, ~ for continuation
     `sum : (g) (f)`,
+    // hanging text before multi-syllable word: prepend to first syllable (* Al(g)le(f) → *~Al-le)
+    `* Al(g)le(f)`,
     // annotation: single → %indent: text
     `name: Test;\nannotation: I. ant.\n%%\n(c4) Al(g)le(f)lu(e)ia(d)`,
     // annotation: multiline → %indent: text1 | text2
@@ -87,6 +89,12 @@ const INITIAL_ROWS = [
     // neume continuation: empty-lyric neumes extend the previous syllable with extra hyphens
     // "cae" spans 3 neumes → "cae---", giving "in cae---lis."
     `in(h) cae(j./kjjg//j./kjj'jj/kjjh)(,)(ji/jjvI'G//hjhjvHF.1)(,)(gh!jvvI'G//hjHF'g)lis.(g/hhg.)`,
+    // trailing text after last note in a token: "rum" hangs onto next neume, punctuation joins with ~
+    // su-ó + trailing "rum" + lyric ":" on big neume → su-ó-rum~:
+    `su(j)ó(j)rum :(jijHG.ixjjvH'GhiGF.) (,)`,
+    // continuation neume after barline: standalone neume following a continuation word gets ~
+    // su-ó-rum~: then another neume after comma → su-ó-rum~: ~
+    `su(j)ó(j)rum :(jijHG.ixjjvH'GhiGF.) (,) (iyh./jh/ig/hhg.)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

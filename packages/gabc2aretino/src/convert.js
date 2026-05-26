@@ -167,6 +167,9 @@ function convertLyricText(text) {
 // within a token, text before each (...) group is a syllable. {braces} are stripped.
 // A note-bearing neume with no lyric extends the previous syllable; each such extension
 // adds a hyphen, so a syllable sung on N neumes is joined to the next with N hyphens.
+// Trailing text after a token's last (...) is carried forward as hanging text, and the
+// token's syllables are held as pendingSyllables so the word can be completed by the
+// next neume-bearing token.
 function joinSyllables(syllables) {
     let result = '';
     for (let i = 0; i < syllables.length; i++) {
@@ -181,6 +184,15 @@ function extractLyricWords(body) {
     const words = [];
     let hangingParts = []; // text tokens before a standalone neume, spaces become ~
     let afterHangingNeume = false; // true after a neume received hanging text as its lyric
+    let pendingSyllables = null; // syllables carried forward when a token has trailing text
+    // true when hangingParts came from trailing text (actual syllable, not a rubric decoration).
+    // Controls ~ vs ~~ join: ~~ aligns the part after it under the note (for decorations like *);
+    // ~ treats hanging+lyric as a single unit (for syllables like "rum" + punctuation ":").
+    let hangingIsContinuation = false;
+    // true after a word ended with a continuation syllable (built from trailing text + lyric).
+    // Unlike afterHangingNeume this is NOT reset by barlines, so standalone neumes after a
+    // barline still produce ~ if they continue the same melisma.
+    let afterContinuationNeume = false;
     for (const token of normalized.trim().split(/\s+/)) {
         // Hanging text: token with no notation parens — accumulate for the next neume
         if (!token.includes('(')) {
@@ -188,7 +200,8 @@ function extractLyricWords(body) {
             if (text) hangingParts.push(text);
             continue;
         }
-        const syllables = []; // [{text: string, count: number}]
+        const syllables = pendingSyllables ?? []; // [{text: string, count: number}]
+        pendingSyllables = null;
         let pos = 0;
         while (pos < token.length) {
             const openParen = token.indexOf('(', pos);
@@ -209,13 +222,20 @@ function extractLyricWords(body) {
                     words.push('(' + lyricText.trim() + ')');
                 }
                 hangingParts = [];
+                hangingIsContinuation = false;
                 afterHangingNeume = false;
                 continue;
             }
             // Note-bearing neume: start a new syllable or extend the current one
             if (lyricText) {
-                syllables.push({ text: lyricText, count: 1 });
+                const sep = hangingIsContinuation ? '~' : '~~';
+                const combined = hangingParts.length > 0
+                    ? hangingParts.join('~') + sep + lyricText
+                    : lyricText;
+                syllables.push({ text: combined, count: 1 });
+                afterContinuationNeume = hangingIsContinuation;
                 hangingParts = [];
+                hangingIsContinuation = false;
                 afterHangingNeume = false;
             } else if (syllables.length > 0) {
                 syllables[syllables.length - 1].count++;
@@ -223,15 +243,32 @@ function extractLyricWords(body) {
                 // Standalone neume with no lyric preceded by hanging text — use it as lyric
                 syllables.push({ text: hangingParts.join('~') + '~', count: 1 });
                 hangingParts = [];
+                hangingIsContinuation = false;
                 afterHangingNeume = true;
-            } else if (afterHangingNeume) {
+                afterContinuationNeume = false;
+            } else if (afterHangingNeume || afterContinuationNeume) {
                 // Closing syllable continues on another standalone neume
                 syllables.push({ text: '~', count: 1 });
+            }
+        }
+        // Trailing text after the last ): add to hangingParts and carry syllables forward
+        if (pos < token.length) {
+            const trailingText = convertLyricText(token.slice(pos).replace(/[{}]/g, ''));
+            if (trailingText) {
+                hangingParts.push(trailingText);
+                hangingIsContinuation = true;
+                if (syllables.length > 0) {
+                    pendingSyllables = syllables;
+                    continue;
+                }
             }
         }
         if (syllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text) || s.text === '~')) {
             words.push(joinSyllables(syllables));
         }
+    }
+    if (pendingSyllables && pendingSyllables.some(s => /[a-zA-ZÀ-ÿ*]/.test(s.text) || s.text === '~')) {
+        words.push(joinSyllables(pendingSyllables));
     }
     return words;
 }

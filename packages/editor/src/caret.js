@@ -312,6 +312,22 @@ function findPrevToken(candidates, caret) {
     return best;
 }
 
+// Non-staff element (e.g. lyric syllable) with the smallest srcStart >= caret.
+function findNextNonStaffTarget(candidates, caret) {
+    let best = null, bestStart = Infinity, bestSpan = Infinity;
+    for (const el of candidates) {
+        if (isModifierTarget(el) || hasStaff(el)) continue;
+        const a = datasetNumber(el, 'srcStart');
+        const b = datasetNumber(el, 'srcEnd');
+        if (a === null || b === null || a < caret) continue;
+        const span = b - a;
+        if (a < bestStart || (a === bestStart && span <= bestSpan)) {
+            best = el; bestStart = a; bestSpan = span;
+        }
+    }
+    return best;
+}
+
 // When the caret sits in a whitespace gap (no token spans it), it marks a
 // position before the next token rather than "on" a token. We draw a thin
 // vertical line there instead of banding the preceding token. Returns null
@@ -446,6 +462,26 @@ function paintCollapsedCaret(preview, caret, options) {
             cursorRect = addCursorBackground(direct, options) || null;
         }
         return { target: direct, activeEl: direct, cursorRect, scrollTarget: direct };
+    }
+
+    // If the caret is in a gap and the nearest upcoming element is a non-staff
+    // target (e.g. a lyric syllable), highlight it directly rather than drawing
+    // a caret line anchored to an unrelated staff token further away.
+    const nextNonStaff = findNextNonStaffTarget(candidates, position);
+    if (nextNonStaff) {
+        const nextNonStaffStart = datasetNumber(nextNonStaff, 'srcStart');
+        const nextStaff = findNextToken(candidates, position);
+        const nextStaffStart = nextStaff ? datasetNumber(nextStaff, 'srcStart') : Infinity;
+        if (nextNonStaffStart <= nextStaffStart) {
+            let cursorRect = null;
+            if (options.mode === 'class' || options.mode === 'both') {
+                nextNonStaff.classList.add(options.activeClass);
+            }
+            if (options.mode === 'background' || options.mode === 'both') {
+                cursorRect = addCursorBackground(nextNonStaff, options) || null;
+            }
+            return { target: nextNonStaff, activeEl: nextNonStaff, cursorRect, scrollTarget: nextNonStaff };
+        }
     }
 
     // Caret in a gap before a token: draw a thin vertical line caret.

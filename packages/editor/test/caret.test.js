@@ -285,4 +285,25 @@ describe('caret preview highlighting', () => {
 
         expect(calls).toEqual(['second']);
     });
+
+    it('highlights the next lyric syllable when caret is in the gap before it, not the distant staff token', () => {
+        // Simulates: "cf f\nw: Va-dis\nn: fj j"
+        // Lyric syllable "Va" covers [7,9), "dis" covers [10,13).
+        // Gap at source position 10 (between '-' and 'd').
+        // A staff note from the n: line sits at [21,22) — far away.
+        const va = sourceMapped(7, 9, { className: 'aretino-lyric aretino-syllable' });
+        const dis = sourceMapped(10, 13, { className: 'aretino-lyric aretino-syllable' });
+        const fNote = sourceMapped(21, 22, {
+            className: 'aretino-token',
+            dataset: { staffBottom: '40', staffHeight: '20', bboxX: '50', bboxWidth: '10' },
+        });
+        const preview = previewWith(va, dis, fNote);
+
+        const target = highlightAtCaret(preview, 10, { mode: 'class' });
+
+        expect(target).toBe(dis);
+        expect(activeSpans(preview)).toEqual([[10, 13]]);
+        // No caret line should be drawn at the distant staff token.
+        expect(preview.querySelectorAll('.aretino-cursor-line')).toHaveLength(0);
+    });
 });

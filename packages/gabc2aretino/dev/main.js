@@ -96,6 +96,14 @@ const INITIAL_ROWS = [
     // continuation neume after barline: standalone neume following a continuation word gets ~
     // su-ó-rum~: then another neume after comma → su-ó-rum~: ~
     `su(j)ó(j)rum :(jijHG.ixjjvH'GhiGF.) (,) (iyh./jh/ig/hhg.)`,
+    // standalone neume (space before it, no text): adds ~ as a separate lyric word → Do-mi-ne ~
+    `Do(c)mi(d)ne(e) (f)`,
+    // direct syllable continuation (no space): → Do-mi-ne-De
+    `Do(c)mi(d)ne(e)De(f)`,
+    // hanging text before lyric note: joined with ~ → Do-mi-ne *~De
+    `Do(c)mi(d)ne(e) * De(f)`,
+    // hanging text before standalone neume: hanging parts get ~~ suffix → Do-mi-ne *~De~~
+    `Do(c)mi(d)ne(e) * De (f)`,
     // macros [xx:y] inside neume notation are ignored
     `(g_0[uh:l]/hfg.)`,
 ];

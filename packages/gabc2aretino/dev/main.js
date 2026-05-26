@@ -62,7 +62,8 @@ const INITIAL_ROWS = [
     '(f4) (abcd)',   // f4: up 3 → d e f g
     '(cb3) (bcde)',  // cb3: up 2, key sig Bb → d e f g + K:b
     '(cb4) (defg)',  // cb4: no transposition, key sig Bb → d e f g + K:b
-    // barlines: , ' ; : :? :: → , ' ; | |? ||
+    // barlines: () → |0 (invisible), , ' ; : :? :: → , ' ; | |? ||
+    "(g)()(g)",
     "(g)(,)(g) (g)(')(g) (g)(;)(g) (g)(:)(g) (g)(:?)(g) (g)(::)(g)",
     // barlines: numbered commas → ; and ;' ,_ ,0 variants
     "(g)(,1)(g) (g)(,3)(g) (g)(,6)(g) (g)(;')(g) (g)(,_)(g) (g)(,0)(g)",
@@ -95,6 +96,8 @@ const INITIAL_ROWS = [
     // continuation neume after barline: standalone neume following a continuation word gets ~
     // su-ó-rum~: then another neume after comma → su-ó-rum~: ~
     `su(j)ó(j)rum :(jijHG.ixjjvH'GhiGF.) (,) (iyh./jh/ig/hhg.)`,
+    // macros [xx:y] inside neume notation are ignored
+    `(g_0[uh:l]/hfg.)`,
 ];
 
 // Wrap bare neumes in a minimal GABC header + clef so exsurge can render them.

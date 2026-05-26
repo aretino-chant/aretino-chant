@@ -108,6 +108,7 @@ function redistributeTrailingSuffixes(segment) {
 }
 
 const BARLINE_MAP = {
+    '':   '|0',
     ',':  ',',
     "'":  "'",
     ';':  ';',
@@ -297,7 +298,7 @@ export function gabcToAretino(gabc) {
         const alt = convertAlteration(content.trim(), noteMap);
         if (alt !== null) { neumes.push(alt); continue; }
         const neumeSegments = [];
-        for (const segment of content.split(/\s+/)) {
+        for (const segment of content.replace(/\[[^\]]*\]/g, '').split(/\s+/)) {
             const parts = [];
             let pendingSep = null;
             let suppressVirga = false;

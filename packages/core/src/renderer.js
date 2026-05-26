@@ -1269,6 +1269,8 @@ function measureBarline(ctx, kind) {
 
 // A mora on a non-final note within a group acts like an implicit '/' cut:
 // the group is split after that note so the remaining notes form a new group.
+// Exception: when multiple notes in the group carry a mora, the group is kept
+// intact and all moras are drawn together after the last notehead (like episema).
 // Returns { groups, gaps } where gaps[i] is the gap type after groups[i]:
 //   'mora'  — implicit split from an internal mora (compact spacing)
 //   N (number) — explicit '/' separator repeated N times (N × neumeGapAdvance)
@@ -1277,6 +1279,16 @@ function splitGroupsAtInternalMora(groups, gaps = []) {
     const resultGaps = [];
     for (let gi = 0; gi < groups.length; gi++) {
         const group = groups[gi];
+        // When multiple notes carry a mora, keep the group intact —
+        // all moras will be drawn together after the last notehead.
+        const moraNoteCount = group.filter(n => n.modifiers && n.modifiers.includes('mora')).length;
+        if (moraNoteCount >= 2) {
+            resultGroups.push(group);
+            if (gi < groups.length - 1) {
+                resultGaps.push(gaps[gi] ?? 1);
+            }
+            continue;
+        }
         let current = [];
         for (let i = 0; i < group.length; i++) {
             current.push(group[i]);
@@ -1316,16 +1328,20 @@ function measureSplitLigature(ctx, groups, gaps) {
             const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
+            const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
             // The mora dot extends past the note box right edge; account for that overhang
             // whether the gap after it is an explicit '/' or an implicit mora split.
-            const moraOverhang = hasMora
+            // For multi-mora groups, the dot is drawn after the last notehead even if it
+            // doesn't itself carry a mora.
+            const moraOverhang = (hasMora || moraNoteCount >= 2)
                 ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
                 : 0;
             total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
         } else {
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
-            const moraExtra = hasMora ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius) : 0;
+            const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
+            const moraExtra = (hasMora || moraNoteCount >= 2) ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius) : 0;
             const hasTenor = notes.some(n => n.shape === 'tenor');
             const tenorExtra = hasTenor ? ss(ctx, METRICS.tenorAdvanceExtra) : 0;
             total += ctx.singleNoteAdvance + (n - 1) * ctx.ligatureStepAdvance + moraExtra + accExtra + tenorExtra;
@@ -1499,7 +1515,11 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
                     }
                 } else if (mod === 'mora') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
-                    glyph = drawMora(ctx, p.cx, p.cy, onLine);
+                    const moraNoteCount = notes.filter(n => n.modifiers.includes('mora')).length;
+                    // Multi-mora: all dots share the same x position (after the last notehead),
+                    // each at their own vertical pitch position.
+                    const drawCx = moraNoteCount >= 2 ? positions[positions.length - 1].cx : p.cx;
+                    glyph = drawMora(ctx, drawCx, p.cy, onLine);
                 } else if (mod === 'ictus') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
                     const below = p.note.modifiers.includes('episema');
@@ -1529,11 +1549,15 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
     const advance = courtesyAdvance + measureSplitLigature(ctx, groups, gaps);
     const totalNotes = groups.reduce((sum, g) => sum + g.length, 0);
     const lastNote = groups[groups.length - 1]?.[groups[groups.length - 1].length - 1];
-    const hasMora = lastNote?.modifiers?.includes('mora');
+    const lastNoteHasMora = lastNote?.modifiers?.includes('mora');
+    const allMoraNoteCount = groups.reduce((sum, g) => sum + g.filter(n => n.modifiers?.includes('mora')).length, 0);
+    // A mora dot appears past the last notehead if the final note has one, or when
+    // multiple notes in the neume carry moras (they all stack at the last notehead's x).
+    const hasMora = lastNoteHasMora || allMoraNoteCount >= 2;
     const isTenor = groups.some(g => g.some(n => n.shape === 'tenor'));
     const shouldAlignLeft = totalNotes > 1 || isTenor;
     // Single mora notes remain centered, but their visual span extends to the mora dot's right edge.
-    const singleMoraCenterOffset = totalNotes === 1 && hasMora && !shouldAlignLeft
+    const singleMoraCenterOffset = totalNotes === 1 && lastNoteHasMora && !shouldAlignLeft
         ? ss(ctx, (METRICS.moraOffsetX + METRICS.moraRadius - METRICS.noteBoxWidth * 0.5) * 0.5)
         : 0;
     const centerX = firstNoteCx !== null

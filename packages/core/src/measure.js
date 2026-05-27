@@ -1,0 +1,159 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+import { METRICS, pitchY } from './glyphs.js';
+import { ss } from './units.js';
+import {
+    accidentalSymbolAdvance,
+    accidentalListAdvance,
+    keySigAdvance,
+} from './accidentals.js';
+import { clefAdvance } from './clef.js';
+
+// A mora on a non-final note within a group acts like an implicit '/' cut:
+// the group is split after that note so the remaining notes form a new group.
+// Exception: when the last 2 notes of the group both carry a mora, no split is
+// inserted between them and both moras are drawn after the last notehead.
+// Returns { groups, gaps } where gaps[i] is the gap type after groups[i]:
+//   'mora'  — implicit split from an internal mora (compact spacing)
+//   N (number) — explicit '/' separator repeated N times (N × neumeGapAdvance)
+export function splitGroupsAtInternalMora(groups, gaps = []) {
+    const resultGroups = [];
+    const resultGaps = [];
+    for (let gi = 0; gi < groups.length; gi++) {
+        const group = groups[gi];
+        let current = [];
+        for (let i = 0; i < group.length; i++) {
+            current.push(group[i]);
+            const hasMora = group[i].modifiers && group[i].modifiers.includes('mora');
+            if (i < group.length - 1 && hasMora) {
+                // Don't split between the last two notes when both carry a mora.
+                const isSecondToLast = i === group.length - 2;
+                const nextHasMora = isSecondToLast &&
+                    group[i + 1].modifiers && group[i + 1].modifiers.includes('mora');
+                if (!nextHasMora) {
+                    resultGroups.push(current);
+                    resultGaps.push('mora');
+                    current = [];
+                }
+            }
+        }
+        if (current.length > 0) {
+            resultGroups.push(current);
+            if (gi < groups.length - 1) {
+                resultGaps.push(gaps[gi] ?? 1);
+            }
+        }
+    }
+    return { groups: resultGroups, gaps: resultGaps };
+}
+
+// groups: Note[][] — each group is a run of notes; groups are separated by neumatic cuts ('/').
+// All groups except the last contribute a gap advance; the last group contributes singleNoteAdvance.
+// Gap types: N (number) = N × neumeGapAdvance; 'mora' = compact spacing just past the mora dot.
+export function measureLigature(ctx, groups, gaps = []) {
+    const split = splitGroupsAtInternalMora(groups, gaps);
+    return measureSplitLigature(ctx, split.groups, split.gaps);
+}
+
+export function measureSplitLigature(ctx, groups, gaps) {
+    let total = 0;
+    for (let g = 0; g < groups.length; g++) {
+        const notes = groups[g];
+        const n = notes.length;
+        // Add advance for any inline accidentals on notes in this group.
+        const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
+        if (g < groups.length - 1) {
+            const gapType = gaps[g] ?? 1;
+            const slashCount = typeof gapType === 'number' ? gapType : 0;
+            const lastNote = notes[n - 1];
+            const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
+            const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
+            // The mora dot extends past the note box right edge; account for that overhang
+            // whether the gap after it is an explicit '/' or an implicit mora split.
+            // For multi-mora groups, the dot is drawn after the last notehead even if it
+            // doesn't itself carry a mora.
+            const moraOverhang = (hasMora || moraNoteCount >= 2)
+                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
+                : 0;
+            total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
+        } else {
+            const lastNote = notes[n - 1];
+            const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
+            const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
+            const moraExtra = (hasMora || moraNoteCount >= 2) ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius) : 0;
+            const hasTenor = notes.some(n => n.shape === 'tenor');
+            const tenorExtra = hasTenor ? ss(ctx, METRICS.tenorAdvanceExtra) : 0;
+            total += ctx.singleNoteAdvance + (n - 1) * ctx.ligatureStepAdvance + moraExtra + accExtra + tenorExtra;
+        }
+    }
+    return total;
+}
+
+export function measureBarline(ctx, kind) {
+    if (kind === ':|:') {
+        return ss(ctx, METRICS.barlineDoubleAdvance) * 1.5 + ss(ctx, METRICS.barlinePostGap);
+    }
+    const base = (kind === '||' || kind === ':|' || kind === '|:' || kind === '|||')
+        ? ss(ctx, METRICS.barlineDoubleAdvance)
+        : ss(ctx, METRICS.barlineAdvance);
+    return base + ss(ctx, METRICS.barlinePostGap);
+}
+
+export function measureItem(ctx, item) {
+    if (item.kind === 'clef') {
+        return clefAdvance(ctx, item.clef) + ss(ctx, METRICS.clefInlinePostGap);
+    }
+    if (item.kind === 'accidental') {
+        if (item.symbol === 'x') return ss(ctx, METRICS.accidentalAdvanceFlat);
+        if (item.symbol === 'y') return ss(ctx, METRICS.accidentalAdvanceNatural);
+        if (item.symbol === '#') return ss(ctx, METRICS.accidentalAdvanceSharp);
+        return ss(ctx, METRICS.accidentalAdvanceFlat); // fallback
+    }
+    if (item.kind === 'keysig') {
+        return keySigAdvance(ctx, item.accidentals);
+    }
+    if (item.kind === 'barline') {
+        return measureBarline(ctx, item.value) + (item.barlineExtra || 0) + (item.barlinePostExtra || 0);
+    }
+    if (item.kind === 'spacer') {
+        return ss(ctx, METRICS.spacerAdvance) * item.multiplier;
+    }
+    if (item.kind === 'expander') {
+        return ctx.expanderWidth;
+    }
+    if (item.kind === 'paren-open' || item.kind === 'paren-close') {
+        return ss(ctx, METRICS.parenthesisWidth) + ss(ctx, METRICS.parenthesisInnerGap);
+    }
+    if (item.kind === 'brace-open' || item.kind === 'brace-close') {
+        return 0;
+    }
+    if (item.kind === 'ligature') {
+        return accidentalListAdvance(ctx, item.leadingCourtesyAccidentals)
+            + measureLigature(ctx, item.groups, item.gaps ?? [])
+            + (item.syllableExtra || 0);
+    }
+    return 0;
+}
+
+// Lowest (largest-y) point reached by any notehead in a row, used to push the
+// lyric baseline below notes that dip beneath the staff.
+export function rowLowestNoteY(ctx, row, staffBottomY) {
+    let maxY = staffBottomY;
+    const halfNoteH = ss(ctx, METRICS.noteBoxHeight) * 0.5;
+    for (const it of row.items) {
+        if (it.kind !== 'ligature') {
+            continue;
+        }
+        for (const group of it.groups) {
+            for (const note of group) {
+                const cy = pitchY(ctx, note, staffBottomY);
+                if (cy > maxY) {
+                    maxY = cy + halfNoteH;
+                }
+            }
+        }
+    }
+    return maxY;
+}

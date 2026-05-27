@@ -283,28 +283,32 @@ export function renderAretino(source, options = {}) {
                 if (it.kind !== 'ligature') {
                     continue;
                 }
-                let maxSylW = 0;
-                for (const notes of verseNotes) {
-                    if (li < notes.length) {
-                        const w = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont);
-                        if (w > maxSylW) {
-                            maxSylW = w;
-                        }
-                    }
-                }
                 const totalNotes = it.groups.reduce((sum, g) => sum + g.length, 0);
                 const lastG = it.groups[it.groups.length - 1];
                 const lastN = lastG?.[lastG.length - 1];
                 const isCentered = totalNotes === 1
                     && !it.groups.some(g => g.some(n => n.shape === 'tenor'));
-                ligInfo.push({ item: it, maxSylW, isCentered, itemIdx });
+                let maxSylW = 0;
+                let maxCurrRight = 0;
+                for (const notes of verseNotes) {
+                    if (li < notes.length) {
+                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont);
+                        const suffixW = notes[li].suffixSegments
+                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.lyricFont)
+                            : 0;
+                        if (alignW > maxSylW) maxSylW = alignW;
+                        const rightEdge = isCentered ? halfNoteW + alignW / 2 + suffixW : alignW + suffixW;
+                        if (rightEdge > maxCurrRight) maxCurrRight = rightEdge;
+                    }
+                }
+                ligInfo.push({ item: it, maxSylW, maxCurrRight, isCentered, itemIdx });
                 li++;
             }
             for (let i = 0; i < ligInfo.length; i++) {
-                const { item, maxSylW, isCentered } = ligInfo[i];
+                const { item, maxSylW, maxCurrRight, isCentered } = ligInfo[i];
                 const baseAdv = measureLigature(ctx, item.groups, item.gaps ?? []);
-                // Current syllable's right-edge offset from the ligature's left.
-                const currRight = isCentered ? halfNoteW + maxSylW / 2 : maxSylW;
+                // Right-edge offset from the ligature's left, including trailing punctuation.
+                const currRight = maxCurrRight;
                 // How far the next syllable extends to the left of the next ligature's
                 // start (positive = intrudes). Only centered syllables intrude leftward.
                 // If a barline sits between the two ligatures, the barline provides

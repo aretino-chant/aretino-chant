@@ -4,7 +4,7 @@
 
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
-import { renderAretino } from '@aretino-chant/core';
+import { renderAretino, parseAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
 import { highlightAtSelection, sourceSpanFromPreviewClick } from './caret.js';
 
@@ -51,10 +51,34 @@ const STYLE = `
   white-space: pre-wrap;
 }
 
+.welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #aaa;
+  font-size: 0.85em;
+  text-align: center;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.welcome a {
+  color: inherit;
+}
+
 .preview-pane [data-src-start] {
   cursor: pointer;
 }
 `;
+
+function hasMusicContent(ast) {
+    if (Object.keys(ast.header).length > 0) return true;
+    return ast.lines.some(l =>
+        (l.type === 'music' && l.tokens.length > 0) ||
+        l.type === 'verse'
+    );
+}
 
 function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -232,7 +256,12 @@ class AretinoEditor extends HTMLElement {
         const containerWidth = this._previewEl.clientWidth || 600;
         const width = Math.max(120, Math.round(containerWidth / zoom));
         try {
-            this._previewEl.innerHTML = renderAretino(source, { width, zoom });
+            const ast = parseAretino(source);
+            if (!hasMusicContent(ast)) {
+                this._previewEl.innerHTML = `<div class="welcome">Welcome to Aretino Chant notation &mdash; <a href="https://aretino-chant.github.io" target="_blank">aretino-chant.github.io</a></div>`;
+                return;
+            }
+            this._previewEl.innerHTML = renderAretino(ast, { width, zoom });
         } catch (err) {
             this._previewEl.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
         }

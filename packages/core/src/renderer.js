@@ -1153,6 +1153,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
     let rowStartClefSource = null;
     let runningClef = initialClef;
     let rowStartKeySig = initialKeySig ?? [];
+    let rowStartKeySigSource = null;
     let runningKeySig = initialKeySig ?? [];
     let clefRowsDrawn = 0;
     let isFirstRow = true;
@@ -1186,7 +1187,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
     }
 
     function finalize(justify) {
-        if (cur.length === 0) {
+        if (cur.length === 0 && rowStartClefSource === null && rowStartKeySigSource === null) {
             return;
         }
         const showClef = currentRowDrawsClef();
@@ -1210,6 +1211,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
         rowStartClef = runningClef;
         rowStartClefSource = null;
         rowStartKeySig = runningKeySig;
+        rowStartKeySigSource = null;
     }
 
     for (let ii = 0; ii < items.length; ii++) {
@@ -1230,6 +1232,7 @@ function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initial
             runningKeySig = item.accidentals;
             if (cur.length === 0) {
                 rowStartKeySig = item.accidentals;
+                rowStartKeySigSource = item;
                 continue;
             }
         }

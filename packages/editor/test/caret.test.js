@@ -306,4 +306,25 @@ describe('caret preview highlighting', () => {
         // No caret line should be drawn at the distant staff token.
         expect(preview.querySelectorAll('.aretino-cursor-line')).toHaveLength(0);
     });
+
+    it('stays on the preceding note when caret is in trailing whitespace before a lyric on a later line', () => {
+        // Simulates: "a b \nw: s" — caret at 4 (trailing space after 'b').
+        // Note 'b' ends at srcEnd=3. Lyric 's' starts at srcStart=8 (on the w: line).
+        // The caret is only 1 source unit past 'b' but 4 units before 's': trailing gap.
+        const noteA = sourceMapped(0, 1, {
+            className: 'aretino-token',
+            dataset: { staffBottom: '40', staffHeight: '20', bboxX: '0', bboxWidth: '5' },
+        });
+        const noteB = sourceMapped(2, 3, {
+            className: 'aretino-token',
+            dataset: { staffBottom: '40', staffHeight: '20', bboxX: '10', bboxWidth: '5' },
+        });
+        const lyricS = sourceMapped(8, 9, { className: 'aretino-lyric aretino-syllable' });
+        const preview = previewWith(noteA, noteB, lyricS);
+
+        const target = highlightAtCaret(preview, 4, { mode: 'class' });
+
+        expect(target).toBe(noteB);
+        expect(activeSpans(preview)).toEqual([[2, 3]]);
+    });
 });

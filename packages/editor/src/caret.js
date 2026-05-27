@@ -467,20 +467,29 @@ function paintCollapsedCaret(preview, caret, options) {
     // If the caret is in a gap and the nearest upcoming element is a non-staff
     // target (e.g. a lyric syllable), highlight it directly rather than drawing
     // a caret line anchored to an unrelated staff token further away.
+    // Exception: if a preceding staff token is closer to the caret than the
+    // non-staff element is, the caret is in trailing whitespace after a note —
+    // fall through to the trailing-caret logic instead.
     const nextNonStaff = findNextNonStaffTarget(candidates, position);
     if (nextNonStaff) {
         const nextNonStaffStart = datasetNumber(nextNonStaff, 'srcStart');
         const nextStaff = findNextToken(candidates, position);
         const nextStaffStart = nextStaff ? datasetNumber(nextStaff, 'srcStart') : Infinity;
         if (nextNonStaffStart <= nextStaffStart) {
-            let cursorRect = null;
-            if (options.mode === 'class' || options.mode === 'both') {
-                nextNonStaff.classList.add(options.activeClass);
+            const prevStaff = findPrevToken(candidates, position);
+            const prevStaffEnd = prevStaff ? datasetNumber(prevStaff, 'srcEnd') : null;
+            const inTrailingGap = prevStaffEnd !== null
+                && (position - prevStaffEnd) < (nextNonStaffStart - position);
+            if (!inTrailingGap) {
+                let cursorRect = null;
+                if (options.mode === 'class' || options.mode === 'both') {
+                    nextNonStaff.classList.add(options.activeClass);
+                }
+                if (options.mode === 'background' || options.mode === 'both') {
+                    cursorRect = addCursorBackground(nextNonStaff, options) || null;
+                }
+                return { target: nextNonStaff, activeEl: nextNonStaff, cursorRect, scrollTarget: nextNonStaff };
             }
-            if (options.mode === 'background' || options.mode === 'both') {
-                cursorRect = addCursorBackground(nextNonStaff, options) || null;
-            }
-            return { target: nextNonStaff, activeEl: nextNonStaff, cursorRect, scrollTarget: nextNonStaff };
         }
     }
 

@@ -466,6 +466,8 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 |---|---|
 | *(space)* | Word boundary — syllables of different words don't get a hyphen |
 | `-` | Syllable boundary **within** a word — spaces after the hyphen are ignored, joined syllables butt together, and a hyphen appears only if the neumes leave room |
+| `\-` | Literal hyphen inside one syllable — useful when multiple words are sung on the same note, e.g. `only-begotten` |
+| `=` | Mandatory syllable boundary **within** a word — like `-`, but the hyphen is always shown and doesn't collapse when spacing is tight |
 | `~` | Renders as a literal (non-breaking) space — keeps a multi-word unit in one syllable, e.g. `(unbreakable~space)` |
 | `~~` | Splits a syllable's display text from its alignment text |
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |

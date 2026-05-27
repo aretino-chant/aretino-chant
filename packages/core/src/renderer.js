@@ -43,6 +43,10 @@ const DEFAULT_PAGE_WIDTH_MM = 180;
 // Default lyric font size in typographic points
 const DEFAULT_LYRIC_SIZE_PT = 10;
 
+// Placeholder emitted by \- escape so the syllable splitter doesn't treat it
+// as a separator. Replaced with '-' in display text and segments.
+const LITERAL_HYPHEN = '';
+
 const HEADER_RENDERER_OPTION_TYPES = {
     width: 'number',
     widthMm: 'number',
@@ -1531,6 +1535,28 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
             }
         }
 
+        // When multiple notes in this group carry a mora and two of them land at
+        // the same vertical position, shift the later one down by a half staff-space
+        // so both dots remain visible.
+        const moraDotYForNote = new Map();
+        {
+            const moraNoteCount = notes.filter(n => n.modifiers.includes('mora')).length;
+            if (moraNoteCount >= 2) {
+                const seenDotYs = new Set();
+                for (let i = 0; i < positions.length; i++) {
+                    const p = positions[i];
+                    if (!p.note.modifiers.includes('mora')) continue;
+                    const onLine = pitchToPos(p.note) % 2 === 0;
+                    let dotY = onLine ? p.cy - ctx.staffSpace / 2 : p.cy;
+                    if (seenDotYs.has(dotY)) {
+                        dotY += ctx.staffSpace;
+                    }
+                    seenDotYs.add(dotY);
+                    moraDotYForNote.set(i, dotY);
+                }
+            }
+        }
+
         // Draw note heads + modifiers, wrapped per-note so each note can be
         // highlighted independently when the cursor sits on it.
         for (let i = 0; i < positions.length; i++) {
@@ -1553,7 +1579,12 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
                     // Multi-mora: all dots share the same x position (after the last notehead),
                     // each at their own vertical pitch position.
                     const drawCx = moraNoteCount >= 2 ? positions[positions.length - 1].cx : p.cx;
-                    glyph = drawMora(ctx, drawCx, p.cy, onLine);
+                    let moraCy = p.cy;
+                    if (moraDotYForNote.has(i)) {
+                        const targetDotY = moraDotYForNote.get(i);
+                        moraCy = onLine ? targetDotY + ctx.staffSpace / 2 : targetDotY;
+                    }
+                    glyph = drawMora(ctx, drawCx, moraCy, onLine);
                 } else if (mod === 'ictus') {
                     const onLine = pitchToPos(p.note) % 2 === 0;
                     const below = p.note.modifiers.includes('episema');
@@ -1770,6 +1801,8 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 } else {
                     addText('\\color:', Array.from({ length: 7 }, (_, k) => sourceAt(slashIdx + k)));
                 }
+            } else if (text[i] === '-') {
+                addText(LITERAL_HYPHEN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else {
                 addText(text[i], [sourceAt(i)]); i++;
             }
@@ -1834,6 +1867,7 @@ function expandSyllablesForLigatures(notes) {
                 alignSegments: [],
                 suffixSegments: [],
                 hyphenAfter: k < n - 1 ? true : syl.hyphenAfter,
+                hyphenMandatory: syl.hyphenMandatory || false,
                 kind: 'note',
             });
         }
@@ -1926,7 +1960,7 @@ function parseSyllables(input) {
                 // Peek past spaces: if a hyphen follows, continue (handles "Al - le")
                 let peek = j + 1;
                 while (peek < cleaned.length && (cleaned[peek] === ' ' || cleaned[peek] === '\t')) peek++;
-                if (peek < cleaned.length && cleaned[peek] === '-') {
+                if (peek < cleaned.length && (cleaned[peek] === '-' || cleaned[peek] === '=')) {
                     j++;
                     continue;
                 }
@@ -1934,7 +1968,7 @@ function parseSyllables(input) {
             }
             wordChars.push(c);
             wordCharIndexes.push(j);
-            skipWhitespaceAfterHyphen = c === '-';
+            skipWhitespaceAfterHyphen = c === '-' || c === '=';
             j++;
         }
         const word = wordChars.join('');
@@ -1945,28 +1979,33 @@ function parseSyllables(input) {
         let wPos = 0;
         while (wPos < word.length) {
             const sylStart = wPos;
-            while (wPos < word.length && word[wPos] !== '-') wPos++;
+            while (wPos < word.length && word[wPos] !== '-' && word[wPos] !== '=') wPos++;
             const sylEnd = wPos;
             let trailingHyphens = 0;
-            while (wPos < word.length && word[wPos] === '-') { trailingHyphens++; wPos++; }
+            let hyphenMandatory = false;
+            while (wPos < word.length && (word[wPos] === '-' || word[wPos] === '=')) {
+                if (word[wPos] === '=') hyphenMandatory = true;
+                trailingHyphens++;
+                wPos++;
+            }
             if (sylEnd > sylStart) {
-                sylParts.push({ raw: word.slice(sylStart, sylEnd), startIdx: sylStart, endIdx: sylEnd, trailingHyphens });
+                sylParts.push({ raw: word.slice(sylStart, sylEnd), startIdx: sylStart, endIdx: sylEnd, trailingHyphens, hyphenMandatory });
             }
         }
-        for (const { raw, startIdx, endIdx, trailingHyphens } of sylParts) {
+        for (const { raw, startIdx, endIdx, trailingHyphens, hyphenMandatory } of sylParts) {
             const absStart = wordCharIndexes[startIdx];
             const absEnd = wordCharIndexes[endIdx - 1] + 1;
             const sourceSpan = sourceSpanForCleanedRange(absStart, absEnd);
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;
             if (tildeIdx !== -1) {
-                text = raw.slice(0, tildeIdx).replace(/~/g, ' ') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ');
-                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ');
+                text = raw.slice(0, tildeIdx).replace(/~/g, ' ').replace(//g, '-') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ').replace(//g, '-');
+                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ').replace(//g, '-');
             } else {
-                text = raw.replace(/~/g, ' ');
+                text = raw.replace(/~/g, ' ').replace(//g, '-');
                 alignText = text;
             }
-            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' '));
+            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' ').replace(//g, '-'));
             let alignSegments = text === alignText
                 ? segments
                 : sliceSegments(segments, text.length - alignText.length);
@@ -1986,6 +2025,7 @@ function parseSyllables(input) {
                 alignSegments,
                 suffixSegments,
                 hyphenAfter: trailingHyphens > 0,
+                hyphenMandatory: trailingHyphens > 0 && hyphenMandatory,
                 noteGroupCount: Math.max(1, trailingHyphens),
                 kind: 'note',
                 ...sourceSpan,
@@ -2185,9 +2225,10 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         let left = center - alignW / 2 - prefixW;
         let hyphenX = null;
         if (i > 0) {
-            const needsHyphen = workSyllables[i - 1].hyphenAfter;
+            const prevSyl = workSyllables[i - 1];
+            const needsHyphen = prevSyl.hyphenAfter;
             if (needsHyphen) {
-                if (left - prevRight >= hyphenSpaceW) {
+                if (left - prevRight >= hyphenSpaceW || prevSyl.hyphenMandatory) {
                     hyphenX = (left + prevRight) / 2;
                 } else {
                     // Hyphen collapsed: apply Hungarian double-consonant rule if applicable.

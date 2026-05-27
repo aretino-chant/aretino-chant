@@ -67,6 +67,19 @@ describe('renderAretino', () => {
     }
   });
 
+  it('separates two mora dots that land at the same vertical position', () => {
+    // Two notes at the same pitch both carrying a mora (e.g. A.g. where both
+    // notes happen to share the same staff position) must not overlap.
+    const svg = renderAretino('(g2) A.A.');
+    const circles = [...svg.matchAll(/<circle[^>]*>/g)].map(m => {
+      const cy = m[0].match(/cy="([^"]+)"/)?.[1];
+      return cy ? parseFloat(cy) : null;
+    }).filter(v => v !== null);
+    // There should be exactly two mora dots and their cy values must differ.
+    expect(circles.length).toBe(2);
+    expect(circles[0]).not.toBeCloseTo(circles[1], 1);
+  });
+
   describe('lyricDistance option', () => {
     // Source with a music line and a matching lyric line.
     const source = 'c d e f\nw: a b c d';
@@ -235,6 +248,56 @@ describe('renderAretino', () => {
         const texts = lyricTextEntries(svg).map(l => l.text);
         expect(texts).toContain('osz');
         expect(texts).toContain('szad');
+      });
+    });
+
+    describe('\\- literal hyphen escape', () => {
+      it('renders \\- as a literal hyphen within a single syllable', () => {
+        const svg = renderAretino('c\nw: rülsz\\-e', { width: 400 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toEqual(['rülsz-e']);
+        expect(renderedHyphenCount(svg)).toBe(0);
+      });
+
+      it('\\- does not split a syllable under a melismatic tenor note', () => {
+        const svg = renderAretino('c\nw: Vajon~megkönyörülsz\\-e~rajtunk', { width: 600 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toEqual(['Vajon megkönyörülsz-e rajtunk']);
+        expect(renderedHyphenCount(svg)).toBe(0);
+      });
+    });
+
+    describe('= mandatory-hyphen separator', () => {
+      it('= separator always shows a hyphen even when space is tight', () => {
+        const svg = renderAretino('c d\nw: rülsz=e', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('rülsz');
+        expect(texts).toContain('e');
+        expect(renderedHyphenCount(svg)).toBe(1);
+      });
+
+      it('= separator shows a hyphen when space is ample', () => {
+        const svg = renderAretino('c d\nw: rülsz=e', { width: 400, noteSpacing: 3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('rülsz');
+        expect(texts).toContain('e');
+        expect(renderedHyphenCount(svg)).toBe(1);
+      });
+
+      it('== separator spans 2 notes and always shows both hyphens', () => {
+        const svg = renderAretino('c d e\nw: rülsz==e', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('rülsz');
+        expect(texts).toContain('e');
+        expect(renderedHyphenCount(svg)).toBe(2);
+      });
+
+      it('= does not apply the Hungarian digraph transform even when tight', () => {
+        const svg = renderAretino('c d\nw: osz=szad', { width: 400, noteSpacing: 0.3 });
+        const texts = lyricTextEntries(svg).map(l => l.text);
+        expect(texts).toContain('osz');
+        expect(texts).toContain('szad');
+        expect(renderedHyphenCount(svg)).toBe(1);
       });
     });
   });

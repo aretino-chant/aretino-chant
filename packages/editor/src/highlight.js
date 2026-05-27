@@ -62,8 +62,12 @@ const aretinoStreamParser = {
                         state.lineMode = 'header';
                     } else {
                         if (line.trim() !== '') state.headerDone = true;
-                        state.lineMode = 'music';
-                        state.musicPrefixPending = /^\s*n:/.test(line);
+                        if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
+                        else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
+                        else {
+                            state.lineMode = 'music';
+                            state.musicPrefixPending = /^\s*n:/.test(line);
+                        }
                     }
                 } else {
                     state.musicPrefixPending = false;

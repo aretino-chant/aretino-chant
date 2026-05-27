@@ -31,6 +31,14 @@ import {
 import { parseHeaderRendererOptions } from './options.js';
 import { renderVerseLines } from './verse.js';
 import {
+    accidentalSymbolAdvance,
+    accidentalAdvance,
+    accidentalListAdvance,
+    keySigAdvance,
+    clearCourtesyAccidentals,
+    annotateCourtesyAccidentals,
+} from './accidentals.js';
+import {
     LITERAL_HYPHEN,
     measureTextWidth,
     measureSegmentsWidth,
@@ -897,115 +905,6 @@ function clefAdvance(ctx, clef) {
     return 0;
 }
 
-function accidentalSymbolAdvance(ctx, symbol) {
-    if (symbol === 'y') return ss(ctx, METRICS.accidentalAdvanceNatural);
-    if (symbol === '#') return ss(ctx, METRICS.accidentalAdvanceSharp);
-    return ss(ctx, METRICS.accidentalAdvanceFlat);
-}
-
-function accidentalAdvance(ctx, acc) {
-    return accidentalSymbolAdvance(ctx, acc.symbol);
-}
-
-function accidentalListAdvance(ctx, accidentals) {
-    if (!accidentals?.length) {
-        return 0;
-    }
-    return accidentals.reduce((sum, acc) => sum + accidentalAdvance(ctx, acc), 0);
-}
-
-function accidentalKey(acc) {
-    return `${pitchToPos(acc)}`;
-}
-
-function noteAccidentalKey(note) {
-    return `${pitchToPos(note)}`;
-}
-
-function copyAccidental(acc) {
-    return { pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: true } : {}) };
-}
-
-function setActiveAccidental(active, acc) {
-    active.set(accidentalKey(acc), copyAccidental(acc));
-}
-
-function clearCourtesyAccidentals(items) {
-    for (const item of items) {
-        if (item.kind === 'ligature') {
-            delete item.leadingCourtesyAccidentals;
-        }
-    }
-}
-
-function courtesySignature(items) {
-    return items
-        .map((item, idx) => {
-            if (item.kind !== 'ligature' || !item.leadingCourtesyAccidentals?.length) {
-                return '';
-            }
-            const keys = item.leadingCourtesyAccidentals
-                .map(acc => `${accidentalKey(acc)}=${acc.symbol}`)
-                .join(',');
-            return `${idx}:${keys}`;
-        })
-        .filter(Boolean)
-        .join('|');
-}
-
-function updateActiveAccidentalsFromLigature(ligature, active, pendingCourtesy = null) {
-    const courtesyByKey = new Map();
-    for (const group of ligature.groups) {
-        for (const note of group) {
-            if (note.accidental) {
-                const key = accidentalKey(note.accidental);
-                pendingCourtesy?.delete(key);
-                setActiveAccidental(active, note.accidental);
-            }
-
-            const noteKey = noteAccidentalKey(note);
-            if (pendingCourtesy?.has(noteKey) && !courtesyByKey.has(noteKey)) {
-                courtesyByKey.set(noteKey, copyAccidental(pendingCourtesy.get(noteKey)));
-                pendingCourtesy.delete(noteKey);
-            }
-        }
-    }
-    return Array.from(courtesyByKey.values());
-}
-
-function annotateCourtesyAccidentals(items, rows) {
-    clearCourtesyAccidentals(items);
-    const active = new Map();
-
-    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
-        const row = rows[rowIdx];
-        const pendingCourtesy = rowIdx === 0 ? new Map() : new Map(active);
-
-        for (const item of row.items) {
-            if (item.kind === 'barline') {
-                active.clear();
-                pendingCourtesy.clear();
-                continue;
-            }
-
-            if (item.kind === 'accidental') {
-                pendingCourtesy.delete(accidentalKey(item));
-                setActiveAccidental(active, item);
-                continue;
-            }
-
-            if (item.kind === 'ligature') {
-                const courtesy = updateActiveAccidentalsFromLigature(item, active, pendingCourtesy);
-                if (courtesy.length > 0) {
-                    item.leadingCourtesyAccidentals = courtesy;
-                }
-            }
-        }
-    }
-
-    return courtesySignature(items);
-}
-
 function layoutRowsWithCourtesyAccidentals(items, ctx, initialClef, staffRightX, drawStartClef, initialKeySig, allowedClefRows = Infinity, firstRowIndentWidth = 0) {
     clearCourtesyAccidentals(items);
     let previousSignature = null;
@@ -1023,11 +922,6 @@ function layoutRowsWithCourtesyAccidentals(items, ctx, initialClef, staffRightX,
     rows = layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, initialKeySig, allowedClefRows, firstRowIndentWidth);
     annotateCourtesyAccidentals(items, rows);
     return rows;
-}
-
-function keySigAdvance(ctx, accidentals) {
-    if (!accidentals?.length) return 0;
-    return accidentals.reduce((sum, acc) => sum + accidentalSymbolAdvance(ctx, acc.symbol), 0);
 }
 
 function measureItem(ctx, item) {

@@ -545,3 +545,58 @@ export function sourceSpanFromPreviewClick(event, preview = event?.currentTarget
 
     return { element: target, srcStart, srcEnd };
 }
+
+export function caretAnchorInfo(svgContainer) {
+    if (!svgContainer) return null;
+
+    const anchor =
+        svgContainer.querySelector(classSelector(DEFAULT_CURSOR_CLASS)) ??
+        svgContainer.querySelector(classSelector(DEFAULT_ACTIVE_CLASS));
+    if (!anchor) return null;
+
+    const isLyric = (() => {
+        if (anchor.classList.contains(DEFAULT_CURSOR_LINE_CLASS)) return false;
+        if (anchor.classList.contains(DEFAULT_MODIFIER_BOX_CLASS)) return false;
+        if (anchor.classList.contains(DEFAULT_CURSOR_BACKGROUND_CLASS)) {
+            const parent = anchor.parentElement;
+            return !parent || !('staffBottom' in (parent.dataset ?? {}));
+        }
+        return !('staffBottom' in (anchor.dataset ?? {}));
+    })();
+
+    let staffTopPx;
+    if (anchor.classList.contains(DEFAULT_MODIFIER_BOX_CLASS)) {
+        staffTopPx = null;
+        const svgEl = anchor.closest?.('svg');
+        if (svgEl) {
+            const tokens = svgEl.querySelectorAll('[data-staff-bottom][data-staff-height]');
+            if (tokens.length) {
+                const r0 = anchor.getBoundingClientRect();
+                const cx = r0.left + r0.width / 2;
+                const cy = r0.top + r0.height / 2;
+                let bestToken = null, bestDist = Infinity;
+                for (const token of tokens) {
+                    const r = token.getBoundingClientRect();
+                    const dist = Math.abs(r.top + r.height / 2 - cy) * 3
+                               + Math.abs(r.left + r.width / 2 - cx);
+                    if (dist < bestDist) { bestDist = dist; bestToken = token; }
+                }
+                if (bestToken) {
+                    const sb = Number(bestToken.dataset.staffBottom);
+                    const sh = Number(bestToken.dataset.staffHeight);
+                    if (Number.isFinite(sb) && Number.isFinite(sh)) {
+                        try {
+                            const ctm = svgEl.getScreenCTM?.();
+                            if (ctm) staffTopPx = ctm.d * (sb - sh * 1.25) + ctm.f;
+                        } catch (_) {}
+                    }
+                }
+            }
+        }
+        if (staffTopPx === null) staffTopPx = anchor.getBoundingClientRect().top;
+    } else {
+        staffTopPx = anchor.getBoundingClientRect().top;
+    }
+
+    return { element: anchor, rect: anchor.getBoundingClientRect(), isLyric, staffTopPx };
+}

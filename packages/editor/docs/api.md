@@ -28,6 +28,7 @@ import {
   AretinoEditor,
   highlightAtCaret,
   sourceSpanFromPreviewClick,
+  caretAnchorInfo,
 } from '@aretino-chant/editor';
 ```
 
@@ -81,6 +82,13 @@ Every attribute has a matching JavaScript property of the same name.
 |---|---|---|
 | `caret` | number | Primary CodeMirror caret offset in the source string. Setting it moves the caret, scrolls it into view, and focuses the editor. |
 | `selection` | object | Primary CodeMirror selection as `{ anchor, head, from, to }`. |
+
+## Editor Methods
+
+| Method | Returns | Description |
+|---|---|---|
+| `focus()` | — | Focuses the CodeMirror editor. |
+| `getSourceHtml(from, to)` | string | Returns syntax-highlighted HTML for the source range `[from, to)`. Multi-line content is flattened to a single line with a space at each line boundary, which is appropriate for inline snippet displays. Returns an empty string when the editor is not yet mounted or `from >= to`. Falls back to HTML-escaped plain text if the DOM range cannot be constructed. |
 
 ## Events
 
@@ -195,6 +203,78 @@ preview.addEventListener('click', event => {
   const span = sourceSpanFromPreviewClick(event, preview);
   if (span) editor.caret = span.srcEnd;
 });
+```
+
+### `caretAnchorInfo(svgContainer)`
+
+Returns positioning information for the cursor marker that `highlightAtSelection()` or `highlightAtCaret()` painted into the preview. Use this to anchor a floating overlay (tooltip, snippet popup, …) over the rendered caret without hardcoding internal class names or SVG data attributes.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `svgContainer` | `Element` | The preview container passed to `highlightAtSelection()` / `highlightAtCaret()`. |
+
+Returns `null` when no cursor marker is present. Otherwise returns:
+
+| Field | Type | Description |
+|---|---|---|
+| `element` | `Element` | The cursor marker SVG element. |
+| `rect` | `DOMRect` | `element.getBoundingClientRect()`. |
+| `isLyric` | boolean | `true` when the cursor is on a lyric token (no staff anchoring). |
+| `staffTopPx` | number | Viewport pixel Y of the top of the staff that contains the cursor. For lyric cursors this equals `rect.top`. For modifier-box cursors (mora, ictus, …) the nearest staff token is used to reconstruct the staff top via the SVG coordinate transform. |
+
+Use `staffTopPx` instead of `rect.top` for consistent overlay placement across all cursor types. For staff notes, lyric tokens, and modifier glyphs the `isLyric` / `staffTopPx` pair is all that is needed to decide whether to position above the staff or below the lyric line:
+
+```js
+import { caretAnchorInfo } from '@aretino-chant/editor';
+
+function positionOverlay(overlay, preview) {
+  const info = caretAnchorInfo(preview);
+  if (!info) { overlay.hidden = true; return; }
+
+  const { rect, isLyric, staffTopPx } = info;
+  const tipH = overlay.getBoundingClientRect().height || 32;
+
+  let y;
+  if (isLyric) {
+    const yBelow = rect.bottom + 8;
+    y = (yBelow + tipH <= window.innerHeight - 4)
+      ? yBelow
+      : Math.max(4, rect.top - tipH - 8);
+  } else {
+    const yAbove = staffTopPx - tipH - 8;
+    y = yAbove >= 4 ? yAbove : staffTopPx + 8;
+  }
+
+  const cx = rect.left + rect.width / 2;
+  const tipW = overlay.getBoundingClientRect().width || 300;
+  const x = Math.max(4, Math.min(cx - tipW / 2, window.innerWidth - tipW - 8));
+
+  overlay.style.left = x + 'px';
+  overlay.style.top  = y + 'px';
+  overlay.hidden = false;
+}
+```
+
+`getSourceHtml()` pairs naturally with `caretAnchorInfo()` for a cursor-context snippet popup:
+
+```js
+editor.addEventListener('selectionchange', () => {
+  const { head } = editor.selection;
+  const len = editor.value.length;
+  const html =
+    editor.getSourceHtml(Math.max(0, head - 10), head) +
+    '<b>|</b>' +
+    editor.getSourceHtml(head, Math.min(len, head + 10));
+
+  snippetEl.innerHTML = html;
+  positionOverlay(snippetEl, preview);
+});
+```
+
+The styled HTML produced by `getSourceHtml()` references CodeMirror's CSS, which lives in the editor's shadow root. To have those styles apply inside your own shadow root, adopt the editor's stylesheets:
+
+```js
+myTooltipShadow.adoptedStyleSheets = Array.from(editor.shadowRoot.adoptedStyleSheets);
 ```
 
 ## CSS Customisation

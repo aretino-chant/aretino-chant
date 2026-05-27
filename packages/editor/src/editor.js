@@ -208,6 +208,30 @@ class AretinoEditor extends HTMLElement {
         this._view?.focus();
     }
 
+    getSourceHtml(from, to) {
+        if (!this._view || from >= to) return '';
+        const view = this._view;
+        try {
+            const a = view.domAtPos(from);
+            const b = view.domAtPos(to);
+            const range = document.createRange();
+            range.setStart(a.node, a.offset);
+            range.setEnd(b.node, b.offset);
+            const frag = range.cloneContents();
+            const wrap = document.createElement('span');
+            wrap.appendChild(frag);
+            wrap.querySelectorAll('.cm-line').forEach(line => {
+                while (line.firstChild) { line.parentNode.insertBefore(line.firstChild, line); }
+                line.parentNode.insertBefore(document.createTextNode(' '), line);
+                line.remove();
+            });
+            return wrap.innerHTML;
+        } catch (_e) {
+            const t = view.state.doc.sliceString(from, to);
+            return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+    }
+
     _handleChange() {
         this._renderPreview();
         this.dispatchEvent(new CustomEvent('change', {

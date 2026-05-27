@@ -28,6 +28,19 @@ import {
     escapeText,
     escapeAttr,
 } from './glyphs.js';
+import { parseHeaderRendererOptions } from './options.js';
+import { renderVerseLines } from './verse.js';
+import {
+    LITERAL_HYPHEN,
+    measureTextWidth,
+    measureSegmentsWidth,
+    sliceSegments,
+    trimSegmentsEnd,
+    parseFormattingToSegments,
+    parseFormattingToSegmentsWithSource,
+    renderSegments,
+    renderUnderlines,
+} from './text.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
 
@@ -42,95 +55,6 @@ const DEFAULT_STAFF_SPACE_MM = 1.75;
 const DEFAULT_PAGE_WIDTH_MM = 180;
 // Default lyric font size in typographic points
 const DEFAULT_LYRIC_SIZE_PT = 10;
-
-// Placeholder emitted by \- escape so the syllable splitter doesn't treat it
-// as a separator. Replaced with '-' in display text and segments.
-const LITERAL_HYPHEN = '';
-
-const HEADER_RENDERER_OPTION_TYPES = {
-    width: 'number',
-    widthMm: 'number',
-    dpi: 'number',
-    zoom: 'number',
-    staffSpaceMm: 'number',
-    lyricSize: 'number',
-    lyricFont: 'string',
-    noteSpacing: 'number',
-    staffGap: 'number',
-    lyricDistance: 'number',
-    hideRepeatClef: 'boolean',
-    canvasHeight: 'number',
-};
-
-function parseBooleanOption(valueText) {
-    const value = valueText.trim().toLowerCase();
-    if (value === 'true' || value === '1' || value === 'yes' || value === 'on') {
-        return true;
-    }
-    if (value === 'false' || value === '0' || value === 'no' || value === 'off') {
-        return false;
-    }
-    return null;
-}
-
-function parseHeaderRendererOption(raw) {
-    const text = String(raw ?? '').trim();
-    const flag = text.match(/^([A-Za-z][A-Za-z0-9_]*)$/);
-    if (flag && HEADER_RENDERER_OPTION_TYPES[flag[1]] === 'boolean') {
-        return [flag[1], true];
-    }
-
-    const m = text.match(/^([A-Za-z][A-Za-z0-9_]*)\s*(?:=|:)\s*(.*)$/);
-    if (!m) {
-        return null;
-    }
-
-    const name = m[1];
-    const valueText = m[2].trim();
-    const type = HEADER_RENDERER_OPTION_TYPES[name];
-    if (!type) {
-        return null;
-    }
-
-    if (type === 'number') {
-        if (valueText === '') {
-            return null;
-        }
-        const value = Number(valueText);
-        return Number.isFinite(value) ? [name, value] : null;
-    }
-
-    if (type === 'boolean') {
-        const value = parseBooleanOption(valueText);
-        return value === null ? null : [name, value];
-    }
-
-    return [name, valueText];
-}
-
-function parseHeaderRendererOptions(ast) {
-    const values = [];
-    if (Array.isArray(ast?.optionHeaders)) {
-        values.push(...ast.optionHeaders);
-    }
-    if (values.length === 0) {
-        const headerOption = ast?.header?.option;
-        if (Array.isArray(headerOption)) {
-            values.push(...headerOption);
-        } else if (typeof headerOption === 'string') {
-            values.push(headerOption);
-        }
-    }
-
-    const parsed = {};
-    for (const raw of values) {
-        const option = parseHeaderRendererOption(raw);
-        if (option) {
-            parsed[option[0]] = option[1];
-        }
-    }
-    return parsed;
-}
 
 function ss(ctx, n) {
     return n * ctx.staffSpace;
@@ -1640,203 +1564,6 @@ function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAc
     return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
 }
 
-let _measureCanvas = null;
-
-function measureTextWidth(text, fontSize, fontFamily, bold = false, italic = false) {
-    if (text === '') {
-        return 0;
-    }
-    if (typeof document !== 'undefined') {
-        try {
-            if (!_measureCanvas) {
-                _measureCanvas = document.createElement('canvas');
-            }
-            const c2d = _measureCanvas.getContext('2d');
-            const style = (italic ? 'italic ' : '') + (bold ? 'bold ' : '');
-            c2d.font = `${style}${fontSize}px ${fontFamily}`;
-            return c2d.measureText(text).width;
-        } catch (_e) {
-            // fall through to estimation
-        }
-    }
-    return text.length * fontSize * 0.55 * (bold ? 1.1 : 1.0) * (italic ? 0.95 : 1.0);
-}
-
-function measureSegmentsWidth(segments, fontSize, fontFamily) {
-    if (!segments || segments.length === 0) return 0;
-    return segments.reduce(
-        (sum, seg) => sum + measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic),
-        0
-    );
-}
-
-// Return a copy of `segments` covering only the characters from `startChar` onwards.
-function sliceSegments(segments, startChar) {
-    const result = [];
-    let pos = 0;
-    for (const seg of segments) {
-        const segEnd = pos + seg.text.length;
-        if (segEnd > startChar) {
-            const cutStart = Math.max(pos, startChar) - pos;
-            result.push({ ...seg, text: seg.text.slice(cutStart) });
-        }
-        pos = segEnd;
-    }
-    return result;
-}
-
-// Return a copy of `segments` covering only the first `length` characters.
-function trimSegmentsEnd(segments, length) {
-    const result = [];
-    let pos = 0;
-    for (const seg of segments) {
-        if (pos >= length) break;
-        const segEnd = pos + seg.text.length;
-        const cutEnd = Math.min(segEnd, length);
-        result.push({ ...seg, text: seg.text.slice(0, cutEnd - pos) });
-        pos = segEnd;
-    }
-    return result;
-}
-
-// "San-ctus, (M.:) Do-mi-nus" → [
-//   {text:'San', hyphenAfter:true,  kind:'note'},
-//   {text:'ctus,', hyphenAfter:false, kind:'note'},
-//   {text:'M.:', hyphenAfter:false, kind:'barline'},
-//   {text:'Do', hyphenAfter:true,  kind:'note'},
-//   {text:'mi', hyphenAfter:true,  kind:'note'},
-//   {text:'nus', hyphenAfter:false, kind:'note'},
-// ]
-// Parenthesized tokens are barline labels: rendered centered under the next
-// barline rather than the next ligature.
-// Parses lyric text with the formatting syntax into an array of segments.
-// Each segment: { text, bold, italic, underline, color }
-// Syntax:
-//   {text}           bold
-//   \sc{text}        small caps
-//   <text>           italic
-//   [text]           underline
-//   \R               responsory sign ℟
-//   \V               versicle sign ℣
-//   \red{text}       red colored text
-//   \color:X{text}   X-colored text (generic)
-//   +                dagger †
-//   ++               double dagger ‡
-//   \X               literal X (escape for any special char)
-function parseFormattingToSegmentsInternal(text, sourceMap = null) {
-    text = String(text ?? '');
-    const withSource = Array.isArray(sourceMap);
-    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null, smallCaps: false }];
-    const segments = [];
-
-    function sourceAt(idx) {
-        const value = sourceMap?.[idx];
-        return Number.isFinite(value) ? value : null;
-    }
-
-    function effectiveState() {
-        const s = { bold: false, italic: false, underline: false, color: null, smallCaps: false };
-        for (const e of stack) {
-            if (e.bold) s.bold = true;
-            if (e.italic) s.italic = true;
-            if (e.underline) s.underline = true;
-            if (e.color !== null) s.color = e.color;
-            if (e.smallCaps) s.smallCaps = true;
-        }
-        return s;
-    }
-
-    function addText(str, offsets = null) {
-        if (!str) return;
-        const st = effectiveState();
-        const sourceOffsets = withSource
-            ? (offsets ?? Array.from({ length: str.length }, () => null))
-            : null;
-        const last = segments[segments.length - 1];
-        if (last && last.bold === st.bold && last.italic === st.italic &&
-                last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps) {
-            last.text += str;
-            if (withSource) {
-                last.sourceOffsets.push(...sourceOffsets);
-            }
-        } else {
-            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color, smallCaps: st.smallCaps };
-            if (withSource) {
-                segment.sourceOffsets = sourceOffsets.slice();
-            }
-            segments.push(segment);
-        }
-    }
-
-    function popType(...types) {
-        for (let k = stack.length - 1; k >= 0; k--) {
-            if (types.includes(stack[k].type)) { stack.splice(k, 1); return; }
-        }
-    }
-
-    let i = 0;
-    while (i < text.length) {
-        if (text[i] === '+' && text[i + 1] === '+') {
-            addText('‡', [sourceAt(i)]); i += 2;
-        } else if (text[i] === '+') {
-            addText('†', [sourceAt(i)]); i++;
-        } else if (text[i] === '\\') {
-            const slashIdx = i;
-            i++;
-            if (i >= text.length) { addText('\\', [sourceAt(slashIdx)]); break; }
-            if (text[i] === 'R') {
-                addText('℟', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
-            } else if (text[i] === 'V') {
-                addText('℣', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
-            } else if (text.slice(i, i + 3) === 'sc{') {
-                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: true });
-                i += 3;
-            } else if (text.slice(i, i + 4) === 'red{') {
-                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red', smallCaps: false });
-                i += 4;
-            } else if (text.slice(i, i + 6) === 'color:') {
-                i += 6;
-                const braceIdx = text.indexOf('{', i);
-                if (braceIdx >= 0) {
-                    const colorName = text.slice(i, braceIdx);
-                    i = braceIdx + 1;
-                    stack.push({ type: 'command', bold: false, italic: false, underline: false, color: colorName });
-                } else {
-                    addText('\\color:', Array.from({ length: 7 }, (_, k) => sourceAt(slashIdx + k)));
-                }
-            } else if (text[i] === '-') {
-                addText(LITERAL_HYPHEN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
-            } else {
-                addText(text[i], [sourceAt(i)]); i++;
-            }
-        } else if (text[i] === '{') {
-            stack.push({ type: 'brace', bold: true, italic: false, underline: false, color: null }); i++;
-        } else if (text[i] === '}') {
-            popType('brace', 'command'); i++;
-        } else if (text[i] === '<') {
-            stack.push({ type: 'angle', bold: false, italic: true, underline: false, color: null }); i++;
-        } else if (text[i] === '>') {
-            popType('angle'); i++;
-        } else if (text[i] === '[') {
-            stack.push({ type: 'bracket', bold: false, italic: false, underline: true, color: null }); i++;
-        } else if (text[i] === ']') {
-            popType('bracket'); i++;
-        } else {
-            addText(text[i], [sourceAt(i)]); i++;
-        }
-    }
-
-    return segments.filter(s => s.text !== '');
-}
-
-function parseFormattingToSegments(text) {
-    return parseFormattingToSegmentsInternal(text);
-}
-
-function parseFormattingToSegmentsWithSource(text, sourceMap) {
-    return parseFormattingToSegmentsInternal(text, sourceMap);
-}
-
 function lyricText(input) {
     return typeof input === 'string' ? input : (input?.text ?? '');
 }
@@ -1878,6 +1605,16 @@ function expandSyllablesForLigatures(notes) {
     return expanded;
 }
 
+// "San-ctus, (M.:) Do-mi-nus" → [
+//   {text:'San', hyphenAfter:true,  kind:'note'},
+//   {text:'ctus,', hyphenAfter:false, kind:'note'},
+//   {text:'M.:', hyphenAfter:false, kind:'barline'},
+//   {text:'Do', hyphenAfter:true,  kind:'note'},
+//   {text:'mi', hyphenAfter:true,  kind:'note'},
+//   {text:'nus', hyphenAfter:false, kind:'note'},
+// ]
+// Parenthesized tokens are barline labels: rendered centered under the next
+// barline rather than the next ligature.
 function parseSyllables(input) {
     const text = lyricText(input);
     const sourceMap = lyricSourceMap(input);
@@ -2037,44 +1774,6 @@ function parseSyllables(input) {
         }
     }
     return result;
-}
-
-// Renders a syllable's segments array as SVG text content (plain or with tspans).
-function renderSegments(segments) {
-    if (!segments || segments.length === 0) return '';
-    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color && !s.smallCaps)) {
-        return escapeText(segments.map(s => s.text).join(''));
-    }
-    return segments.map(s => {
-        let attrs = '';
-        if (s.bold) attrs += ' font-weight="bold"';
-        if (s.italic) attrs += ' font-style="italic"';
-        if (s.color) attrs += ` fill="${escapeAttr(s.color)}"`;
-        if (s.smallCaps) attrs += ' font-variant="small-caps"';
-        if (!attrs) return escapeText(s.text);
-        return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
-    }).join('');
-}
-
-// Returns SVG <line> elements for any underlined segments, drawn below the text
-// baseline. textX/textY match the SVG text element's x/y attributes;
-// textAnchor is 'middle' or 'start'.
-function renderUnderlines(segments, textX, textY, fontSize, fontFamily, textAnchor) {
-    if (!segments || segments.every(s => !s.underline)) return '';
-    const totalW = measureSegmentsWidth(segments, fontSize, fontFamily);
-    let x = textAnchor === 'middle' ? textX - totalW / 2 : textX;
-    const lineY = textY + fontSize * 0.13;
-    const strokeW = Math.max(0.4, fontSize * 0.055);
-    const lines = [];
-    for (const seg of segments) {
-        const w = measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic);
-        if (seg.underline) {
-            const stroke = seg.color || '#000';
-            lines.push(`<line x1="${x}" y1="${lineY}" x2="${x + w}" y2="${lineY}" stroke="${escapeAttr(stroke)}" stroke-width="${strokeW}"/>`);
-        }
-        x += w;
-    }
-    return lines.join('');
 }
 
 // Converts a lyric line with formatting syntax into SVG tspan elements.
@@ -2284,125 +1983,4 @@ function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
     }
     return parts.join('');
-}
-
-// Collapses a flat array of {ch, bold, italic, underline, color} into segments,
-// merging consecutive chars with identical formatting.
-function charsToSegments(chars) {
-    const segs = [];
-    for (const c of chars) {
-        const last = segs[segs.length - 1];
-        if (last && last.bold === c.bold && last.italic === c.italic &&
-                last.underline === c.underline && last.color === c.color) {
-            last.text += c.ch;
-        } else {
-            segs.push({ text: c.ch, bold: c.bold, italic: c.italic, underline: c.underline, color: c.color });
-        }
-    }
-    return segs;
-}
-
-// Wraps one verse input line into display lines that fit within availW.
-// Continuation display lines (after wrapping) start at contX and use contAvailW.
-// Returns an array of { x, segments }.
-function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSize, fontFamily) {
-    // ~ is unbreakable space in verse lines
-    const processed = lineText.replace(/~/g, ' ');
-    const allSegs = parseFormattingToSegments(processed);
-
-    // Build flat per-char array with formatting metadata
-    const chars = [];
-    for (const seg of allSegs) {
-        for (const ch of seg.text) {
-            chars.push({ ch, bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
-        }
-    }
-
-    // Split into words at breakable (regular ASCII) spaces; NBSP stays within words.
-    // Each entry stores the word chars and the original space char that preceded it
-    // (null for the first word), preserving the space's formatting (e.g. underline).
-    const words = [];
-    let wordChars = [];
-    let pendingSpace = null;
-    for (const c of chars) {
-        if (c.ch === ' ') {
-            if (wordChars.length > 0) { words.push({ chars: wordChars, spaceBefore: pendingSpace }); wordChars = []; }
-            pendingSpace = c;
-        } else {
-            wordChars.push(c);
-        }
-    }
-    if (wordChars.length > 0) words.push({ chars: wordChars, spaceBefore: pendingSpace });
-
-    const spaceW = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
-    const displayLines = [];
-    let lineChars = [];
-    let lineWidth = 0;
-    let currentX = firstX;
-    let currentAvailW = firstAvailW;
-
-    for (const word of words) {
-        const wordW = measureSegmentsWidth(charsToSegments(word.chars), fontSize, fontFamily);
-        if (lineChars.length === 0) {
-            lineChars = [...word.chars];
-            lineWidth = wordW;
-        } else if (lineWidth + spaceW + wordW > currentAvailW) {
-            displayLines.push({ x: currentX, segments: charsToSegments(lineChars) });
-            lineChars = [...word.chars];
-            lineWidth = wordW;
-            currentX = contX;
-            currentAvailW = contAvailW;
-        } else {
-            lineChars.push(word.spaceBefore || { ch: ' ', bold: false, italic: false, underline: false, color: null });
-            lineChars.push(...word.chars);
-            lineWidth += spaceW + wordW;
-        }
-    }
-    if (lineChars.length > 0) {
-        displayLines.push({ x: currentX, segments: charsToSegments(lineChars) });
-    }
-    if (displayLines.length === 0) {
-        displayLines.push({ x: currentX, segments: [] });
-    }
-    return displayLines;
-}
-
-// Renders all W: verse blocks for a section.
-// verses: array of string[] (each inner array is one W: block's input lines)
-// Returns { svg, bottom } where bottom is the y-coordinate of the last line's baseline.
-function renderVerseLines(ctx, verses, leftX, rightX, startY) {
-    const fontSize = ctx.lyricSize;
-    const fontFamily = ctx.lyricFont;
-    // 110% line height within a verse, 130% baseline distance between verse blocks.
-    const lineHeight = fontSize * 1.1;
-    const verseGap = fontSize * 1.3;
-    const indentX = leftX + fontSize * 2;
-    const parts = [];
-
-    let y = startY;
-    let firstDisplayLine = true;
-
-    for (let vi = 0; vi < verses.length; vi++) {
-        let firstLineOfVerse = true;
-        const inputLines = verses[vi];
-        for (let li = 0; li < inputLines.length; li++) {
-            const isFirstInput = li === 0;
-            const firstX = isFirstInput ? leftX : indentX;
-            const firstAvailW = rightX - firstX;
-            const contAvailW = rightX - indentX;
-            const displayLines = wrapVerseText(inputLines[li], firstX, indentX, firstAvailW, contAvailW, fontSize, fontFamily);
-            for (const dl of displayLines) {
-                // First display line of a new verse block uses verseGap (130%);
-                // all other lines (within-verse or auto-wrapped) use lineHeight (110%).
-                // The very first display line ever also uses lineHeight to lead from startY.
-                y += (firstLineOfVerse && !firstDisplayLine) ? verseGap : lineHeight;
-                firstLineOfVerse = false;
-                firstDisplayLine = false;
-                parts.push(`<text xml:space="preserve" x="${dl.x}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" fill="#000">${renderSegments(dl.segments)}</text>`);
-                parts.push(renderUnderlines(dl.segments, dl.x, y, fontSize, fontFamily, 'start'));
-            }
-        }
-    }
-
-    return { svg: parts.join(''), bottom: y + fontSize * 0.3 };
 }

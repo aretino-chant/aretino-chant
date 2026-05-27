@@ -10,7 +10,7 @@ import { tags } from '@lezer/highlight';
 //   keyword               → w:/W:/n: prefix, (directives)
 //   string                → base lyric/verse text, "labels" in music lines
 //   atom                  → pitch notes + modifiers
-//   punctuation           → barlines , ; | || ||| :| |: :|: '
+//   punctuation           → barlines , ,2 ; | || ||| :| |: :|: '
 //   operator              → expander *, spacers =, neume separator /
 //   bracket               → neume grouping [ ]
 //   strong                → {bold} content in text contexts
@@ -171,7 +171,8 @@ const aretinoStreamParser = {
             if (stream.peek() === ':') stream.next();
             return 'punctuation';
         }
-        if (ch === ',' || ch === ';') { stream.next(); return 'punctuation'; }
+        if (ch === ',') { stream.next(); if (stream.peek() === '2') stream.next(); return 'punctuation'; }
+        if (ch === ';') { stream.next(); return 'punctuation'; }
         if (ch === "'") { stream.next(); return 'punctuation'; }
         if (/[a-nA-N]/.test(ch)) {
             stream.next();

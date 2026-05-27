@@ -64,8 +64,8 @@ Combined modifiers:
 ## Barlines
 
 ```aretino
-(g2) g h , g h ; g h | g h || g h ||| g h :| g h |: :|:
-w: (,) (;) (|) (||) (|||) (:|) (|:) (:|:)
+(g2) g h , g h ; g h | g h || g h ||| g h :| g h |: :|: ,2
+w: (,) (;) (|) (||) (|||) (:|) (|:) (:|:) (,2)
 ```
 
 Dotted barline and invisible barline:

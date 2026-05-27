@@ -26,7 +26,7 @@
 //
 // Token shapes:
 //   { type: 'directive', value: string }              — anything inside ( )
-//   { type: 'barline', kind: ',' | ';' | '|' | '|0' | '||' | ':|' | '|||' | "'" }
+//   { type: 'barline', kind: ',' | ',2' | ';' | '|' | '|0' | '||' | ':|' | '|||' | "'" }
 //   { type: 'expander' }                              — `*`
 //   { type: 'ligature', groups: Note[][] }            — one or more note groups; groups are separated by '/' cuts within the neume
 //   { type: 'inline-directive', key: string, value: string }  — %[ key: value %] inside a music line
@@ -422,7 +422,7 @@ function tokenizeMusicLine(line, lineStart = 0) {
             const inner = value.trim();
             const srcStart = lineStart + tokStart;
             const srcEnd = lineStart + i;
-            const bareBar = inner.match(/^([,;']|:\|:|:\||\|:|\|0|\|\?|\|{1,3})$/);
+            const bareBar = inner.match(/^(,2|[,;']|:\|:|:\||\|:|\|0|\|\?|\|{1,3})$/);
             if (bareBar) {
                 tokens.push({ type: 'barline', kind: bareBar[1], srcStart, srcEnd });
             } else if (/^sp([0-9]*\.?[0-9]*)$/i.test(inner)) {
@@ -476,6 +476,11 @@ function tokenizeMusicLine(line, lineStart = 0) {
                 tokens.push({ type: 'barline', kind, srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + count });
                 i += count;
             }
+            continue;
+        }
+        if (ch === ',' && line[i + 1] === '2') {
+            tokens.push({ type: 'barline', kind: ',2', srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 2 });
+            i += 2;
             continue;
         }
         if (ch === ',' || ch === ';') {

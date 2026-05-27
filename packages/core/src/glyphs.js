@@ -556,6 +556,9 @@ export function drawBarline(ctx, kind, x, staffBottomY) {
         const y1 = top5 - ctx.staffSpace * 0.5;
         const y2 = top5 + ctx.staffSpace * 0.5;
         svg = `<line x1="${lineX}" y1="${y1}" x2="${lineX}" y2="${y2}" stroke="#000" stroke-width="${sw}"/>`;
+    } else if (kind === ',2') {
+        // Like ',' but spans from the 5th (top) staff line down to the 3rd (middle) line.
+        svg = `<line x1="${lineX}" y1="${top5}" x2="${lineX}" y2="${top3}" stroke="#000" stroke-width="${sw}"/>`;
     } else if (kind === ';') {
         const y1 = top3 + ctx.staffSpace * 1.5;
         const y2 = top3 - ctx.staffSpace * 1.5;

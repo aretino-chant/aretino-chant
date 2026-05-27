@@ -242,6 +242,7 @@ Double (or more) hyphens assign multiple note groups to one syllable.
 (g2) cd ef gA gf ef ed c. (z)
 w: Al- - le -lu - - - ia.
 ```
+
 ---
 
 ## Text and formatting
@@ -250,6 +251,12 @@ w: Al- - le -lu - - - ia.
 (g2) c d e f g | h
 w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \color:green{green}
 ```
+
+```aretino
+(g2) c d e f | g
+w: normal \small{small text} normal \large{large text} normal
+```
+
 ---
 
 ## Labels

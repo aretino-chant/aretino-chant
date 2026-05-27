@@ -11,17 +11,18 @@ import {
     renderUnderlines,
 } from './text.js';
 
-// Collapses a flat array of {ch, bold, italic, underline, color} into segments,
+// Collapses a flat array of formatted chars into segments,
 // merging consecutive chars with identical formatting.
 function charsToSegments(chars) {
     const segs = [];
     for (const c of chars) {
         const last = segs[segs.length - 1];
         if (last && last.bold === c.bold && last.italic === c.italic &&
-                last.underline === c.underline && last.color === c.color) {
+                last.underline === c.underline && last.color === c.color &&
+                last.smallCaps === c.smallCaps && last.small === c.small && last.large === c.large) {
             last.text += c.ch;
         } else {
-            segs.push({ text: c.ch, bold: c.bold, italic: c.italic, underline: c.underline, color: c.color });
+            segs.push({ text: c.ch, bold: c.bold, italic: c.italic, underline: c.underline, color: c.color, smallCaps: c.smallCaps, small: c.small, large: c.large });
         }
     }
     return segs;
@@ -39,7 +40,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
     const chars = [];
     for (const seg of allSegs) {
         for (const ch of seg.text) {
-            chars.push({ ch, bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color });
+            chars.push({ ch, bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color, smallCaps: seg.smallCaps, small: seg.small, large: seg.large });
         }
     }
 
@@ -78,7 +79,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
             currentX = contX;
             currentAvailW = contAvailW;
         } else {
-            lineChars.push(word.spaceBefore || { ch: ' ', bold: false, italic: false, underline: false, color: null });
+                lineChars.push(word.spaceBefore || { ch: ' ', bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false });
             lineChars.push(...word.chars);
             lineWidth += spaceW + wordW;
         }

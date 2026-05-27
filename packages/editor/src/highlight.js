@@ -27,11 +27,21 @@ function tokenInTextSpan(stream, state) {
     if (state.textSpan === 'bold'      && ch === '}') { stream.next(); state.textSpan = null; return 'processingInstruction'; }
     if (state.textSpan === 'italic'    && ch === '>') { stream.next(); state.textSpan = null; return 'processingInstruction'; }
     if (state.textSpan === 'underline' && ch === ']') { stream.next(); state.textSpan = null; return 'processingInstruction'; }
+    if (state.textSpan === 'command'   && ch === '}') { stream.next(); state.textSpan = null; return 'processingInstruction'; }
 
     // Content inside a span (eat until the closing delimiter)
     if (state.textSpan === 'bold')      { stream.eatWhile(c => c !== '}'); return 'strong'; }
     if (state.textSpan === 'italic')    { stream.eatWhile(c => c !== '>'); return 'emphasis'; }
     if (state.textSpan === 'underline') { stream.eatWhile(c => c !== ']'); return 'link'; }
+    if (state.textSpan === 'command')   { stream.eatWhile(c => c !== '}'); return 'string'; }
+
+    // \command{ — open a command span (e.g. \small{, \large{, \sc{, \red{)
+    if (ch === '\\') {
+        const m = /^\\[a-zA-Z]+\{/.exec(stream.string.slice(stream.pos));
+        if (m) { for (let k = 0; k < m[0].length; k++) stream.next(); state.textSpan = 'command'; return 'processingInstruction'; }
+        stream.next(); // eat \ as plain text (e.g. \R, \V, \-, \{)
+        return 'string';
+    }
 
     // Open a new span
     if (ch === '{') { stream.next(); state.textSpan = 'bold';      return 'processingInstruction'; }
@@ -39,7 +49,7 @@ function tokenInTextSpan(stream, state) {
     if (ch === '[') { stream.next(); state.textSpan = 'underline'; return 'processingInstruction'; }
 
     // Plain text — eat until the next formatting marker (or end of line)
-    stream.eatWhile(c => c !== '{' && c !== '<' && c !== '[');
+    stream.eatWhile(c => c !== '{' && c !== '<' && c !== '[' && c !== '\\');
     return 'string';
 }
 

@@ -30,10 +30,16 @@ export function measureTextWidth(text, fontSize, fontFamily, bold = false, itali
     return text.length * fontSize * 0.55 * (bold ? 1.1 : 1.0) * (italic ? 0.95 : 1.0);
 }
 
+function segFontSize(seg, fontSize) {
+    if (seg.large) return fontSize * 4 / 3;
+    if (seg.small) return fontSize * 0.75;
+    return fontSize;
+}
+
 export function measureSegmentsWidth(segments, fontSize, fontFamily) {
     if (!segments || segments.length === 0) return 0;
     return segments.reduce(
-        (sum, seg) => sum + measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic),
+        (sum, seg) => sum + measureTextWidth(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic),
         0
     );
 }
@@ -76,6 +82,8 @@ export function trimSegmentsEnd(segments, length) {
 //   [text]           underline
 //   \R               responsory sign ℟
 //   \V               versicle sign ℣
+//   \small{text}     75% font size
+//   \large{text}     133% font size
 //   \red{text}       red colored text
 //   \color:X{text}   X-colored text (generic)
 //   +                dagger †
@@ -84,7 +92,7 @@ export function trimSegmentsEnd(segments, length) {
 function parseFormattingToSegmentsInternal(text, sourceMap = null) {
     text = String(text ?? '');
     const withSource = Array.isArray(sourceMap);
-    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null, smallCaps: false }];
+    const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false }];
     const segments = [];
 
     function sourceAt(idx) {
@@ -93,13 +101,15 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
     }
 
     function effectiveState() {
-        const s = { bold: false, italic: false, underline: false, color: null, smallCaps: false };
+        const s = { bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false };
         for (const e of stack) {
             if (e.bold) s.bold = true;
             if (e.italic) s.italic = true;
             if (e.underline) s.underline = true;
             if (e.color !== null) s.color = e.color;
             if (e.smallCaps) s.smallCaps = true;
+            if (e.small) s.small = true;
+            if (e.large) s.large = true;
         }
         return s;
     }
@@ -112,13 +122,14 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             : null;
         const last = segments[segments.length - 1];
         if (last && last.bold === st.bold && last.italic === st.italic &&
-                last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps) {
+                last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps &&
+                last.small === st.small && last.large === st.large) {
             last.text += str;
             if (withSource) {
                 last.sourceOffsets.push(...sourceOffsets);
             }
         } else {
-            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color, smallCaps: st.smallCaps };
+            const segment = { text: str, bold: st.bold, italic: st.italic, underline: st.underline, color: st.color, smallCaps: st.smallCaps, small: st.small, large: st.large };
             if (withSource) {
                 segment.sourceOffsets = sourceOffsets.slice();
             }
@@ -147,10 +158,16 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             } else if (text[i] === 'V') {
                 addText('℣', [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text.slice(i, i + 3) === 'sc{') {
-                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: true });
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: true, small: false, large: false });
                 i += 3;
+            } else if (text.slice(i, i + 6) === 'small{') {
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: false, small: true, large: false });
+                i += 6;
+            } else if (text.slice(i, i + 6) === 'large{') {
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: true });
+                i += 6;
             } else if (text.slice(i, i + 4) === 'red{') {
-                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red', smallCaps: false });
+                stack.push({ type: 'command', bold: false, italic: false, underline: false, color: 'red', smallCaps: false, small: false, large: false });
                 i += 4;
             } else if (text.slice(i, i + 6) === 'color:') {
                 i += 6;
@@ -158,7 +175,7 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 if (braceIdx >= 0) {
                     const colorName = text.slice(i, braceIdx);
                     i = braceIdx + 1;
-                    stack.push({ type: 'command', bold: false, italic: false, underline: false, color: colorName });
+                    stack.push({ type: 'command', bold: false, italic: false, underline: false, color: colorName, smallCaps: false, small: false, large: false });
                 } else {
                     addText('\\color:', Array.from({ length: 7 }, (_, k) => sourceAt(slashIdx + k)));
                 }
@@ -197,7 +214,7 @@ export function parseFormattingToSegmentsWithSource(text, sourceMap) {
 
 export function renderSegments(segments) {
     if (!segments || segments.length === 0) return '';
-    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color && !s.smallCaps)) {
+    if (segments.every(s => !s.bold && !s.italic && !s.underline && !s.color && !s.smallCaps && !s.small && !s.large)) {
         return escapeText(segments.map(s => s.text).join(''));
     }
     return segments.map(s => {
@@ -206,6 +223,8 @@ export function renderSegments(segments) {
         if (s.italic) attrs += ' font-style="italic"';
         if (s.color) attrs += ` fill="${escapeAttr(s.color)}"`;
         if (s.smallCaps) attrs += ' font-variant="small-caps"';
+        if (s.small && !s.large) attrs += ' style="font-size:0.75em"';
+        if (s.large)             attrs += ' style="font-size:1.3333333em"';
         if (!attrs) return escapeText(s.text);
         return `<tspan${attrs}>${escapeText(s.text)}</tspan>`;
     }).join('');
@@ -222,7 +241,7 @@ export function renderUnderlines(segments, textX, textY, fontSize, fontFamily, t
     const strokeW = Math.max(0.4, fontSize * 0.055);
     const lines = [];
     for (const seg of segments) {
-        const w = measureTextWidth(seg.text, fontSize, fontFamily, seg.bold, seg.italic);
+        const w = measureTextWidth(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
         if (seg.underline) {
             const stroke = seg.color || '#000';
             lines.push(`<line x1="${x}" y1="${lineY}" x2="${x + w}" y2="${lineY}" stroke="${escapeAttr(stroke)}" stroke-width="${strokeW}"/>`);

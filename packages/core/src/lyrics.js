@@ -82,7 +82,7 @@ export function parseSyllables(input) {
         for (let ci = 0; ci < seg.text.length; ci++) {
             const c = seg.text[ci];
             cleaned += c;
-            formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color, smallCaps: seg.smallCaps });
+            formatMap.push({ bold: seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color, smallCaps: seg.smallCaps, small: seg.small, large: seg.large });
             cleanedSourceMap.push(seg.sourceOffsets?.[ci] ?? null);
         }
     }
@@ -96,17 +96,17 @@ export function parseSyllables(input) {
         const segments = [];
         if (start >= end) return segments;
         let runStart = start;
-        let f0 = formatMap[start] || { bold: false, italic: false, underline: false, color: null, smallCaps: false };
-        let runBold = f0.bold, runItalic = f0.italic, runUnderline = f0.underline, runColor = f0.color, runSmallCaps = f0.smallCaps;
+        let f0 = formatMap[start] || { bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false };
+        let runBold = f0.bold, runItalic = f0.italic, runUnderline = f0.underline, runColor = f0.color, runSmallCaps = f0.smallCaps, runSmall = f0.small, runLarge = f0.large;
         for (let p = start + 1; p < end; p++) {
-            const f = formatMap[p] || { bold: false, italic: false, underline: false, color: null, smallCaps: false };
-            if (f.bold !== runBold || f.italic !== runItalic || f.underline !== runUnderline || f.color !== runColor || f.smallCaps !== runSmallCaps) {
-                segments.push({ text: displayFn(cleaned.slice(runStart, p)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps });
+            const f = formatMap[p] || { bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false };
+            if (f.bold !== runBold || f.italic !== runItalic || f.underline !== runUnderline || f.color !== runColor || f.smallCaps !== runSmallCaps || f.small !== runSmall || f.large !== runLarge) {
+                segments.push({ text: displayFn(cleaned.slice(runStart, p)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps, small: runSmall, large: runLarge });
                 runStart = p;
-                runBold = f.bold; runItalic = f.italic; runUnderline = f.underline; runColor = f.color; runSmallCaps = f.smallCaps;
+                runBold = f.bold; runItalic = f.italic; runUnderline = f.underline; runColor = f.color; runSmallCaps = f.smallCaps; runSmall = f.small; runLarge = f.large;
             }
         }
-        segments.push({ text: displayFn(cleaned.slice(runStart, end)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps });
+        segments.push({ text: displayFn(cleaned.slice(runStart, end)), bold: runBold, italic: runItalic, underline: runUnderline, color: runColor, smallCaps: runSmallCaps, small: runSmall, large: runLarge });
         return segments;
     }
 
@@ -279,7 +279,7 @@ function modifySegsSuffix(segs, removeCount, appendStr) {
             result[result.length - 1] = { ...last, text: last.text + appendStr };
         } else {
             const orig = segs[segs.length - 1] || {};
-            result.push({ text: appendStr, bold: orig.bold || false, italic: orig.italic || false, underline: orig.underline || false, color: orig.color || null });
+            result.push({ text: appendStr, bold: orig.bold || false, italic: orig.italic || false, underline: orig.underline || false, color: orig.color || null, smallCaps: orig.smallCaps || false, small: orig.small || false, large: orig.large || false });
         }
     }
     return result;

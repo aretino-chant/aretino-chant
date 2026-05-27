@@ -200,6 +200,13 @@ describe('renderAretino', () => {
       expect(xWithPunct).toBeGreaterThan(xNoPunct);
     });
 
+    it('preserves small and large formatting in aligned lyric syllables', () => {
+      const svg = renderAretino('c d e\nw: First \\small{Second} \\large{Third}', { width: 600 });
+
+      expect(svg).toContain('<tspan style="font-size:0.75em">Second</tspan>');
+      expect(svg).toContain('<tspan style="font-size:1.3333333em">Third</tspan>');
+    });
+
     describe('Hungarian double consonant rule', () => {
       // noteSpacing:0.3 puts notes so close together that the inter-syllable hyphen
       // has no room and is collapsed.  noteSpacing:3 spreads notes wide enough that
@@ -355,6 +362,15 @@ describe('renderAretino', () => {
         srcStart: source.indexOf('ri'),
         srcEnd: source.indexOf('ri') + 2,
       }));
+    });
+  });
+
+  describe('verse lines', () => {
+    it('preserves small and large formatting in wrapped verse text', () => {
+      const svg = renderAretino('c\nW: First \\small{Second} \\large{Third}', { width: 600 });
+
+      expect(svg).toContain('<tspan style="font-size:0.75em">Second</tspan>');
+      expect(svg).toContain('<tspan style="font-size:1.3333333em">Third</tspan>');
     });
   });
 

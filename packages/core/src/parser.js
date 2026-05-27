@@ -14,7 +14,6 @@
 //         | { type: 'verse', lines: string[] }
 //         | { type: 'blank' }
 //         | { type: 'preprocessor', key: string, value: string }  — %[ key: value %] as a standalone body line
-//         | { type: 'pagebreak', id: string }                      — %pagebreakXXX body directive
 //     >
 // }
 //
@@ -22,7 +21,6 @@
 //   % ...        — line comment: rest of line is ignored (in music lines)
 //   %[ ... %]    — block comment: content ignored (single or multi-line)
 //   %[ k: v %]   — preprocessor directive: emitted as 'preprocessor' / 'inline-directive'
-//   %pagebreakID — page-break directive: emitted as { type: 'pagebreak', id }
 //
 // Token shapes:
 //   { type: 'directive', value: string }              — anything inside ( )
@@ -179,12 +177,6 @@ export function parseAretino(source) {
                 } else {
                     inBlockComment = true;
                 }
-            } else {
-                const pbm = raw.match(/^%pagebreak(\S+)/i);
-                if (pbm) {
-                    result.push({ type: 'pagebreak', id: pbm[1] });
-                }
-                // else: plain % comment line — skip silently
             }
             lastWasLyrics = false;
             implicitLyricContinuationIdx = null;

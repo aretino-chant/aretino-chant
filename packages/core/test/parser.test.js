@@ -143,18 +143,6 @@ describe('inline comments and preprocessor directives', () => {
     expect(ast.lines.some(l => l.type === 'preprocessor')).toBe(false);
   });
 
-  it('emits pagebreak node for %pagebreakXXX', () => {
-    const ast = parseAretino('%pagebreak169');
-    expect(ast.lines[0].type).toBe('pagebreak');
-    expect(ast.lines[0].id).toBe('169');
-  });
-
-  it('ignores trailing text after %pagebreakID', () => {
-    const ast = parseAretino('%pagebreak169 - for projector');
-    expect(ast.lines[0].type).toBe('pagebreak');
-    expect(ast.lines[0].id).toBe('169');
-  });
-
   it('skips plain % comment lines in the body', () => {
     const ast = parseAretino('fga\n% just a comment\nhij');
     const musicLines = ast.lines.filter(l => l.type === 'music');

@@ -4,6 +4,7 @@
 
 import { StreamLanguage, LanguageSupport, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { aretinoComplete } from './autocomplete.js';
 
 // Token types (CM5 legacy names → lezer highlight tags via StreamLanguage):
 //   meta                  → %key: header key part, %% separator
@@ -228,5 +229,6 @@ export function aretino() {
     return new LanguageSupport(aretinoLanguage, [
         syntaxHighlighting(aretinoHighlightStyle),
         aretinoLanguage.data.of({ closeBrackets: { brackets: ['(', '[', '{', '"', '`'] } }),
+        aretinoLanguage.data.of({ autocomplete: aretinoComplete }),
     ]);
 }

@@ -171,7 +171,7 @@ export function renderAretino(source, options = {}) {
     let y = ss(ctx, METRICS.titleTopPadding);
     let contentBottom = y;
 
-    if (ast.header && Object.keys(ast.header).length) {
+    if (ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
         const title = ast.header['title'];
         const subtitle = ast.header['subtitle'];
         const titleFontSize = ctx.lyricSize * 1.2;

@@ -422,7 +422,7 @@ function tokenizeMusicLine(line, lineStart = 0) {
             const inner = value.trim();
             const srcStart = lineStart + tokStart;
             const srcEnd = lineStart + i;
-            const bareBar = inner.match(/^(,2|[,;']|:\|:|:\||\|:|\|0|\|\?|\|{1,3})$/);
+            const bareBar = inner.match(/^(,2|[,;'~]|:\|:|:\||\|:|\|0|\|\?|\|{1,3})$/);
             if (bareBar) {
                 tokens.push({ type: 'barline', kind: bareBar[1], srcStart, srcEnd });
             } else if (/^sp([0-9]*\.?[0-9]*)$/i.test(inner)) {
@@ -490,6 +490,11 @@ function tokenizeMusicLine(line, lineStart = 0) {
         }
         if (ch === "'") {
             tokens.push({ type: 'barline', kind: "'", srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 1 });
+            i++;
+            continue;
+        }
+        if (ch === '~') {
+            tokens.push({ type: 'barline', kind: '~', srcStart: lineStart + tokStart, srcEnd: lineStart + tokStart + 1 });
             i++;
             continue;
         }

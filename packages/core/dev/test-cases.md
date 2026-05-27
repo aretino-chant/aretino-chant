@@ -81,6 +81,13 @@ Breath mark:
 (g2) g h ' g h
 ```
 
+Plica barline (positioned at the last note's pitch):
+
+```aretino
+(g2) g h ~ g i ~ h f ~ g
+w:   (g) (i) (h)
+```
+
 ---
 
 ## Ligatures (Neumes)

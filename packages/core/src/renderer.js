@@ -9,11 +9,13 @@ import {
     drawClef,
     drawAccidental,
     drawBarline,
+    drawLiquescens,
     drawParenthesis,
     drawOverbrace,
     drawOverarc,
     drawOverline,
     escapeAttr,
+    pitchY,
 } from './glyphs.js';
 import { parseHeaderRendererOptions } from './options.js';
 import { renderVerseLines } from './verse.js';
@@ -423,6 +425,7 @@ export function renderAretino(source, options = {}) {
         let ligOffset = 0;
         let globalBarlineIdx = 0;
         let sectionContentBottom = y;
+        let lastNote = null;
         // parenState is kept across rows so that a parenthesised group that spans
         // a line break still gets rendered (opening arc on each row, closing arc
         // on each row where the group continues or ends).
@@ -558,14 +561,23 @@ export function renderAretino(source, options = {}) {
                     const extra = it.barlineExtra || 0;
                     const postExtra = it.barlinePostExtra || 0;
                     cursorX += extra / 2;
-                    const b = drawBarline(ctx, it.value, cursorX, staffBottomY);
-                    parts.push(wrapSrc(it, b.svg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight));
+                    let barlineSvg, barlineAdvance;
+                    if (it.value === '~') {
+                        const cy = lastNote ? pitchY(ctx, lastNote, staffBottomY) : staffBottomY - 2 * ctx.staffSpace;
+                        barlineSvg = drawLiquescens(ctx, cursorX + ss(ctx, METRICS.barlineOffsetX), cy, 'down');
+                        barlineAdvance = ss(ctx, METRICS.barlineAdvance);
+                    } else {
+                        const b = drawBarline(ctx, it.value, cursorX, staffBottomY);
+                        barlineSvg = b.svg;
+                        barlineAdvance = b.advance;
+                    }
+                    parts.push(wrapSrc(it, barlineSvg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight));
                     const offsetX = (it.value === '||' || it.value === ':|' || it.value === '|:' || it.value === ':|:' || it.value === '|||')
                         ? (METRICS.barlineOffsetX + METRICS.barlineDoubleSecondOffsetX) / 2
                         : METRICS.barlineOffsetX;
                     rowBarlines.push({ centerX: cursorX + ss(ctx, offsetX), value: it.value, globalIdx: globalBarlineIdx });
                     globalBarlineIdx++;
-                    cursorX += b.advance + ss(ctx, METRICS.barlinePostGap) + extra / 2 + postExtra;
+                    cursorX += barlineAdvance + ss(ctx, METRICS.barlinePostGap) + extra / 2 + postExtra;
                 } else if (it.kind === 'spacer') {
                     cursorX += ss(ctx, METRICS.spacerAdvance) * it.multiplier;
                 } else if (it.kind === 'paren-open') {
@@ -600,6 +612,8 @@ export function renderAretino(source, options = {}) {
                         braceState = null;
                     }
                 } else if (it.kind === 'ligature') {
+                    const lastGroup = it.groups[it.groups.length - 1];
+                    lastNote = lastGroup[lastGroup.length - 1];
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? [], it.leadingCourtesyAccidentals ?? []);
                     let ligSvg = r.svg;
                     if (it.label != null && r.minY < Infinity) {

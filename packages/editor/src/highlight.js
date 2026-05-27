@@ -184,6 +184,7 @@ const aretinoStreamParser = {
         if (ch === ',') { stream.next(); if (stream.peek() === '2') stream.next(); return 'punctuation'; }
         if (ch === ';') { stream.next(); return 'punctuation'; }
         if (ch === "'") { stream.next(); return 'punctuation'; }
+        if (ch === '~') { stream.next(); return 'punctuation'; }
         if (/[a-nA-N]/.test(ch)) {
             stream.next();
             stream.eatWhile(/['._\-~wts]/);

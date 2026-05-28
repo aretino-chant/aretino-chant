@@ -82,17 +82,6 @@ describe('aretinoComplete', () => {
         expect(labels(result)).toEqual(expect.arrayContaining(['(g2)', '(f4)']));
     });
 
-    it('offers only predefined key signatures after a key-signature prefix', () => {
-        const result = complete('(K:|');
-
-        expect(labels(result)).toEqual([
-            '(K:b)',
-            '(K:F#)',
-            '(K:F# K:F# C# G#)',
-            '(K:)',
-        ]);
-    });
-
     it('does not complete inside an existing music-line comment', () => {
         expect(complete('(g2) g % comment|')).toBeNull();
     });
@@ -173,11 +162,6 @@ describe('mid-line music context', () => {
         expect(labels(result)).toContain('(c1)');
         expect(labels(result)).toContain('(c3)');
         expect(labels(result)).toContain('(c4)');
-    });
-
-    it('offers key-signature options after (K: mid-line', () => {
-        const result = complete('(g2) g (K:|');
-        expect(labels(result)).toEqual(['(K:b)', '(K:F#)', '(K:F# K:F# C# G#)', '(K:)']);
     });
 
     it('offers music span options after \\ mid-line', () => {

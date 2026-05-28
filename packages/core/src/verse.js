@@ -31,7 +31,7 @@ function charsToSegments(chars) {
 // Wraps one verse input line into display lines that fit within availW.
 // Continuation display lines (after wrapping) start at contX and use contAvailW.
 // Returns an array of { x, segments }.
-function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSize, fontFamily) {
+function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSize, fontFamily, measureFn = measureTextWidth) {
     // ~ is unbreakable space in verse lines
     const processed = lineText.replace(/~/g, ' ');
     const allSegs = parseFormattingToSegments(processed);
@@ -60,7 +60,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
     }
     if (wordChars.length > 0) words.push({ chars: wordChars, spaceBefore: pendingSpace });
 
-    const spaceW = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
+    const spaceW = measureFn(' ', fontSize, fontFamily) || fontSize * 0.25;
     const displayLines = [];
     let lineChars = [];
     let lineWidth = 0;
@@ -68,7 +68,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
     let currentAvailW = firstAvailW;
 
     for (const word of words) {
-        const wordW = measureSegmentsWidth(charsToSegments(word.chars), fontSize, fontFamily);
+        const wordW = measureSegmentsWidth(charsToSegments(word.chars), fontSize, fontFamily, measureFn);
         if (lineChars.length === 0) {
             lineChars = [...word.chars];
             lineWidth = wordW;
@@ -99,6 +99,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
 export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
     const fontSize = ctx.lyricSize;
     const fontFamily = ctx.lyricFont;
+    const measureFn = ctx.measureText ?? measureTextWidth;
     // 110% line height within a verse, 130% baseline distance between verse blocks.
     const lineHeight = fontSize * 1.1;
     const verseGap = fontSize * 1.3;
@@ -116,7 +117,7 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
             const firstX = isFirstInput ? leftX : indentX;
             const firstAvailW = rightX - firstX;
             const contAvailW = rightX - indentX;
-            const displayLines = wrapVerseText(inputLines[li], firstX, indentX, firstAvailW, contAvailW, fontSize, fontFamily);
+            const displayLines = wrapVerseText(inputLines[li], firstX, indentX, firstAvailW, contAvailW, fontSize, fontFamily, measureFn);
             for (const dl of displayLines) {
                 // First display line of a new verse block uses verseGap (130%);
                 // all other lines (within-verse or auto-wrapped) use lineHeight (110%).
@@ -125,7 +126,7 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                 firstLineOfVerse = false;
                 firstDisplayLine = false;
                 parts.push(`<text xml:space="preserve" x="${dl.x}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" fill="#000">${renderSegments(dl.segments)}</text>`);
-                parts.push(renderUnderlines(dl.segments, dl.x, y, fontSize, fontFamily, 'start'));
+                parts.push(renderUnderlines(dl.segments, dl.x, y, fontSize, fontFamily, 'start', measureFn));
             }
         }
     }

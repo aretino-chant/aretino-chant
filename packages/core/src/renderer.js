@@ -146,6 +146,7 @@ export function renderAretino(source, options = {}) {
     // logical units via dpi. Set independently of staff space and layout width.
     const lyricPt = Math.max(1, options.lyricSize ?? DEFAULT_LYRIC_SIZE_PT);
     ctx.lyricSize = lyricPt * dpi / 72;
+    ctx.measureText = options.measureText ?? measureTextWidth;
     const lyricLineHeight = ctx.lyricSize * 1.2;
 
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
@@ -155,7 +156,7 @@ export function renderAretino(source, options = {}) {
     let indentWidth = 0;
     if (hasIndent) {
         const maxTextW = indentLines.length > 0
-            ? Math.max(...indentLines.map(l => measureSegmentsWidth(parseFormattingToSegments(l), indentFontSize, lyricFont)))
+            ? Math.max(...indentLines.map(l => measureSegmentsWidth(parseFormattingToSegments(l), indentFontSize, lyricFont, ctx.measureText)))
             : 0;
         indentWidth = Math.max(maxTextW + ctx.staffSpace * 1.5, ctx.staffSpace * 2);
     }
@@ -274,7 +275,7 @@ export function renderAretino(source, options = {}) {
             // Inter-word gap reserved between neumes must match the gap the
             // lyric layout actually renders (a real space character), so the
             // note spacing follows the widened word break.
-            const minGap = measureTextWidth(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
+            const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
             const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
             const ligInfo = [];
             let li = 0;
@@ -292,9 +293,9 @@ export function renderAretino(source, options = {}) {
                 let maxCurrRight = 0;
                 for (const notes of verseNotes) {
                     if (li < notes.length) {
-                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont);
+                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont, ctx.measureText);
                         const suffixW = notes[li].suffixSegments
-                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.lyricFont)
+                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.lyricFont, ctx.measureText)
                             : 0;
                         if (alignW > maxSylW) maxSylW = alignW;
                         const rightEdge = isCentered ? halfNoteW + alignW / 2 + suffixW : alignW + suffixW;
@@ -377,7 +378,7 @@ export function renderAretino(source, options = {}) {
         // on each side, i.e. extra >= maxW + 2*sideGap, where sideGap is one
         // lyric space width.
         if (hasBarlineLabels) {
-            const lyricSpace = measureTextWidth(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
+            const lyricSpace = ctx.measureText(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
             let bi = 0;
             for (const it of items) {
                 if (it.kind !== 'barline') {
@@ -387,7 +388,7 @@ export function renderAretino(source, options = {}) {
                 for (const barlineMap of verseBarlineMaps) {
                     const lbl = barlineMap.get(bi);
                     if (lbl) {
-                        const w = measureSegmentsWidth(lbl.segments, ctx.lyricSize, ctx.lyricFont);
+                        const w = measureSegmentsWidth(lbl.segments, ctx.lyricSize, ctx.lyricFont, ctx.measureText);
                         if (w > maxW) { maxW = w; }
                     }
                 }

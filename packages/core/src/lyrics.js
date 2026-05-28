@@ -252,7 +252,7 @@ export function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         const cx = barlines[i].centerX;
         const label = labels[i];
         const labelSvg = `<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`
-            + renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle');
+            + renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle', ctx.measureText ?? measureTextWidth);
         parts.push(wrapSrc(label, labelSvg, 'aretino-lyric aretino-barline-label'));
     }
     return parts.join('');
@@ -336,10 +336,11 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     // character, so an implicit word break is spaced exactly like an explicit
     // ~ (which renders a literal space). A fixed fraction of the font size
     // (e.g. 0.18em) is narrower than a true space and reads as too tight.
-    const minGap = measureTextWidth(' ', fontSize, fontFamily) || fontSize * 0.25;
+    const measureFn = ctx.measureText ?? measureTextWidth;
+    const minGap = measureFn(' ', fontSize, fontFamily) || fontSize * 0.25;
     // A hyphen occupies the width of an 'n' character; if the gap between
     // syllables is smaller than that, there is no room to render it.
-    const hyphenSpaceW = measureTextWidth('.', fontSize, fontFamily);
+    const hyphenSpaceW = measureFn('.', fontSize, fontFamily);
     const trailingAdvance = fontSize * 0.6;
 
     const parts = [];
@@ -353,9 +354,9 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
 
     for (let i = 0; i < workSyllables.length; i++) {
         let syl = workSyllables[i];
-        let fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
-        let alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
-        let suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily) : 0;
+        let fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily, measureFn);
+        let alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily, measureFn);
+        let suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily, measureFn) : 0;
         // Offset from the left edge of fullW to the left edge of alignText portion.
         // Subtract suffixW because trailing punctuation sits after the centered core.
         let prefixW = fullW - alignW - suffixW;
@@ -393,15 +394,15 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
                         workSyllables[i - 1] = transformed[0];
                         syl = transformed[1];
                         workSyllables[i] = syl;
-                        const newFullW1 = measureSegmentsWidth(transformed[0].segments, fontSize, fontFamily);
+                        const newFullW1 = measureSegmentsWidth(transformed[0].segments, fontSize, fontFamily, measureFn);
                         const newTC1 = prevLeft + newFullW1 / 2;
                         const newSvg1 = `<text xml:space="preserve" x="${newTC1}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(transformed[0].segments)}</text>`
-                            + renderUnderlines(transformed[0].segments, newTC1, lyricY, fontSize, fontFamily, 'middle');
+                            + renderUnderlines(transformed[0].segments, newTC1, lyricY, fontSize, fontFamily, 'middle', measureFn);
                         parts[prevSylIdx] = wrapSrc(transformed[0], newSvg1, 'aretino-lyric aretino-syllable');
                         prevRight = prevLeft + newFullW1;
-                        fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily);
-                        alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily);
-                        suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily) : 0;
+                        fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily, measureFn);
+                        alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily, measureFn);
+                        suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily, measureFn) : 0;
                         prefixW = fullW - alignW - suffixW;
                     }
                     left = prevRight;
@@ -416,7 +417,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         const textCenter = left + fullW / 2;
 
         const syllableSvg = `<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`
-            + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle');
+            + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle', measureFn);
         prevSylIdx = parts.length;
         prevLeft = left;
         parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable'));

@@ -36,10 +36,10 @@ function segFontSize(seg, fontSize) {
     return fontSize;
 }
 
-export function measureSegmentsWidth(segments, fontSize, fontFamily) {
+export function measureSegmentsWidth(segments, fontSize, fontFamily, measureFn = measureTextWidth) {
     if (!segments || segments.length === 0) return 0;
     return segments.reduce(
-        (sum, seg) => sum + measureTextWidth(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic),
+        (sum, seg) => sum + measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic),
         0
     );
 }
@@ -233,15 +233,15 @@ export function renderSegments(segments) {
 // Returns SVG <line> elements for any underlined segments, drawn below the text
 // baseline. textX/textY match the SVG text element's x/y attributes;
 // textAnchor is 'middle' or 'start'.
-export function renderUnderlines(segments, textX, textY, fontSize, fontFamily, textAnchor) {
+export function renderUnderlines(segments, textX, textY, fontSize, fontFamily, textAnchor, measureFn = measureTextWidth) {
     if (!segments || segments.every(s => !s.underline)) return '';
-    const totalW = measureSegmentsWidth(segments, fontSize, fontFamily);
+    const totalW = measureSegmentsWidth(segments, fontSize, fontFamily, measureFn);
     let x = textAnchor === 'middle' ? textX - totalW / 2 : textX;
     const lineY = textY + fontSize * 0.13;
     const strokeW = Math.max(0.4, fontSize * 0.055);
     const lines = [];
     for (const seg of segments) {
-        const w = measureTextWidth(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
+        const w = measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
         if (seg.underline) {
             const stroke = seg.color || '#000';
             lines.push(`<line x1="${x}" y1="${lineY}" x2="${x + w}" y2="${lineY}" stroke="${escapeAttr(stroke)}" stroke-width="${strokeW}"/>`);

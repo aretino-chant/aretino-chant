@@ -181,8 +181,8 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 }
             } else if (text[i] === '-') {
                 addText(LITERAL_HYPHEN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
-            } else if (text[i] === 'b' || text[i] === 'n' || text[i] === '#') {
-                const glyphMap = { b: ['flat', 226], n: ['natural', 168], '#': ['sharp', 249] };
+            } else if (text[i] === 'b' || text[i] === 'n' || text[i] === '#' || text[i] === "'") {
+                const glyphMap = { b: ['flat', 226], n: ['natural', 168], '#': ['sharp', 249], "'": ['stress', 235] };
                 const [glyphName, glyphAdvance] = glyphMap[text[i]];
                 const st = effectiveState();
                 const seg = { text: '', glyph: glyphName, glyphAdvance, ...st };

@@ -276,6 +276,11 @@ Inline accidental glyphs in labels (`\b` flat, `\n` natural, `\#` sharp):
 (g2) c"! \b ! \n ? \# ." d e f | h
 ```
 
+Stress mark glyph in labels (`\'`):
+```aretino
+(g2) {c d e}"\' stress" f g | h
+```
+
 ## Verse Lines (W: Tag)
 
 Psalm verses under an antiphon — the typical liturgical use case:

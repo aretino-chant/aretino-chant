@@ -12,6 +12,7 @@ export const completionSections = {
     headerKeys: { name: 'Header keys', rank: 4 },
     rendererOptions: { name: 'Renderer options', rank: 5 },
     comments: { name: 'Comments', rank: 6 },
+    textFormatting: { name: 'Text formatting', rank: 7 },
     music: { name: 'Music' },
     layout: { name: 'Layout' },
     barLines: { name: 'Bar lines' },
@@ -46,6 +47,16 @@ const LINE_PREFIX_OPTIONS = [
     { label: 'w:', detail: 'Lyrics aligned under the preceding music line', apply: 'w: ', type: 'keyword', section: completionSections.lineType },
     { label: 'W:', detail: 'Free verse / psalm text', apply: 'W: ', type: 'keyword', section: completionSections.lineType },
     { label: 'n:', detail: 'Music continuation for the previous lyric stream', apply: 'n: ', type: 'keyword', section: completionSections.lineType },
+];
+
+const TEXT_FORMAT_OPTIONS = [
+    { label: '\\R',      detail: 'Responsory sign ℟',  type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\V',      detail: 'Versicle sign ℣',    type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\-',      detail: 'Literal hyphen',      type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\sc{',    detail: 'Small-caps span',     type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\small{', detail: 'Small text (75%)',    type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\large{', detail: 'Large text (133%)',   type: 'keyword', section: completionSections.textFormatting },
+    { label: '\\red{',   detail: 'Red text',            type: 'keyword', section: completionSections.textFormatting },
 ];
 
 const COMMENT_LINE_OPTIONS = [
@@ -142,6 +153,27 @@ function isInHeader(state, pos) {
     return true;
 }
 
+// Returns 'header' | 'music' | 'lyrics' | 'verse' for the line at pos.
+// Unlabeled lines inherit the mode of the preceding labeled line (blank lines reset to music).
+function lineTypeAt(state, pos) {
+    const currentLine = state.doc.lineAt(pos);
+    const text = currentLine.text;
+    // Explicit prefixes always determine the type, even on the first line
+    if (/^\s*w:/.test(text)) return 'lyrics';
+    if (/^\s*W:/.test(text)) return 'verse';
+    if (/^\s*n:/.test(text)) return 'music';
+    if (isInHeader(state, pos)) return 'header';
+    let prevMode = 'music';
+    for (let n = 1; n < currentLine.number; n++) {
+        const t = state.doc.line(n).text;
+        if (t.trim() === '' || /^\s*%%\s*$/.test(t)) { prevMode = 'music'; continue; }
+        if (/^\s*w:/.test(t)) { prevMode = 'lyrics'; continue; }
+        if (/^\s*W:/.test(t)) { prevMode = 'verse'; continue; }
+        if (/^\s*n:/.test(t)) { prevMode = 'music'; continue; }
+    }
+    return prevMode;
+}
+
 function parenthesizedOptionsFor(prefix) {
     if (/^\(K:?/i.test(prefix)) return KEY_SIGNATURE_OPTIONS;
     if (/^\([gfcGFC]?\d?$/.test(prefix)) {
@@ -187,14 +219,14 @@ function completeLineStart(context, line, linePrefix, headerAllowed) {
 export function aretinoComplete(context) {
     const line = context.state.doc.lineAt(context.pos);
     const linePrefix = line.text.slice(0, context.pos - line.from);
-    const headerAllowed = isInHeader(context.state, context.pos);
+    const lt = lineTypeAt(context.state, context.pos);
+    const headerAllowed = lt === 'header';
 
     // After %option: — complete the option name
     const optionPrefix = linePrefix.match(/^\s*%option:\s*([a-zA-Z][a-zA-Z0-9_]*)$/);
     const optionPrefixEmpty = linePrefix.match(/^\s*%option:\s*$/);
     if (headerAllowed && (optionPrefix || optionPrefixEmpty)) {
         const wordMatch = context.matchBefore(/[a-zA-Z][a-zA-Z0-9_]*/);
-        // Map options to insert 'option = '
         const options = OPTION_VALUE_OPTIONS.map(opt => ({
             ...opt,
             apply: opt.label + '=',
@@ -204,6 +236,18 @@ export function aretinoComplete(context) {
             options,
             validFor: /^[a-zA-Z][a-zA-Z0-9_]*/,
         };
+    }
+
+    // Lyrics / verse lines: offer text-formatting completions on \ prefix
+    if (lt === 'lyrics' || lt === 'verse') {
+        const wordBefore = context.matchBefore(/\\[a-zA-Z-]*/);
+        if (wordBefore) {
+            return { from: wordBefore.from, options: TEXT_FORMAT_OPTIONS, validFor: /^\\[a-zA-Z-]*$/ };
+        }
+        if (context.explicit) {
+            return { from: context.pos, options: TEXT_FORMAT_OPTIONS, validFor: /^\\[a-zA-Z-]*$/ };
+        }
+        return null;
     }
 
     const lineStart = completeLineStart(context, line, linePrefix, headerAllowed);

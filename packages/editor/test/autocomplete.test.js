@@ -96,4 +96,52 @@ describe('aretinoComplete', () => {
     it('does not complete inside an existing music-line comment', () => {
         expect(complete('(g2) g % comment|')).toBeNull();
     });
+
+    it('music line still offers music options in body', () => {
+        const result = complete('(g2) g\n|');
+        expect(labels(result)).toContain('(g2)');
+        expect(labels(result)).toContain(',');
+        expect(labels(result)).toContain('w:');
+    });
+});
+
+describe('lyrics/verse line context', () => {
+    it('offers text formatting on \\ in a lyrics line', () => {
+        const result = complete('(g2) g\nw: some text\\|');
+        expect(labels(result)).toContain('\\R');
+        expect(labels(result)).toContain('\\V');
+        expect(labels(result)).toContain('\\small{');
+        expect(labels(result)).not.toContain('(g2)');
+        expect(labels(result)).not.toContain('w:');
+    });
+
+    it('offers text formatting on \\ in a verse line', () => {
+        const result = complete('W: some text\\|');
+        expect(labels(result)).toContain('\\R');
+        expect(labels(result)).toContain('\\sc{');
+        expect(labels(result)).not.toContain('(g2)');
+    });
+
+    it('offers text formatting on explicit invoke in a lyrics line', () => {
+        const result = complete('(g2) g\nw: |');
+        expect(labels(result)).toContain('\\R');
+        expect(labels(result)).not.toContain('(g2)');
+        expect(labels(result)).not.toContain(',');
+    });
+
+    it('offers text formatting on explicit invoke at start of lyrics line', () => {
+        const result = complete('(g2) g\nw:|');
+        expect(labels(result)).toContain('\\R');
+        expect(labels(result)).not.toContain('(g2)');
+    });
+
+    it('offers text formatting in continuation lines after lyrics', () => {
+        const result = complete('w: first line\ncontinuation \\|');
+        expect(labels(result)).toContain('\\R');
+        expect(labels(result)).not.toContain('(g2)');
+    });
+
+    it('returns null for non-explicit mid-lyrics without \\', () => {
+        expect(complete('w: some text|', false)).toBeNull();
+    });
 });

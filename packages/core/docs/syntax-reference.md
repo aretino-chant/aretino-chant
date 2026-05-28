@@ -212,12 +212,12 @@ they accumulate in order.
 | `.` | mora | Dot (lengthening) |
 | `_` | episema | Horizontal episema |
 | `-` | ictus | Vertical ictus stroke |
-| `~` | liquescens | Liquescent reduction |
+| `~` | plica | small plica added |
 | `s` | small | Cue-sized note |
 
 ```aretino
 (g2) d d. d_ d- d~
-w:   plain mora episema ictus liquescens
+w:   plain mora episema ictus plica
 ```
 
 Combine freely; suffixes may repeat and interleave with the octave mark `'`:

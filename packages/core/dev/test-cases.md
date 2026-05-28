@@ -50,7 +50,7 @@ Mora (`.`), episema (`_`), ictus (`-`), liquescent (`~`):
 
 ```aretino
 (g2) d d. d_ d- d~
-w:   plain mora episema ictus liquescens
+w:   plain mora episema ictus plica
 ```
 
 Combined modifiers:

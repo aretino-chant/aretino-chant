@@ -36,7 +36,7 @@
 //       noVirga: boolean,                — backtick ` suppresses auto-virga
 //       high: boolean,                   — trailing apostrophe (octave up)
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
-//       modifiers: Array<'episema'|'mora'|'liquescens'|'ictus'>,
+//       modifiers: Array<'episema'|'mora'|'plica'|'ictus'>,
 //   }
 
 function sourceMapForText(text, srcStart) {
@@ -347,7 +347,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 if (m === '_') { note.modifiers.push('episema'); note.modifierSpans.push(span); i++; continue; }
                 if (m === '-') { note.modifiers.push('ictus'); note.modifierSpans.push(span); i++; continue; }
                 if (m === '.') { note.modifiers.push('mora'); note.modifierSpans.push(span); i++; continue; }
-                if (m === '~') { note.modifiers.push('liquescens'); note.modifierSpans.push(span); i++; continue; }
+                if (m === '~') { note.modifiers.push('plica'); note.modifierSpans.push(span); i++; continue; }
                 if (m === 'w') { note.shape = 'quilisma'; i++; continue; }
                 if (m === 't') { note.shape = 'tenor'; i++; continue; }
                 if (m === 's') { note.modifiers.push('small'); note.modifierSpans.push(span); i++; continue; }

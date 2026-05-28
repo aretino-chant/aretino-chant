@@ -11,7 +11,7 @@ import {
     drawEpisemaSpan,
     drawIctus,
     drawMora,
-    drawLiquescens,
+    drawPlica,
     drawLigatureConnector,
     ligatureConnectorHalfStroke,
     noteheadRightPoint,
@@ -205,8 +205,8 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                     const onLine = pitchToPos(p.note) % 2 === 0;
                     const below = p.note.modifiers.includes('episema');
                     glyph = drawIctus(ctx, p.cx, p.cy, onLine, below);
-                } else if (mod === 'liquescens') {
-                    glyph = drawLiquescens(ctx, p.cx, p.cy, 'down');
+                } else if (mod === 'plica') {
+                    glyph = drawPlica(ctx, p.cx, p.cy, 'down');
                 }
                 if (glyph === null) continue;
                 noteParts.push(wrapSrc(modifierSpans[mi] ?? {}, glyph, `aretino-modifier aretino-mod-${mod}`, undefined, undefined, undefined, undefined, ctx.sourceMap));

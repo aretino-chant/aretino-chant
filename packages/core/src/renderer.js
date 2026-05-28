@@ -9,7 +9,7 @@ import {
     drawClef,
     drawAccidental,
     drawBarline,
-    drawLiquescens,
+    drawPlica,
     drawParenthesis,
     drawOverbrace,
     drawOverarc,
@@ -17,6 +17,8 @@ import {
     drawSlur,
     escapeAttr,
     pitchY,
+    pitchToPos,
+    drawPlicaBarline,
 } from './glyphs.js';
 import { parseHeaderRendererOptions } from './options.js';
 import { renderVerseLines } from './verse.js';
@@ -598,7 +600,8 @@ export function renderAretino(source, options = {}) {
                     let barlineSvg, barlineAdvance;
                     if (it.value === '~') {
                         const cy = lastNote ? pitchY(ctx, lastNote, staffBottomY) : staffBottomY - 2 * ctx.staffSpace;
-                        barlineSvg = drawLiquescens(ctx, cursorX + ss(ctx, METRICS.barlineOffsetX), cy, 'down');
+                        const onLine = lastNote ? pitchToPos(lastNote) % 2 === 0 : true;
+                        barlineSvg = drawPlicaBarline(ctx, cursorX + ss(ctx, METRICS.barlineOffsetX), cy, 'down', onLine);
                         barlineAdvance = ss(ctx, METRICS.barlineAdvance);
                     } else {
                         const b = drawBarline(ctx, it.value, cursorX, staffBottomY);

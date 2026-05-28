@@ -82,13 +82,21 @@ export const METRICS = {
     ictusStroke: 0.12,
     ictusStrokeMinPx: 0.8,
 
-    // --- Liquescens (right-parenthesis tail beside the notehead) ----------
-    liquescensAnchorX: 0.2,            // x offset of both endpoints from notehead center
-    liquescensTopY: 0.4,               // y offset above center (top-right corner of head)
-    liquescensBottomY: 0.8,           // y offset below center (under bottom-right corner)
-    liquescensBulge: 0.6,              // outward push of control points → curve depth
-    liquescensStroke: 0.15,
-    liquescensStrokeMinPx: 0.7,
+    // --- Notehead plica (right-parenthesis tail beside the notehead) ----------
+    plicaAnchorX: 0.2,            // x offset of both endpoints from notehead center
+    plicaTopY: 0.4,               // y offset above center (top-right corner of head)
+    plicaBottomY: 0.8,           // y offset below center (under bottom-right corner)
+    plicaBulge: 0.6,              // outward push of control points → curve depth
+    plicaStroke: 0.15,
+    plicaStrokeMinPx: 0.7,
+
+    // --- "Barline" plica (barline rendered like a glyph plica) ----------
+    plicaBarlineAnchorX: 0.2,            // x offset of both endpoints from notehead center
+    plicaBarlineTopY: 0.5,               // y offset above center (top-right corner of head)
+    plicaBarlineBottomY: 0.5,           // y offset below center (under bottom-right corner)
+    plicaBarlineBulge: 0.6,              // outward push of control points → curve depth
+    plicaBarlineStroke: 0.15,
+    plicaBarlineStrokeMinPx: 0.7,
 
     // --- Ligature connectors ----------------------------------------------
     ligatureConnectorStroke: 0.11,
@@ -324,16 +332,34 @@ export function drawMora(ctx, cx, cy, onLine = false) {
     return `<circle cx="${dotX}" cy="${dotY}" r="${r}" fill="#000"/>`;
 }
 
-export function drawLiquescens(ctx, cx, cy, direction = 'down') {
-    const ax = cx + ss(ctx, METRICS.liquescensAnchorX);
-    const topY = cy - ss(ctx, METRICS.liquescensTopY);
-    const bottomY = cy + ss(ctx, METRICS.liquescensBottomY);
+export function drawPlica(ctx, cx, cy, direction = 'down') {
+    const ax = cx + ss(ctx, METRICS.plicaAnchorX);
+    const topY = cy - ss(ctx, METRICS.plicaTopY);
+    const bottomY = cy + ss(ctx, METRICS.plicaBottomY);
     const x1 = ax;
     const x2 = ax;
     const y1 = direction === 'down' ? topY : bottomY;
     const y2 = direction === 'down' ? bottomY : topY;
-    const bulge = ss(ctx, METRICS.liquescensBulge);
-    const sw = stroke(ctx, METRICS.liquescensStroke, METRICS.liquescensStrokeMinPx);
+    const bulge = ss(ctx, METRICS.plicaBulge);
+    const sw = stroke(ctx, METRICS.plicaStroke, METRICS.plicaStrokeMinPx);
+    return `<path d="M ${x1} ${y1} C ${x1 + bulge} ${y1} ${x2 + bulge} ${y2} ${x2} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+
+export function drawPlicaBarline(ctx, cx, cy, direction = 'down', onLine = false) {
+    const ax = cx + ss(ctx, METRICS.plicaBarlineAnchorX);
+    const topY = cy - ss(ctx, METRICS.plicaBarlineTopY);
+    const bottomY = cy + ss(ctx, METRICS.plicaBarlineBottomY);
+    const x1 = ax;
+    const x2 = ax;
+    let y1 = direction === 'down' ? topY : bottomY;
+    let y2 = direction === 'down' ? bottomY : topY;
+    if (!onLine) {
+        // Shift the barline plica up so its center aligns with the staff line.
+        y1 -= ctx.staffSpace * 0.5;
+        y2 -= ctx.staffSpace * 0.5;
+    }
+    const bulge = ss(ctx, METRICS.plicaBarlineBulge);
+    const sw = stroke(ctx, METRICS.plicaBarlineStroke, METRICS.plicaBarlineStrokeMinPx);
     return `<path d="M ${x1} ${y1} C ${x1 + bulge} ${y1} ${x2 + bulge} ${y2} ${x2} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 

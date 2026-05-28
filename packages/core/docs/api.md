@@ -387,7 +387,7 @@ offsets (the same values surfaced as `data-src-*` in the SVG).
   virga: boolean,                    // uppercase pitch letter
   high: boolean,                     // trailing apostrophe (octave up)
   shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
-  modifiers: Array<'episema'|'mora'|'liquescens'|'ictus'|'small'>,
+  modifiers: Array<'episema'|'mora'|'plica'|'ictus'|'small'>,
   accidental?: { pitch: string, symbol: 'x'|'y'|'#' },  // inline (fb)/(fn)/(f#); symbol x=flat y=natural #=sharp
   srcStart: number, srcEnd: number
 }

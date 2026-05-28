@@ -521,7 +521,7 @@ const BRAVURA_BREATH_MARK_COMMA = {
 const BRAVURA_ACCIDENTALS = {
     // U+E4B6 articStressAbove — advance 235
     stress: {
-        path: 'M169 237c24 0 64 -40 64 -64c0 -4 -1 -7 -4 -10c-9 -10 -190 -158 -224 -158c-2 0 -3 0 -4 1c0 0 -1 2 -1 3c0 31 149 214 159 224c3 2 6 4 10 4z',
+        path: 'M169 100c24 0 64 -40 64 -64c0 -4 -1 -7 -4 -10c-9 -10 -190 -158 -224 -158c-2 0 -3 0 -4 1c0 0 -1 2 -1 3c0 31 149 214 159 224c3 2 6 4 10 4z',
         advance: 235,
     },
     // U+E260 accidentalFlat — advance 226

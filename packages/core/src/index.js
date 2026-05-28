@@ -5,3 +5,4 @@
 export { renderAretino } from './renderer.js';
 export { parseAretino, matchAccidental } from './parser.js';
 export { parseHeaderRendererOptions } from './options.js';
+export { drawToolbarGlyphIcon } from './glyphs.js';

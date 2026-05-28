@@ -15,6 +15,7 @@
 // Action.execute() dispatches directly into the CodeMirror view — no round-trips.
 
 import { undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
+import { drawToolbarGlyphIcon } from '@aretino-chant/core';
 
 // --- SVG icons (inline, 24×24 viewBox) ---
 
@@ -30,30 +31,30 @@ const T = (text) =>
     I(`<text x="12" y="17" text-anchor="middle" font-size="13" fill="currentColor" font-family="monospace">${text}</text>`);
 
 const ICONS = {
-    'pitch-up': I('<polyline points="18,15 12,9 6,15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'),
-    'pitch-down': I('<polyline points="6,9 12,15 18,9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+    'pitch-up':   L('<path d="m18 15-6-6-6 6"/>'),
+    'pitch-down': L('<path d="m6 9 6 6 6-6"/>'),
 
-    'shape-punctum': I('<ellipse cx="12" cy="13" rx="7" ry="5" fill="currentColor"/>'),
+    'shape-punctum': I('<ellipse cx="12" cy="13" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13)"/>'),
     'shape-quilisma': I('<polyline points="3,16 6,11 9,16 12,11 15,16 18,11 21,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
-    'shape-tenor': I('<ellipse cx="12" cy="12" rx="7" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="5" y1="7" x2="5" y2="17" stroke="currentColor" stroke-width="2"/><line x1="19" y1="7" x2="19" y2="17" stroke="currentColor" stroke-width="2"/>'),
+    'shape-tenor': I('<ellipse cx="12" cy="13" rx="5.7" ry="4.5" fill="none" stroke-width="2" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13)"/><line x1="6" y1="5" x2="6" y2="21" stroke="currentColor" stroke-width="2"/><line x1="18" y1="5" x2="18" y2="21" stroke="currentColor" stroke-width="2"/>'),
 
-    'modifier-episema': I('<ellipse cx="12" cy="15" rx="6" ry="4" fill="currentColor"/><line x1="6" y1="9" x2="18" y2="9" stroke="currentColor" stroke-width="2"/>'),
-    'modifier-mora': I('<ellipse cx="10" cy="13" rx="5" ry="4" fill="currentColor"/><circle cx="18" cy="15" r="2.5" fill="currentColor"/>'),
-    'modifier-ictus': I('<ellipse cx="12" cy="15" rx="6" ry="4" fill="currentColor"/><line x1="12" y1="4" x2="12" y2="10" stroke="currentColor" stroke-width="2"/>'),
-    'modifier-plica': I('<ellipse cx="10" cy="13" rx="5" ry="4" fill="currentColor"/><path d="M15 9 Q20 13 15 19" fill="none" stroke="currentColor" stroke-width="2"/>'),
-    'modifier-small': I('<ellipse cx="12" cy="15" rx="4.5" ry="3" fill="currentColor"/>'),
+    'modifier-episema': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><line x1="6" y1="7" x2="17" y2="7" stroke="currentColor" stroke-width="2"/>'),
+    'modifier-mora': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><circle cx="20" cy="15" r="1.5" fill="currentColor"/>'),
+    'modifier-ictus': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><line x1="12" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="2"/>'),
+    'modifier-plica': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><path d="M15 9 Q20 13 14 21" fill="none" stroke="currentColor" stroke-width="2" transform="translate(0, 2)" />'),
+    'modifier-small': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.7 0.7)"/>'),
 
-    'accidental-flat': I('<path d="M8 4 L8 20 M8 13 Q14 10 14 14 Q14 19 8 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
-    'accidental-natural': I('<path d="M8 6 L8 16 M16 8 L16 18 M8 10 L16 10 M8 14 L16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
-    'accidental-sharp': I('<line x1="9" y1="5" x2="9" y2="19" stroke="currentColor" stroke-width="2"/><line x1="15" y1="5" x2="15" y2="19" stroke="currentColor" stroke-width="2"/><line x1="6" y1="9" x2="18" y2="9" stroke="currentColor" stroke-width="2"/><line x1="6" y1="15" x2="18" y2="15" stroke="currentColor" stroke-width="2"/>'),
-    'accidental-remove': I('<line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+    'accidental-flat': drawToolbarGlyphIcon('accidental-flat'),
+    'accidental-natural': drawToolbarGlyphIcon('accidental-natural'),
+    'accidental-sharp': drawToolbarGlyphIcon('accidental-sharp'),
+    'accidental-remove': L('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
 
-    'span-brace': I('<path d="M8 4 Q4 4 4 8 L4 10 Q4 12 6 12 Q4 12 4 14 L4 16 Q4 20 8 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 4 Q20 4 20 8 L20 10 Q20 12 18 12 Q20 12 20 14 L20 16 Q20 20 16 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+    'span-brace': L('<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>'),
     'span-arc': I('<path d="M4 18 Q12 4 20 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
     'span-slur': I('<path d="M4 8 Q12 20 20 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="4,3"/>'),
     'span-slur-solid': I('<path d="M4 8 Q12 20 20 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'),
-    'span-line': I('<line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'),
-    'span-paren': I('<path d="M9 4 Q5 12 9 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 4 Q19 12 15 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+    'span-line':  L('<path d="M5 12h14"/>'),
+    'span-paren': L('<path d="M8 21s-4-3-4-9 4-9 4-9"/><path d="M16 3s4 3 4 9-4 9-4 9"/>'),
 
     'barline-comma': I('<line x1="12" y1="8" x2="12" y2="18" stroke="currentColor" stroke-width="1.5"/>'),
     'barline-semicolon': I('<line x1="14" y1="6" x2="14" y2="18" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="15" r="2.5" fill="currentColor"/>'),
@@ -62,12 +63,12 @@ const ICONS = {
     'barline-repeat-open': I('<line x1="7" y1="4" x2="7" y2="20" stroke="currentColor" stroke-width="4"/><line x1="13" y1="4" x2="13" y2="20" stroke="currentColor" stroke-width="1.5"/><circle cx="17" cy="9" r="2" fill="currentColor"/><circle cx="17" cy="15" r="2" fill="currentColor"/>'),
     'barline-repeat-close': I('<line x1="17" y1="4" x2="17" y2="20" stroke="currentColor" stroke-width="4"/><line x1="11" y1="4" x2="11" y2="20" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="9" r="2" fill="currentColor"/><circle cx="7" cy="15" r="2" fill="currentColor"/>'),
 
-    'structure-clef-g': I('<text x="4" y="20" font-size="18" fill="currentColor" font-family="serif" font-style="italic">G</text>'),
-    'structure-clef-c': I('<text x="4" y="19" font-size="18" fill="currentColor" font-family="serif" font-weight="bold">C</text>'),
-    'structure-clef-f': I('<text x="4" y="19" font-size="18" fill="currentColor" font-family="serif" font-weight="bold">F</text>'),
-    'structure-break': I('<polyline points="4,16 12,8 20,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="4" y1="20" x2="20" y2="20" stroke="currentColor" stroke-width="2"/>'),
-    'structure-break-nojustify': I('<polyline points="4,16 12,8 20,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
-    'structure-label': I('<text x="12" y="17" text-anchor="middle" font-size="14" fill="currentColor" font-family="monospace">""</text>'),
+    'structure-clef-g': drawToolbarGlyphIcon('structure-clef-g'),
+    'structure-clef-c': drawToolbarGlyphIcon('structure-clef-c'),
+    'structure-clef-f': drawToolbarGlyphIcon('structure-clef-f'),
+    'structure-break':           L('<path d="m16 16-3 3 3 3"/><path d="M3 12h14.5a1 1 0 0 1 0 7H13"/><path d="M3 19h6"/><path d="M3 5h18"/>'),
+    'structure-break-nojustify': L('<path d="M20 4v7a4 4 0 0 1-4 4H4"/><path d="m9 10-5 5 5 5"/>'),
+    'structure-label':           L('<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>'),
 
     'edit-undo': L('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>'),
     'edit-redo': L('<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>'),
@@ -296,8 +297,8 @@ function makeShapeGroup(view, ctx) {
         label: 'Shape',
         actions: [
             { id: 'shape-punctum',  label: 'Punctum',  icon: ICONS['shape-punctum'],  tooltip: 'Standard notehead',     enabled: true, active: note.shape === 'punctum',  execute() { setShape('punctum');  } },
-            { id: 'shape-quilisma', label: 'Quilisma', icon: ICONS['shape-quilisma'], tooltip: 'Quilisma notehead',     enabled: true, active: note.shape === 'quilisma', execute() { setShape('quilisma'); } },
             { id: 'shape-tenor',    label: 'Tenor',    icon: ICONS['shape-tenor'],    tooltip: 'Tenor (reciting note)', enabled: true, active: note.shape === 'tenor',    execute() { setShape('tenor');    } },
+            { id: 'shape-quilisma', label: 'Quilisma', icon: ICONS['shape-quilisma'], tooltip: 'Quilisma notehead',     enabled: true, active: note.shape === 'quilisma', execute() { setShape('quilisma'); } },
         ],
     };
 }

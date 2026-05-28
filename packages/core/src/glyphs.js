@@ -597,6 +597,41 @@ export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY, high = f
     return { svg, advance: glyph ? glyph.advance * scale : ss(ctx, METRICS.accidentalAdvanceFlat) };
 }
 
+function iconSvg(body) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${body.replaceAll('#000', 'currentColor')}</svg>`;
+}
+
+const TOOLBAR_GLYPH_ICON_CONFIG = {
+    'accidental-flat':    { kind: 'accidental', accidental: 'x', x: 9,  staffBottomY: 12, staffSpace: 7 },
+    'accidental-natural': { kind: 'accidental', accidental: 'y', x: 9,  staffBottomY: 12, staffSpace: 7 },
+    'accidental-sharp':   { kind: 'accidental', accidental: '#', x: 8,  staffBottomY: 12, staffSpace: 7 },
+    'structure-clef-g':   { kind: 'clef', letter: 'g', line: 2, x: 8,  staffBottomY: 16, staffSpace: 3.2 },
+    'structure-clef-c':   { kind: 'clef', letter: 'c', line: 4, x: 5,  staffBottomY: 18, staffSpace: 10, offsetY: 24 },
+    'structure-clef-f':   { kind: 'clef', letter: 'f', line: 4, x: 4,  staffBottomY: 18, staffSpace: 5,  offsetY: 2 },
+};
+
+// Toolbar-sized versions of the engraving glyphs. These intentionally reuse the
+// same SVG builders as the renderer so editor controls track notation changes.
+export function drawToolbarGlyphIcon(name, options = {}) {
+    const config = TOOLBAR_GLYPH_ICON_CONFIG[name];
+    if (!config) return iconSvg('');
+
+    const offsetX = (config.offsetX || 0) + (options.offsetX || 0);
+    const offsetY = (config.offsetY || 0) + (options.offsetY || 0);
+    const ctx = {
+        staffSpace: options.staffSpace || config.staffSpace,
+        pitchStep: (options.staffSpace || config.staffSpace) / 2,
+    };
+    const x = config.x + offsetX;
+    const staffBottomY = config.staffBottomY + offsetY;
+
+    if (config.kind === 'accidental') {
+        return iconSvg(drawAccidental(ctx, 'e', config.accidental, x, staffBottomY).svg);
+    }
+
+    return iconSvg(drawClef(ctx, { letter: config.letter, line: config.line }, x, staffBottomY).svg);
+}
+
 export function drawBarline(ctx, kind, x, staffBottomY) {
     const top5 = staffBottomY - 4 * ctx.staffSpace;
     const top3 = staffBottomY - 2 * ctx.staffSpace;

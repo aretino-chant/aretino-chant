@@ -14,6 +14,7 @@ import {
     drawOverbrace,
     drawOverarc,
     drawOverline,
+    drawSlur,
     escapeAttr,
     pitchY,
 } from './glyphs.js';
@@ -97,6 +98,16 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, textFont) {
         svg += `<text x="${mx}" y="${textY}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(label))}</text>`;
     }
     parts[placeIdx] = svg;
+}
+
+function _flushSlur(ctx, parts, state, staffBottomY, isEnd) {
+    const gap = ss(ctx, METRICS.slurGap);
+    const startNoteY = state.startNoteY != null ? state.startNoteY : staffBottomY;
+    const endNoteY = state.endNoteY > -Infinity ? state.endNoteY : staffBottomY;
+    const y1 = startNoteY + gap;
+    const y2 = endNoteY + gap;
+    const svg = drawSlur(ctx, state.startX, state.endX, y1, y2, state.dashed, state.isStart !== false, isEnd);
+    parts[state.placeIdx] = svg;
 }
 
 export function renderAretino(source, options = {}) {
@@ -439,17 +450,25 @@ export function renderAretino(source, options = {}) {
         let parenState = null;
         // braceState tracks an open { } or \arc{ } span across rows similarly.
         let braceState = null;
+        // slurState tracks an open \slur{ } or \slurSolid{ } span across rows.
+        let slurState = null;
 
-        // Pre-scan: only render a brace span when both { and } are present.
+        // Pre-scan: only render a brace/slur span when both open and close are present.
         const completedBraceOpens = new Set();
-        let pendingBraceOpen = null;
+        const completedSlurOpens = new Set();
+        let pendingOpen = null;
         for (const row of rows) {
             for (const it of row.items) {
                 if (it.kind === 'brace-open') {
-                    pendingBraceOpen = it;
-                } else if (it.kind === 'brace-close' && pendingBraceOpen) {
-                    completedBraceOpens.add(pendingBraceOpen);
-                    pendingBraceOpen = null;
+                    pendingOpen = it;
+                } else if (it.kind === 'brace-close' && pendingOpen) {
+                    const isSlurKind = pendingOpen.braceKind === 'slur' || pendingOpen.braceKind === 'slurSolid';
+                    if (isSlurKind) {
+                        completedSlurOpens.add(pendingOpen);
+                    } else {
+                        completedBraceOpens.add(pendingOpen);
+                    }
+                    pendingOpen = null;
                 }
             }
         }
@@ -533,6 +552,11 @@ export function renderAretino(source, options = {}) {
                 parts.push('');
                 braceState = { ...braceState, placeIdx, startX: cursorX, endX: cursorX, minY: Infinity, isStart: false };
             }
+            if (slurState) {
+                const placeIdx = parts.length;
+                parts.push('');
+                slurState = { ...slurState, placeIdx, startX: cursorX, endX: cursorX, startNoteY: slurState.endNoteY, endNoteY: -Infinity, isStart: false };
+            }
 
             for (let idx = 0; idx < row.items.length; idx++) {
                 const it = row.items[idx];
@@ -611,12 +635,19 @@ export function renderAretino(source, options = {}) {
                         const placeIdx = parts.length;
                         parts.push('');
                         braceState = { placeIdx, braceKind: it.braceKind, startX: cursorX, endX: cursorX, minY: Infinity, isStart: true };
+                    } else if (completedSlurOpens.has(it)) {
+                        const placeIdx = parts.length;
+                        parts.push('');
+                        slurState = { placeIdx, dashed: it.braceKind === 'slur', startX: cursorX, endX: cursorX, startNoteY: null, endNoteY: -Infinity, isStart: true };
                     }
                 } else if (it.kind === 'brace-close') {
                     if (braceState) {
                         braceState.label = it.label ?? null;
                         _flushBrace(ctx, parts, braceState, staffBottomY, true, textFont);
                         braceState = null;
+                    } else if (slurState) {
+                        _flushSlur(ctx, parts, slurState, staffBottomY, true);
+                        slurState = null;
                     }
                 } else if (it.kind === 'ligature') {
                     const lastGroup = it.groups[it.groups.length - 1];
@@ -639,6 +670,14 @@ export function renderAretino(source, options = {}) {
                     if (braceState) {
                         if (r.minY < braceState.minY) braceState.minY = r.minY;
                         braceState.endX = r.rightX;
+                    }
+                    if (slurState) {
+                        if (slurState.startNoteY == null) {
+                            slurState.startNoteY = r.maxY;
+                            slurState.startX = r.centerX;
+                        }
+                        slurState.endNoteY = r.maxY;
+                        slurState.endX = r.centerX;
                     }
                     cursorX += r.advance + (it.syllableExtra || 0);
                 }
@@ -671,6 +710,10 @@ export function renderAretino(source, options = {}) {
             if (braceState) {
                 _flushBrace(ctx, parts, braceState, staffBottomY, false, textFont);
                 braceState = { braceKind: braceState.braceKind, label: braceState.label, continuation: true };
+            }
+            if (slurState) {
+                _flushSlur(ctx, parts, slurState, staffBottomY, false);
+                slurState = { dashed: slurState.dashed, continuation: true };
             }
 
             const isLastRow = rowIdx === rows.length - 1;

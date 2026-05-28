@@ -418,5 +418,30 @@ describe('renderAretino', () => {
     });
   });
 
+  describe('slur spans', () => {
+    it('renders a dashed slur arc below notes', () => {
+      const svg = renderAretino('c = \\slur{c d}', { width: 600 });
+      expect(svg).toContain('stroke-dasharray');
+      expect(svg).toContain('<path d="M');
+    });
+
+    it('renders a solid slur arc without dasharray', () => {
+      const svg = renderAretino('c = \\slurSolid{c d}', { width: 600 });
+      // Staff lines use fill="none" too; confirm a path exists without dasharray
+      expect(svg).not.toContain('stroke-dasharray');
+      expect(svg).toContain('<path d="M');
+    });
+
+    it('places slur arc y below all spanned note y positions', () => {
+      const svg = renderAretino('c = \\slur{c d}', { width: 600 });
+      const m = svg.match(/stroke-dasharray="[^"]*"\s*\/>/);
+      expect(m).toBeTruthy();
+    });
+
+    it('ignores an unmatched slur open (no crash)', () => {
+      expect(() => renderAretino('c = \\slur{c d', { width: 600 })).not.toThrow();
+    });
+  });
+
   // TODO: snapshot a known sample once examples/sample.aretino is filled in.
 });

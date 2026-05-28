@@ -152,6 +152,15 @@ export const METRICS = {
     overarcStroke:          0.09,
     overarcStrokeMinPx:     0.75,
 
+    // --- Slur (downward arc below notes) ----------------------------------
+    slurGap:          0.3,    // gap below bottom of note bounding box
+    slurBulge:        0.9,   // downward arc depth in SS
+    slurStroke:       0.12,
+    slurStrokeMinPx:  0.75,
+    slurDashLen:      0.5,    // dash length in SS (dashed slur)
+    slurDashGap:      0.5,    // gap length in SS (dashed slur)
+    slurStubWidth:    2.0,    // width of line-break stub arcs
+
     // --- Page layout ------------------------------------------------------
     leftMargin: 1,
     rightMargin: 1,
@@ -721,6 +730,37 @@ export function drawOverarc(ctx, x1, x2, y) {
 export function drawOverline(ctx, x1, x2, y) {
     const sw = stroke(ctx, METRICS.overarcStroke, METRICS.overarcStrokeMinPx);
     return `<path d="M ${x1} ${y} L ${x2} ${y}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+
+// Draws a downward-bowing slur arc below notes from x1 to x2, with ends at y1 and y2.
+// isStart/isEnd: false on line-break continuation — draws a short stub arc instead.
+export function drawSlur(ctx, x1, x2, y1, y2, dashed, isStart = true, isEnd = true) {
+    const sw = stroke(ctx, METRICS.slurStroke, METRICS.slurStrokeMinPx);
+    const fullBulge = ss(ctx, METRICS.slurBulge);
+    const stubWidth = ss(ctx, METRICS.slurStubWidth);
+
+    let ax1 = x1, ax2 = x2;
+    if (isStart && !isEnd) {
+        ax2 = Math.min(x2, x1 + stubWidth);
+    } else if (!isStart && isEnd) {
+        ax1 = Math.max(x1, x2 - stubWidth);
+    } else if (!isStart && !isEnd) {
+        return '';
+    }
+
+    const span = ax2 - ax1;
+    const bulge = fullBulge * Math.min(1, span / (stubWidth * 1.5));
+    const avgY = (y1 + y2) / 2;
+    const d = `M ${ax1} ${y1} C ${ax1} ${avgY + bulge} ${ax2} ${avgY + bulge} ${ax2} ${y2}`;
+
+    let dashAttr = '';
+    if (dashed) {
+        const dl = ss(ctx, METRICS.slurDashLen);
+        const dg = ss(ctx, METRICS.slurDashGap);
+        dashAttr = ` stroke-dasharray="${dl},${dg}"`;
+    }
+
+    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/>`;
 }
 
 export function escapeText(s) {

@@ -328,6 +328,13 @@ automatically.
 
 In the AST, the opening token is `{ type: 'brace-open', kind: 'brace' | 'arc' | 'line' }` and the closing token is `{ type: 'brace-close', label? }`.
 
+| `\slur{`, `\slurSolid{` | dashed (by default) and solid slur between noteheads
+
+```aretino
+\slur{f A} \slurSolid{A g}
+```
+
+
 ---
 
 ## 10. Bar lines

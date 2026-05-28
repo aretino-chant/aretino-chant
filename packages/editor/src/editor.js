@@ -220,9 +220,11 @@ class AretinoEditor extends HTMLElement {
             const frag = range.cloneContents();
             const wrap = document.createElement('span');
             wrap.appendChild(frag);
+            let firstLine = true;
             wrap.querySelectorAll('.cm-line').forEach(line => {
+                if (!firstLine) { line.parentNode.insertBefore(document.createTextNode(' '), line); }
                 while (line.firstChild) { line.parentNode.insertBefore(line.firstChild, line); }
-                line.parentNode.insertBefore(document.createTextNode(' '), line);
+                firstLine = false;
                 line.remove();
             });
             return wrap.innerHTML;

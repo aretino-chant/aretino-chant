@@ -250,5 +250,5 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
         ? lastNoteCx + ss(ctx, hasMora ? METRICS.moraOffsetX + METRICS.moraRadius : METRICS.noteBoxWidth * 0.5)
         : x + advance;
 
-    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY };
+    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY, firstNoteCx, lastNoteCx };
 }

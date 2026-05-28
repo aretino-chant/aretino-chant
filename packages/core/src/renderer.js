@@ -676,10 +676,10 @@ export function renderAretino(source, options = {}) {
                     if (slurState) {
                         if (slurState.startNoteY == null) {
                             slurState.startNoteY = r.maxY;
-                            slurState.startX = r.centerX;
+                            slurState.startX = r.firstNoteCx ?? r.centerX;
                         }
                         slurState.endNoteY = r.maxY;
-                        slurState.endX = r.centerX;
+                        slurState.endX = r.lastNoteCx ?? r.centerX;
                     }
                     cursorX += r.advance + (it.syllableExtra || 0);
                 }

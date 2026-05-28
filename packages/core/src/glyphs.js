@@ -732,9 +732,9 @@ export function drawOverline(ctx, x1, x2, y) {
     return `<path d="M ${x1} ${y} L ${x2} ${y}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }
 
-// Draws a downward-bowing slur arc below notes from x1 to x2, with ends at y1 and y2.
+// Draws a downward-bowing slur arc below notes from x1 to x2, with ends at y.
 // isStart/isEnd: false on line-break continuation — draws a short stub arc instead.
-export function drawSlur(ctx, x1, x2, y1, y2, dashed, isStart = true, isEnd = true) {
+export function drawSlur(ctx, x1, x2, y, dashed, isStart = true, isEnd = true) {
     const sw = stroke(ctx, METRICS.slurStroke, METRICS.slurStrokeMinPx);
     const fullBulge = ss(ctx, METRICS.slurBulge);
     const stubWidth = ss(ctx, METRICS.slurStubWidth);
@@ -750,8 +750,7 @@ export function drawSlur(ctx, x1, x2, y1, y2, dashed, isStart = true, isEnd = tr
 
     const span = ax2 - ax1;
     const bulge = fullBulge * Math.min(1, span / (stubWidth * 1.5));
-    const avgY = (y1 + y2) / 2;
-    const d = `M ${ax1} ${y1} C ${ax1} ${avgY + bulge} ${ax2} ${avgY + bulge} ${ax2} ${y2}`;
+    const d = `M ${ax1} ${y} C ${ax1} ${y + bulge} ${ax2} ${y + bulge} ${ax2} ${y}`;
 
     let dashAttr = '';
     if (dashed) {

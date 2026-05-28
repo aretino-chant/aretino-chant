@@ -13,6 +13,7 @@ export const completionSections = {
     rendererOptions: { name: 'Renderer options', rank: 5 },
     comments: { name: 'Comments', rank: 6 },
     textFormatting: { name: 'Text formatting', rank: 7 },
+    accidentals: { name: 'Accidentals', rank: 0 },
     music: { name: 'Music' },
     layout: { name: 'Layout' },
     barLines: { name: 'Bar lines' },
@@ -50,8 +51,11 @@ const LINE_PREFIX_OPTIONS = [
 ];
 
 const TEXT_FORMAT_OPTIONS = [
-    { label: '\\R',      detail: 'Responsory sign ℟',  type: 'keyword', section: completionSections.textFormatting },
-    { label: '\\V',      detail: 'Versicle sign ℣',    type: 'keyword', section: completionSections.textFormatting },
+    { label: '{',      detail: 'Bold',   type: 'keyword', section: completionSections.textFormatting, boost: 10 },
+    { label: '<',    detail: 'Italic', type: 'keyword', section: completionSections.textFormatting, boost: 10  },
+    { label: '[',      detail: 'Underline',           type: 'keyword', section: completionSections.textFormatting, boost: 10  },
+    { label: '\\R',      detail: 'Responsory sign ℟',  type: 'keyword', section: completionSections.textFormatting , boost: 5 },
+    { label: '\\V',      detail: 'Versicle sign ℣',    type: 'keyword', section: completionSections.textFormatting , boost: 5 },
     { label: '\\-',      detail: 'Literal hyphen',      type: 'keyword', section: completionSections.textFormatting },
     { label: '\\sc{',    detail: 'Small-caps span',     type: 'keyword', section: completionSections.textFormatting },
     { label: '\\small{', detail: 'Small text (75%)',    type: 'keyword', section: completionSections.textFormatting },
@@ -103,7 +107,7 @@ const CLEF_OPTIONS = ['g', 'c', 'f'].flatMap(letter =>
 const KEY_SIGNATURE_OPTIONS = [
     parenthesizedOption('(K:b)', 'Flat key signature', completionSections.keySignatures),
     parenthesizedOption('(K:F#)', 'Single-sharp key signature', completionSections.keySignatures),
-    parenthesizedOption('(K:F# K:F# C# G#)', 'Predefined sharp key signature', completionSections.keySignatures),
+    parenthesizedOption('(K:F# C# G#)', 'Predefined sharp key signature', completionSections.keySignatures),
     parenthesizedOption('(K:)', 'Clear the key signature', completionSections.keySignatures, 10),
 ];
 
@@ -112,6 +116,12 @@ const MUSIC_DIRECTIVE_OPTIONS = [
     parenthesizedOption('(Z)', 'Ragged line break', completionSections.layout),
     parenthesizedOption('(sp)', 'Spacer', completionSections.layout),
     parenthesizedOption('(sp2)', 'Double-width spacer', completionSections.layout),
+];
+
+const ACCIDENTAL_OPTIONS = [
+    parenthesizedOption('(b)', 'Flat accidental', completionSections.accidentals),
+    parenthesizedOption('(n)', 'Natural accidental', completionSections.accidentals),
+    parenthesizedOption('(f#)', 'Sharp accidental', completionSections.accidentals),
 ];
 
 const BARE_MUSIC_OPTIONS = [
@@ -178,10 +188,10 @@ function parenthesizedOptionsFor(prefix) {
     if (/^\(K:?/i.test(prefix)) return KEY_SIGNATURE_OPTIONS;
     if (/^\([gfcGFC]?\d?$/.test(prefix)) {
         return prefix.length === 1
-            ? [...CLEF_OPTIONS.filter(opt => COMMON_CLEFS.has(opt.label.slice(1, -1))), ...KEY_SIGNATURE_OPTIONS, ...MUSIC_DIRECTIVE_OPTIONS]
+            ? [...CLEF_OPTIONS.filter(opt => COMMON_CLEFS.has(opt.label.slice(1, -1))), ...KEY_SIGNATURE_OPTIONS, ...MUSIC_DIRECTIVE_OPTIONS, ...ACCIDENTAL_OPTIONS]
             : CLEF_OPTIONS;
     }
-    return [...CLEF_OPTIONS.filter(opt => COMMON_CLEFS.has(opt.label.slice(1, -1))), ...KEY_SIGNATURE_OPTIONS, ...MUSIC_DIRECTIVE_OPTIONS];
+    return [...CLEF_OPTIONS.filter(opt => COMMON_CLEFS.has(opt.label.slice(1, -1))), ...KEY_SIGNATURE_OPTIONS, ...MUSIC_DIRECTIVE_OPTIONS, ...ACCIDENTAL_OPTIONS];
 }
 
 function lineStartOptions(prefix, headerAllowed) {
@@ -256,6 +266,34 @@ export function aretinoComplete(context) {
     const nodeBefore = syntaxTree(context.state).resolveInner(context.pos, -1);
     // % in a music line is a comment token, not a header key
     if (nodeBefore.name === 'comment') return null;
+
+    // Mid-line music completions (line-start handler already handled position 0 cases).
+    // A non-% line is music context even when lineTypeAt returns 'header' (vacuously true
+    // for a first line with no preceding header lines).
+    const isMusicLine = lt === 'music' || (lt === 'header' && !/^\s*%/.test(line.text));
+    if (isMusicLine) {
+        // After ( — offer parenthesized directives (clefs, key sigs, layout)
+        const parenBefore = context.matchBefore(/\([^\s)]*$/);
+        if (parenBefore) {
+            return {
+                from: parenBefore.from,
+                options: parenthesizedOptionsFor(parenBefore.text),
+                validFor: /^\([^\s)]*$/,
+            };
+        }
+
+        // After \ — offer music span commands
+        const backslashBefore = context.matchBefore(/\\[a-zA-Z]*\{?/);
+        if (backslashBefore) {
+            const spanOptions = BARE_MUSIC_OPTIONS.filter(opt => opt.label.startsWith('\\'));
+            return { from: backslashBefore.from, options: spanOptions, validFor: /^\\[a-zA-Z]*\{?$/ };
+        }
+
+        // Explicit — offer all music options (no line-prefix or header options mid-line)
+        if (context.explicit) {
+            return { from: context.pos, options: TOP_LEVEL_MUSIC_OPTIONS, validFor: /^[^\s]*$/ };
+        }
+    }
 
     return null;
 }

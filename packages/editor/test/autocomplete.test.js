@@ -145,3 +145,50 @@ describe('lyrics/verse line context', () => {
         expect(complete('w: some text|', false)).toBeNull();
     });
 });
+
+describe('mid-line music context', () => {
+    it('offers music options on explicit invoke mid-line', () => {
+        const result = complete('(g2) g a |');
+        expect(labels(result)).toContain(',');
+        expect(labels(result)).toContain('|');
+        expect(labels(result)).toContain('(g2)');
+        expect(labels(result)).toContain('\\arc{');
+        expect(labels(result)).not.toContain('w:');
+        expect(labels(result)).not.toContain('%title:');
+    });
+
+    it('does not offer completions mid-line without trigger (non-explicit)', () => {
+        expect(complete('(g2) g a |', false)).toBeNull();
+    });
+
+    it('offers parenthesized options after ( mid-line', () => {
+        const result = complete('(g2) g (|');
+        expect(labels(result)).toContain('(g2)');
+        expect(labels(result)).toContain('(K:)');
+        expect(labels(result)).toContain('(z)');
+    });
+
+    it('offers clef options after clef letter mid-line', () => {
+        const result = complete('(g2) g (c|');
+        expect(labels(result)).toContain('(c1)');
+        expect(labels(result)).toContain('(c3)');
+        expect(labels(result)).toContain('(c4)');
+    });
+
+    it('offers key-signature options after (K: mid-line', () => {
+        const result = complete('(g2) g (K:|');
+        expect(labels(result)).toEqual(['(K:b)', '(K:F#)', '(K:F# K:F# C# G#)', '(K:)']);
+    });
+
+    it('offers music span options after \\ mid-line', () => {
+        const result = complete('(g2) g \\|');
+        expect(labels(result)).toContain('\\arc{');
+        expect(labels(result)).toContain('\\line{');
+        expect(labels(result)).not.toContain('\\R');
+        expect(labels(result)).not.toContain('(g2)');
+    });
+
+    it('does not offer completions inside a mid-line comment', () => {
+        expect(complete('(g2) g % comment |')).toBeNull();
+    });
+});

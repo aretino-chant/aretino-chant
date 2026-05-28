@@ -402,7 +402,7 @@ function makeAccidentalGroup(view, ctx) {
 }
 
 function makeSpanGroup(view, ctx) {
-    if (ctx.type === 'lyric') return null;
+    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
     const isNote = ctx.type === 'note';
     const isLigature = ctx.type === 'ligature';
     const isSelection = ctx.type === 'selection';
@@ -437,7 +437,7 @@ function makeSpanGroup(view, ctx) {
 }
 
 function makeBarlineGroup(view, ctx) {
-    if (ctx.type === 'lyric') return null;
+    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
     // Insert after the current token (or at cursor if in whitespace).
     const insertAt = ctx.token ? ctx.token.srcEnd : ctx.selFrom;
     const ins = (text) => () => view.dispatch({
@@ -460,7 +460,7 @@ function makeBarlineGroup(view, ctx) {
 }
 
 function makeStructureGroup(view, ctx) {
-    if (ctx.type === 'lyric') return null;
+    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
     const insertAt = ctx.token ? ctx.token.srcEnd : ctx.selFrom;
     const ins = (text) => () => view.dispatch({
         changes: { from: insertAt, insert: ' ' + text },
@@ -495,7 +495,7 @@ function makeStructureGroup(view, ctx) {
 }
 
 function makeLyricFormattingGroup(view, ctx) {
-    if (ctx.type !== 'lyric') return null;
+    if (ctx.type !== 'lyric' && ctx.type !== 'verse') return null;
     const at = ctx.selFrom;
     const ins = (text) => () => view.dispatch({
         changes: { from: at, insert: text },
@@ -550,6 +550,26 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
                 l => l.type === 'lyrics' && l.srcStart >= cmLine.from && l.srcStart <= cmLine.to,
             );
             if (lyricLine) ctx = { ...ctx, type: 'lyric', lyricLine };
+        } else if (/^\s*W:/.test(cmLine.text)) {
+            ctx = { ...ctx, type: 'verse' };
+        } else {
+            // Continuation line (no w:/W: prefix).
+            // Lyrics nodes track source spans, so check the AST directly.
+            const lyricLine = ast.lines.find(
+                l => l.type === 'lyrics' && l.srcStart < cmLine.from && l.srcEnd > cmLine.from,
+            );
+            if (lyricLine) {
+                ctx = { ...ctx, type: 'lyric', lyricLine };
+            } else {
+                // Verse nodes have no source span — scan backwards for a W: line.
+                let lineNum = cmLine.number - 1;
+                while (lineNum >= 1) {
+                    const prev = view.state.doc.line(lineNum);
+                    if (/^\s*W:/.test(prev.text)) { ctx = { ...ctx, type: 'verse' }; break; }
+                    if (/^\s*[wn]:/.test(prev.text) || prev.text.trim() === '') break;
+                    lineNum--;
+                }
+            }
         }
     }
 

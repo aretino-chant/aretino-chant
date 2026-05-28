@@ -33,7 +33,7 @@ function buildNoteMap(transpose) {
 const GABC_ALTER_SIGN = { x: 'b', y: 'n', '#': '#' };
 
 // GABC rhythmic accent suffixes r1–r5 → Aretino quoted accent characters.
-const GABC_ACCENT_SIGN = { r1: '´', r2: '`', r3: '○', r4: 'ᴖ', r5: 'ᴗ' };
+const GABC_ACCENT_SIGN = { r1: '\'', r2: '`', r3: '○', r4: 'ᴖ', r5: 'ᴗ' };
 
 function convertAlteration(content, noteMap) {
     const m = content.match(/^([a-mA-M])([xy#])$/);

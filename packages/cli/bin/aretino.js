@@ -33,6 +33,7 @@ Options:
   --font-bold-italic <path> Bold-italic font (static override; derived from --font-italic if variable)
   --hide-repeat-clef        Don't repeat clef at the start of continuation lines
   --source-map              Include source-map/highlight hooks for interactive SVG previews
+  --per-line                Write one SVG per staff line; requires --output (writes base-001.svg, base-002.svg, …)
   --help, -h                Show this help
 `;
 
@@ -53,6 +54,7 @@ const { values, positionals } = parseArgs({
         'font-bold-italic': { type: 'string' },
         'hide-repeat-clef': { type: 'boolean' },
         'source-map':       { type: 'boolean' },
+        'per-line':         { type: 'boolean' },
         help:             { type: 'boolean', short: 'h' },
     },
     allowPositionals: true,
@@ -104,6 +106,43 @@ async function tryCreateAutoMeasureFn(fontFamily) {
     }
 }
 
+function splitIntoLines(svg) {
+    const svgTagMatch = svg.match(/^<svg([^>]*)>/);
+    if (!svgTagMatch) return null;
+    const attrs = svgTagMatch[1];
+    const viewBoxMatch = attrs.match(/viewBox="0 0 ([\d.]+) [\d.]+"/);
+    if (!viewBoxMatch) return null;
+    const totalW = parseFloat(viewBoxMatch[1]);
+    const widthAttrMatch = attrs.match(/\bwidth="(\d+)"/);
+    const zoom = widthAttrMatch ? parseInt(widthAttrMatch[1]) / totalW : 1;
+
+    const inner = svg.slice(svgTagMatch[0].length, svg.lastIndexOf('</svg>'));
+
+    const rowRe = /<!--\s*aretino-row\s+\d+\s+([\d.]+)\s*-->/g;
+    const markers = [];
+    let m;
+    while ((m = rowRe.exec(inner)) !== null) {
+        markers.push({ y: parseFloat(m[1]), markerStart: m.index, contentStart: m.index + m[0].length });
+    }
+    if (markers.length === 0) return null;
+
+    const endMatch = inner.match(/<!--\s*aretino-rows-end\s+([\d.]+)\s*-->/);
+    const totalH = endMatch ? parseFloat(endMatch[1]) : 0;
+    const innerEnd = endMatch ? endMatch.index : inner.length;
+
+    const preamble = inner.slice(0, markers[0].markerStart);
+
+    return markers.map((marker, i) => {
+        const nextY = i + 1 < markers.length ? markers[i + 1].y : totalH;
+        const rowH = parseFloat((nextY - marker.y).toFixed(3));
+        const contentEnd = i + 1 < markers.length ? markers[i + 1].markerStart : innerEnd;
+        const content = inner.slice(marker.contentStart, contentEnd);
+        const renderW = Math.round(totalW * zoom);
+        const renderH = Math.round(rowH * zoom);
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}<g transform="translate(0,${-marker.y})">${content}</g></svg>`;
+    });
+}
+
 async function main() {
     let source;
     if (positionals.length > 0) {
@@ -139,7 +178,23 @@ async function main() {
 
     const svg = renderAretino(ast, rendererOptions);
 
-    if (values.output) {
+    if (values['per-line']) {
+        if (!values.output) {
+            process.stderr.write('--per-line requires --output\n');
+            process.exit(1);
+        }
+        const lines = splitIntoLines(svg);
+        if (!lines) {
+            process.stderr.write('No row metadata found in SVG output.\n');
+            process.exit(1);
+        }
+        const outPath = expandHomePath(values.output);
+        const ext = path.extname(outPath);
+        const base = outPath.slice(0, outPath.length - ext.length);
+        for (let i = 0; i < lines.length; i++) {
+            writeFileSync(`${base}-${String(i + 1).padStart(3, '0')}${ext}`, lines[i], 'utf8');
+        }
+    } else if (values.output) {
         writeFileSync(expandHomePath(values.output), svg, 'utf8');
     } else {
         process.stdout.write(svg + '\n');

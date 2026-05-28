@@ -204,6 +204,39 @@ Boolean keys can be written as flags or as explicit values:
 \end{aretino}
 ```
 
+## Page Breaks Between Lines
+
+By default, a whole chant piece is rendered as a single image that cannot be
+split across pages. Use the `per-line` option to render each staff line as a
+separate image and include them one after another, so LaTeX can insert page
+breaks between any two lines:
+
+```tex
+\begin{aretino}[per-line]
+(g2) c d e f
+w:Do-mi-nus vo-bis-cum
+(g2) g f e d
+w:Et cum spi-ri-tu tu-o
+\end{aretino}
+```
+
+```tex
+\aretinofile[per-line]{kyrie.aretino}
+```
+
+`per-line` can be combined with any other rendering options:
+
+```tex
+\begin{aretino}[per-line, width-mm=150, zoom=1.2]
+...
+\end{aretino}
+```
+
+When `per-line` is set, the CLI writes one SVG file per staff line
+(`_aretino/aretino-0001-001.svg`, `…-002.svg`, …). Each SVG is converted to PDF
+and included as an independent block-level element. Page breaks are allowed
+between them but are not forced.
+
 ## Options Reference
 
 ### Command and Cache Options
@@ -233,6 +266,7 @@ the document is compiled with `--shell-escape`.
 | `font-bold` | `--font-bold` | Explicit bold font file for text measurement. |
 | `font-bold-italic` | `--font-bold-italic` | Explicit bold italic font file for text measurement. |
 | `hide-repeat-clef` | `--hide-repeat-clef` | Hide repeated clefs at the start of continuation systems. |
+| `per-line` | `--per-line` | Render each staff line as a separate image; allows page breaks between lines. |
 
 Other Aretino renderer options can be written in the Aretino source with
 `%option:` headers when supported by the core renderer:
@@ -283,9 +317,11 @@ Each rendered block produces temporary files in `cachedir`:
 
 - Inline environments write generated source files such as
   `_aretino/aretino-1.aretino`.
-- All renderings write numbered SVG and PDF files such as
+- Standard renderings write numbered SVG and PDF files such as
   `_aretino/aretino-0001.svg` and `_aretino/aretino-0001.pdf`.
-- The PDF is included with `\includegraphics`.
+- With `per-line`, multiple SVG and PDF files are written per rendering, one per
+  staff line: `_aretino/aretino-0001-001.svg`, `_aretino/aretino-0001-002.svg`, …
+- Each PDF is included with `\includegraphics`.
 
 The cache can be deleted at any time; it is regenerated on the next LaTeX run.
 

@@ -184,6 +184,7 @@ export function renderAretino(source, options = {}) {
     let firstSectionLayoutDone = false;
     let y = ss(ctx, METRICS.titleTopPadding);
     let contentBottom = y;
+    let globalRowIdx = 0;
 
     if (ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
         const title = ast.header['title'];
@@ -476,6 +477,7 @@ export function renderAretino(source, options = {}) {
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
             const staffLeftX = ctx.leftMargin + rowIndent;
+            parts.push(`<!-- aretino-row ${globalRowIdx++} ${Math.max(0, y - 2 * ctx.staffSpace).toFixed(3)} -->`);
             const staffBottomY = y + ctx.staffHeight;
             parts.push(drawStaffLines(ctx, staffLeftX, staffRightX, staffBottomY));
 
@@ -792,5 +794,5 @@ export function renderAretino(source, options = {}) {
     const renderW = Math.round(width * zoom);
     const renderH = Math.round(totalHeight * zoom);
     const interactiveStyle = sourceMap ? HIGHLIGHT_STYLE : '';
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${interactiveStyle}${parts.join('')}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${interactiveStyle}${parts.join('')}<!-- aretino-rows-end ${totalHeight.toFixed(3)} --></svg>`;
 }

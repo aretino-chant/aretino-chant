@@ -25,6 +25,10 @@
 %   ...
 %   \end{aretino}
 %
+%   \begin{aretino}[per-line]
+%   ...
+%   \end{aretino}
+%
 % Compile: lualatex --shell-escape document.tex
 
 \NeedsTeXFormat{LaTeX2e}
@@ -53,6 +57,7 @@
 \def\aretino@fontbold{}
 \def\aretino@fontboldit{}
 \def\aretino@hiderepeatclef{}
+\def\aretino@perline{}
 
 % ---- Package options ----
 
@@ -77,6 +82,7 @@
 \define@key{aretinoset}{font-bold}{\def\aretino@fontbold{#1}}
 \define@key{aretinoset}{font-bold-italic}{\def\aretino@fontboldit{#1}}
 \define@key{aretinoset}{hide-repeat-clef}[true]{\def\aretino@hiderepeatclef{#1}}
+\define@key{aretinoset}{per-line}[true]{\def\aretino@perline{#1}}
 
 \newcommand{\aretinosetup}[1]{\setkeys{aretinoset}{#1}}
 
@@ -145,6 +151,7 @@ function aretino.render(inputfile)
   local cachedir = token.get_macro("aretino@cachedir")
   local cli      = token.get_macro("aretino@cli")
   local rsvg     = token.get_macro("aretino@rsvg")
+  local perline  = token.get_macro("aretino@perline")
 
   local opts = {
     ["width-mm"]         = token.get_macro("aretino@widthmm"),
@@ -162,29 +169,60 @@ function aretino.render(inputfile)
 
   local counter  = tex.count["c@aretino@counter"]
   local basename = cachedir .. "/aretino-" .. string.format("%04d", counter)
-  local svgfile  = basename .. ".svg"
-  local pdffile  = basename .. ".pdf"
 
   aretino.ensure_dir(cachedir)
 
-  local extra   = aretino.build_args(opts)
-  local cmd_svg = cli .. " " .. aretino.sq(inputfile) .. " " .. extra
-                  .. " -o " .. aretino.sq(svgfile)
-  local cmd_pdf = rsvg .. " -f pdf -o " .. aretino.sq(pdffile)
-                  .. " " .. aretino.sq(svgfile)
+  local extra = aretino.build_args(opts)
 
-  local ok_svg, status_svg = aretino.run(cmd_svg)
-  if not ok_svg then
-    tex.error("aretino: SVG generation failed (status " .. tostring(status_svg) .. "): " .. cmd_svg)
-    return
+  if perline == "true" then
+    -- CLI writes basename-001.svg, basename-002.svg, …
+    local svgbase = basename .. ".svg"
+    local cmd_svg = cli .. " " .. aretino.sq(inputfile) .. " " .. extra
+                    .. " --per-line -o " .. aretino.sq(svgbase)
+    local ok_svg, status_svg = aretino.run(cmd_svg)
+    if not ok_svg then
+      tex.error("aretino: SVG generation failed (status " .. tostring(status_svg) .. "): " .. cmd_svg)
+      return
+    end
+    local i = 1
+    while true do
+      local svgfile = basename .. "-" .. string.format("%03d", i) .. ".svg"
+      local pdffile = basename .. "-" .. string.format("%03d", i) .. ".pdf"
+      local f = io.open(svgfile, "r")
+      if not f then break end
+      f:close()
+      local cmd_pdf = rsvg .. " -f pdf -o " .. aretino.sq(pdffile)
+                      .. " " .. aretino.sq(svgfile)
+      local ok_pdf, status_pdf = aretino.run(cmd_pdf)
+      if not ok_pdf then
+        tex.error("aretino: SVG to PDF failed (status " .. tostring(status_pdf) .. "): " .. cmd_pdf)
+        return
+      end
+      tex.print("\\noindent\\includegraphics{" .. pdffile .. "}\\par")
+      i = i + 1
+    end
+    if i == 1 then
+      tex.error("aretino: --per-line produced no output files for " .. inputfile)
+    end
+  else
+    local svgfile = basename .. ".svg"
+    local pdffile = basename .. ".pdf"
+    local cmd_svg = cli .. " " .. aretino.sq(inputfile) .. " " .. extra
+                    .. " -o " .. aretino.sq(svgfile)
+    local cmd_pdf = rsvg .. " -f pdf -o " .. aretino.sq(pdffile)
+                    .. " " .. aretino.sq(svgfile)
+    local ok_svg, status_svg = aretino.run(cmd_svg)
+    if not ok_svg then
+      tex.error("aretino: SVG generation failed (status " .. tostring(status_svg) .. "): " .. cmd_svg)
+      return
+    end
+    local ok_pdf, status_pdf = aretino.run(cmd_pdf)
+    if not ok_pdf then
+      tex.error("aretino: SVG to PDF conversion failed (status " .. tostring(status_pdf) .. "): " .. cmd_pdf)
+      return
+    end
+    tex.print("\\includegraphics{" .. pdffile .. "}")
   end
-  local ok_pdf, status_pdf = aretino.run(cmd_pdf)
-  if not ok_pdf then
-    tex.error("aretino: SVG to PDF conversion failed (status " .. tostring(status_pdf) .. "): " .. cmd_pdf)
-    return
-  end
-
-  tex.print("\\includegraphics{" .. pdffile .. "}")
 end
 
 \end{luacode*}

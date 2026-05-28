@@ -5,6 +5,8 @@
 import { StreamLanguage, LanguageSupport, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { autocompletion } from '@codemirror/autocomplete';
+import { ViewPlugin, Decoration, EditorView } from '@codemirror/view';
+import { RangeSetBuilder } from '@codemirror/state';
 import { aretinoComplete } from './autocomplete.js';
 
 // Token types (CM5 legacy names → lezer highlight tags via StreamLanguage):
@@ -226,11 +228,91 @@ const aretinoHighlightStyle = HighlightStyle.define([
     { tag: tags.link,                  color: '#065f46', textDecoration: 'underline' }, // [underline]
 ]);
 
+// Pitch positions mirror PITCH_BASE in core/src/glyphs.js.
+const PITCH_BASE = { a: -4, b: -3, c: -2, d: -1, e: 0, f: 1, g: 2, h: 3, i: 4, j: 5, k: 6, l: 7, m: 8, n: 9 };
+
+function atomPitchPos(ch) {
+    const base = PITCH_BASE[ch.toLowerCase()];
+    if (base === undefined) return null;
+    return base + (ch !== ch.toLowerCase() ? 7 : 0);
+}
+
+const bigJumpMark = Decoration.mark({ class: 'cm-aretino-big-jump' });
+
+function buildBigJumpDecorations(doc) {
+    const builder = new RangeSetBuilder();
+    let inVerse = false;
+    for (let ln = 1; ln <= doc.lines; ln++) {
+        const line = doc.line(ln);
+        const text = line.text;
+        if (text.trim() === '') { inVerse = false; continue; }
+        if (/^\s*%/.test(text)) { inVerse = false; continue; }   // header / comment lines
+        if (/^\s*W:/.test(text)) { inVerse = true; continue; }   // verse line
+        if (/^\s*w:/.test(text)) { inVerse = false; continue; }  // lyrics line
+        // n: is always a music continuation, even after a verse
+        if (inVerse && !/^\s*n:/.test(text)) continue;           // verse continuation
+
+        inVerse = false;
+        // Strip optional n: continuation prefix
+        let i = 0;
+        const nPfx = text.match(/^(\s*n:\s?)/);
+        if (nPfx) i = nPfx[1].length;
+
+        let lastPP = null;
+        while (i < text.length) {
+            const ch = text[i];
+            if (ch === '%') {
+                if (text[i + 1] === '[') {
+                    const close = text.indexOf('%]', i + 2);
+                    i = close >= 0 ? close + 2 : text.length;
+                } else {
+                    break;
+                }
+                continue;
+            }
+            if (ch === '(') { const c = text.indexOf(')', i + 1); i = c >= 0 ? c + 1 : text.length; continue; }
+            if (ch === '"') { const c = text.indexOf('"', i + 1); i = c >= 0 ? c + 1 : text.length; continue; }
+            if (ch === '\\') {
+                const m = /^\\[a-zA-Z]+\{/.exec(text.slice(i));
+                i += m ? m[0].length : 1;
+                continue;
+            }
+            if (/[a-nA-N]/.test(ch)) {
+                const pp = atomPitchPos(ch);
+                const from = line.from + i;
+                i++;
+                while (i < text.length && /['._\-~wts`]/.test(text[i])) i++;
+                if (lastPP !== null && pp !== null && Math.abs(pp - lastPP) > 4) {
+                    builder.add(from, line.from + i, bigJumpMark);
+                }
+                if (pp !== null) lastPP = pp;
+                continue;
+            }
+            i++;
+        }
+    }
+    return builder.finish();
+}
+
+const bigJumpPlugin = ViewPlugin.fromClass(
+    class {
+        constructor(view) { this.decorations = buildBigJumpDecorations(view.state.doc); }
+        update(u) { if (u.docChanged) this.decorations = buildBigJumpDecorations(u.state.doc); }
+    },
+    { decorations: v => v.decorations },
+);
+
+const bigJumpTheme = EditorView.baseTheme({
+    '.cm-aretino-big-jump': { background: '#fed7aa' },
+});
+
 export function aretino() {
     return new LanguageSupport(aretinoLanguage, [
         syntaxHighlighting(aretinoHighlightStyle),
         aretinoLanguage.data.of({ closeBrackets: { brackets: ['(', '[', '{', '"', '`'] } }),
         aretinoLanguage.data.of({ autocomplete: aretinoComplete }),
         autocompletion({ activateOnTyping: false }),
+        bigJumpPlugin,
+        bigJumpTheme,
     ]);
 }

@@ -30,17 +30,22 @@ use `@aretino-chant/editor`.
 npm install @aretino-chant/core
 ```
 
-The package is ESM-only (`"type": "module"`) and side-effect free. Two functions
+The package is ESM-only (`"type": "module"`) and side-effect free. These functions
 are exported:
 
 ```js
-import { renderAretino, parseAretino } from '@aretino-chant/core';
+import {
+  renderAretino,
+  parseAretino,
+  parseHeaderRendererOptions
+} from '@aretino-chant/core';
 ```
 
 | Export | Signature | Returns |
 |---|---|---|
 | `renderAretino` | `(source, options?) => string` | A complete `<svg>…</svg>` string |
-| `parseAretino` | `(source) => AST` | `{ header, lines }` |
+| `parseAretino` | `(source) => AST` | `{ header, optionHeaders, lines }` |
+| `parseHeaderRendererOptions` | `(ast) => object` | Renderer options parsed from `%option:` headers |
 
 `renderAretino` accepts **either** a source string **or** a pre-parsed AST as its
 first argument (it calls `parseAretino` internally only when given a string), so
@@ -352,6 +357,14 @@ const ast = parseAretino(source); // { header, optionHeaders, lines }
   source order for the renderer
 - Lines beginning `w:` become `lyrics`; consecutive non-`w:` lines after a lyric
   line are folded into the same lyric (so a manual wrap mid-lyric is preserved).
+
+Use `parseHeaderRendererOptions(ast)` when tooling needs the typed renderer
+options implied by `%option:` headers without rendering immediately:
+
+```js
+const ast = parseAretino(source);
+const headerOptions = parseHeaderRendererOptions(ast);
+```
 
 ### Token shapes
 

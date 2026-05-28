@@ -55,7 +55,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             if (note.accidental) {
                 const accX = cx - ss(ctx, METRICS.noteBoxWidth) * 0.5;
                 const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY, note.accidental.high ?? false);
-                parts.push(wrapSrc(note.accidental, a.svg, 'aretino-accidental aretino-inline-accidental', staffBottomY, ctx.staffHeight));
+                parts.push(wrapSrc(note.accidental, a.svg, 'aretino-accidental aretino-inline-accidental', staffBottomY, ctx.staffHeight, undefined, undefined, ctx.sourceMap));
                 cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
             }
             const cy = pitchY(ctx, note, staffBottomY);
@@ -209,9 +209,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                     glyph = drawLiquescens(ctx, p.cx, p.cy, 'down');
                 }
                 if (glyph === null) continue;
-                noteParts.push(wrapSrc(modifierSpans[mi] ?? {}, glyph, `aretino-modifier aretino-mod-${mod}`));
+                noteParts.push(wrapSrc(modifierSpans[mi] ?? {}, glyph, `aretino-modifier aretino-mod-${mod}`, undefined, undefined, undefined, undefined, ctx.sourceMap));
             }
-            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight, p.cx - ss(ctx, METRICS.noteBoxWidth) * 0.5, ss(ctx, METRICS.noteBoxWidth)));
+            parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight, p.cx - ss(ctx, METRICS.noteBoxWidth) * 0.5, ss(ctx, METRICS.noteBoxWidth), ctx.sourceMap));
         }
 
         if (g < groups.length - 1) {

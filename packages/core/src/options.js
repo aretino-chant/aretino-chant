@@ -15,6 +15,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     lyricDistance: 'number',
     hideRepeatClef: 'boolean',
     canvasHeight: 'number',
+    sourceMap: 'boolean',
 };
 
 function parseBooleanOption(valueText) {

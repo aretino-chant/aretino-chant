@@ -124,12 +124,14 @@ export function renderAretino(source, options = {}) {
     const noteSpacing = Math.max(0.5, options.noteSpacing ?? 1);
     const lyricFont = options.lyricFont || DEFAULT_FONT;
     const hideRepeatClef = !!options.hideRepeatClef;
+    const sourceMap = options.sourceMap !== false;
 
     // The whole engraving is parameterised by a single pixel-size: staffSpace.
     // Everything else (margins, advances, glyph dimensions) is a multiple of
     // it via METRICS.
     const ctx = {
         staffSpace: staffSpacePx,
+        sourceMap,
     };
     ctx.pitchStep = ctx.staffSpace / 2;
     ctx.staffHeight = (METRICS.staffLineCount - 1) * ctx.staffSpace;
@@ -474,7 +476,7 @@ export function renderAretino(source, options = {}) {
 
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
-                parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight));
+                parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                 cursorX += c.advance - ss(ctx, METRICS.clefPostGap) + ss(ctx, METRICS.clefInlinePostGap);
             }
 
@@ -536,11 +538,11 @@ export function renderAretino(source, options = {}) {
                 const it = row.items[idx];
                 if (it.kind === 'clef') {
                     const c = drawClef(ctx, it.clef, cursorX, staffBottomY);
-                    parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight));
+                    parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
                 } else if (it.kind === 'accidental') {
                     const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY, it.high ?? false);
-                    parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental', staffBottomY, ctx.staffHeight));
+                    parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     let adv = a.advance;
                     if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
                     else if (it.symbol === 'y') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceNatural));
@@ -555,7 +557,7 @@ export function renderAretino(source, options = {}) {
                         cursorX += a.advance;
                     }
                     if (pieces.length) {
-                        parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig', staffBottomY, ctx.staffHeight));
+                        parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     } else {
                         // Empty (K:) — clears signature; nothing to draw.
                         cursorX = startX;
@@ -576,7 +578,7 @@ export function renderAretino(source, options = {}) {
                         barlineSvg = b.svg;
                         barlineAdvance = b.advance;
                     }
-                    parts.push(wrapSrc(it, barlineSvg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight));
+                    parts.push(wrapSrc(it, barlineSvg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     const offsetX = (it.value === '||' || it.value === ':|' || it.value === '|:' || it.value === ':|:' || it.value === '|||')
                         ? (METRICS.barlineOffsetX + METRICS.barlineDoubleSecondOffsetX) / 2
                         : METRICS.barlineOffsetX;
@@ -627,7 +629,7 @@ export function renderAretino(source, options = {}) {
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
                         ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
-                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX));
+                    parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
@@ -713,7 +715,7 @@ export function renderAretino(source, options = {}) {
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
                     const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
-                    parts.push(wrapSrc(lyric, lyricSvg, 'aretino-lyric aretino-lyric-line'));
+                    parts.push(wrapSrc(lyric, lyricSvg, 'aretino-lyric aretino-lyric-line', undefined, undefined, undefined, undefined, sourceMap));
                     lyricY += lyricLineHeight;
                 }
                 const lastLyricBottom = lyricY - lyricLineHeight + ctx.lyricSize * 0.3;
@@ -746,5 +748,6 @@ export function renderAretino(source, options = {}) {
     // shrink-to-fit can add `max-width:100%;height:auto` in CSS.
     const renderW = Math.round(width * zoom);
     const renderH = Math.round(totalHeight * zoom);
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${HIGHLIGHT_STYLE}${parts.join('')}</svg>`;
+    const interactiveStyle = sourceMap ? HIGHLIGHT_STYLE : '';
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${interactiveStyle}${parts.join('')}</svg>`;
 }

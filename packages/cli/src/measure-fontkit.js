@@ -29,7 +29,7 @@ export async function createFontkitMeasureFn(fontInput) {
 
 async function loadFonts(open, fontInput) {
     if (typeof fontInput === 'string') {
-        const font = await open(fontInput);
+        const font = await openFont(open, fontInput);
         const axes = font.variationAxes ?? {};
         const hasWght = 'wght' in axes;
         const hasItal = 'ital' in axes;
@@ -50,10 +50,10 @@ async function loadFonts(open, fontInput) {
 
     const { regular, bold: boldPath, italic: italicPath, boldItalic: boldItalicPath } = fontInput;
     const [uprightFont, italicFont, explicitBoldFont, explicitBoldItalicFont] = await Promise.all([
-        regular        ? open(regular)        : null,
-        italicPath     ? open(italicPath)     : null,
-        boldPath       ? open(boldPath)       : null,
-        boldItalicPath ? open(boldItalicPath) : null,
+        regular        ? openFont(open, regular)        : null,
+        italicPath     ? openFont(open, italicPath)     : null,
+        boldPath       ? openFont(open, boldPath)       : null,
+        boldItalicPath ? openFont(open, boldItalicPath) : null,
     ]);
 
     const { normal: regularFont, bold: boldFont } = resolveWeights(uprightFont, explicitBoldFont);
@@ -65,6 +65,14 @@ async function loadFonts(open, fontInput) {
         italic:     italicFont2,
         boldItalic: boldItalicFont,
     };
+}
+
+async function openFont(open, filePath) {
+    const font = await open(filePath);
+    if (!font || typeof font.layout !== 'function') {
+        throw new Error(`Unsupported font file: ${filePath}`);
+    }
+    return font;
 }
 
 // Resolves a (possibly variable) font into normal-weight and bold-weight instances.

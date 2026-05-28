@@ -253,7 +253,7 @@ export function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         const label = labels[i];
         const labelSvg = `<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`
             + renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle', ctx.measureText ?? measureTextWidth);
-        parts.push(wrapSrc(label, labelSvg, 'aretino-lyric aretino-barline-label'));
+        parts.push(wrapSrc(label, labelSvg, 'aretino-lyric aretino-barline-label', undefined, undefined, undefined, undefined, ctx.sourceMap));
     }
     return parts.join('');
 }
@@ -398,7 +398,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
                         const newTC1 = prevLeft + newFullW1 / 2;
                         const newSvg1 = `<text xml:space="preserve" x="${newTC1}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(transformed[0].segments)}</text>`
                             + renderUnderlines(transformed[0].segments, newTC1, lyricY, fontSize, fontFamily, 'middle', measureFn);
-                        parts[prevSylIdx] = wrapSrc(transformed[0], newSvg1, 'aretino-lyric aretino-syllable');
+                        parts[prevSylIdx] = wrapSrc(transformed[0], newSvg1, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap);
                         prevRight = prevLeft + newFullW1;
                         fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily, measureFn);
                         alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily, measureFn);
@@ -420,7 +420,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle', measureFn);
         prevSylIdx = parts.length;
         prevLeft = left;
-        parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable'));
+        parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap));
         if (hyphenX !== null) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
         }

@@ -5,6 +5,9 @@
   "bin": {
     "aretino": "./bin/aretino.js"
   },
+  "scripts": {
+    "test": "node --test"
+  },
   "files": [
     "bin",
     "src"

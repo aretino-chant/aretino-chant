@@ -6,8 +6,8 @@
 // optional staff/bbox geometry) so a cursor-tracking script can map screen
 // positions back to source offsets. Returns the fragment unchanged when the
 // item has no source span.
-export function wrapSrc(item, svg, cls, staffBottomY, staffHeight, bboxX, bboxWidth) {
-    if (item.srcStart === undefined || item.srcEnd === undefined) {
+export function wrapSrc(item, svg, cls, staffBottomY, staffHeight, bboxX, bboxWidth, enabled = true) {
+    if (!enabled || item.srcStart === undefined || item.srcEnd === undefined) {
         return svg;
     }
     const staffAttrs = (staffBottomY !== undefined)

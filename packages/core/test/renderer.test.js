@@ -310,6 +310,17 @@ describe('renderAretino', () => {
   });
 
   describe('source-mapped caret elements', () => {
+    it('can render without interactive source-map and highlight markup', () => {
+      const svg = renderAretino('(g2) g-.', { sourceMap: false });
+
+      expect(svg).not.toContain('data-src-start');
+      expect(svg).not.toContain('aretino-active');
+      expect(svg).not.toContain('aretino-cursor');
+      expect(svg).not.toContain('aretino-token');
+      expect(svg).not.toContain('aretino-note');
+      expect(svg).not.toContain('aretino-modifier');
+    });
+
     it('maps clefs, standalone accidentals, and barlines to source spans', () => {
       const source = '(c3) (b) |';
       const groups = sourceMappedGroups(renderAretino(source, { width: 400, hideRepeatClef: true }));

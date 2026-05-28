@@ -5,8 +5,11 @@
 
 import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { renderAretino } from '@aretino-chant/core';
+import path from 'node:path';
+import { homedir } from 'node:os';
+import { parseAretino, parseHeaderRendererOptions, renderAretino } from '@aretino-chant/core';
 import { createFontkitMeasureFn } from '../src/measure-fontkit.js';
+import { resolveSystemFontForFontkit } from '../src/system-fonts.js';
 
 const HELP = `\
 Usage: aretino [input.aretino] [options]
@@ -19,14 +22,17 @@ Options:
   --dpi <n>                 DPI for mm→px conversion (default: 96)
   --staff-space-mm <mm>     Physical staff space size (default: 1.75)
   --lyric-size <pt>         Lyric font size in points (default: 10)
-  --lyric-font <family>     CSS font-family string for lyrics
+  --lyric-font <family>     CSS font-family string for lyrics; on Linux this is
+                            also resolved via fontconfig for measurement
   --note-spacing <n>        Note spacing multiplier (default: 1)
   --zoom <n>                Output magnification (default: 1)
-  --font-file <path>        Upright font for text measurement (variable or static)
+  --font-file <path>        Explicit upright font for text measurement
+                            (variable or static; overrides auto-resolution)
   --font-italic <path>      Italic font (variable or static; derives bold-italic via wght)
   --font-bold <path>        Bold font (static override; derived from --font-file if variable)
   --font-bold-italic <path> Bold-italic font (static override; derived from --font-italic if variable)
   --hide-repeat-clef        Don't repeat clef at the start of continuation lines
+  --source-map              Include source-map/highlight hooks for interactive SVG previews
   --help, -h                Show this help
 `;
 
@@ -46,6 +52,7 @@ const { values, positionals } = parseArgs({
         'font-bold':        { type: 'string' },
         'font-bold-italic': { type: 'string' },
         'hide-repeat-clef': { type: 'boolean' },
+        'source-map':       { type: 'boolean' },
         help:             { type: 'boolean', short: 'h' },
     },
     allowPositionals: true,
@@ -63,16 +70,52 @@ function num(v) {
     return n;
 }
 
+function expandHomePath(filePath) {
+    if (typeof filePath !== 'string') return filePath;
+    if (filePath === '~') return homedir();
+    if (filePath.startsWith('~/') || filePath.startsWith('~\\')) {
+        return path.join(homedir(), filePath.slice(2));
+    }
+    return filePath;
+}
+
+function fontInputFromArgs(values) {
+    if (!values['font-file']) return null;
+    const hasExtras = values['font-italic'] || values['font-bold'] || values['font-bold-italic'];
+    return hasExtras
+        ? {
+            regular:    expandHomePath(values['font-file']),
+            italic:     expandHomePath(values['font-italic']),
+            bold:       expandHomePath(values['font-bold']),
+            boldItalic: expandHomePath(values['font-bold-italic']),
+        }
+        : expandHomePath(values['font-file']);
+}
+
+async function tryCreateAutoMeasureFn(fontFamily) {
+    const fontInput = await resolveSystemFontForFontkit(fontFamily);
+    if (!fontInput) return null;
+
+    try {
+        return await createFontkitMeasureFn(fontInput);
+    } catch (err) {
+        process.stderr.write(`Warning: could not measure with system font "${fontFamily}": ${err.message}\n`);
+        return null;
+    }
+}
+
 async function main() {
     let source;
     if (positionals.length > 0) {
-        source = readFileSync(positionals[0], 'utf8');
+        source = readFileSync(expandHomePath(positionals[0]), 'utf8');
     } else {
         const chunks = [];
         for await (const chunk of process.stdin) chunks.push(chunk);
         source = Buffer.concat(chunks).toString('utf8');
     }
 
+    const ast = parseAretino(source);
+    const headerOptions = parseHeaderRendererOptions(ast);
     const rendererOptions = {};
     if (values.width !== undefined)            rendererOptions.width          = num(values.width);
     if (values['width-mm'] !== undefined)      rendererOptions.widthMm        = num(values['width-mm']);
@@ -83,24 +126,21 @@ async function main() {
     if (values['note-spacing'] !== undefined)  rendererOptions.noteSpacing     = num(values['note-spacing']);
     if (values.zoom !== undefined)             rendererOptions.zoom            = num(values.zoom);
     if (values['hide-repeat-clef'])            rendererOptions.hideRepeatClef  = true;
+    rendererOptions.sourceMap = !!values['source-map'];
 
-    if (values['font-file']) {
-        const hasExtras = values['font-italic'] || values['font-bold'] || values['font-bold-italic'];
-        const fontInput = hasExtras
-            ? {
-                regular:    values['font-file'],
-                italic:     values['font-italic'],
-                bold:       values['font-bold'],
-                boldItalic: values['font-bold-italic'],
-            }
-            : values['font-file'];
+    const fontInput = fontInputFromArgs(values);
+    if (fontInput) {
         rendererOptions.measureText = await createFontkitMeasureFn(fontInput);
+    } else {
+        const effectiveLyricFont = rendererOptions.lyricFont ?? headerOptions.lyricFont;
+        const measureText = await tryCreateAutoMeasureFn(effectiveLyricFont);
+        if (measureText) rendererOptions.measureText = measureText;
     }
 
-    const svg = renderAretino(source, rendererOptions);
+    const svg = renderAretino(ast, rendererOptions);
 
     if (values.output) {
-        writeFileSync(values.output, svg, 'utf8');
+        writeFileSync(expandHomePath(values.output), svg, 'utf8');
     } else {
         process.stdout.write(svg + '\n');
     }

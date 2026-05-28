@@ -21,6 +21,10 @@ import { undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
 const I = (body) =>
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${body}</svg>`;
 
+// Lucide-compatible helper: sets fill="none" and default stroke props on the root
+const L = (body) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+
 // Text-label icon helper (monospace, centered)
 const T = (text) =>
     I(`<text x="12" y="17" text-anchor="middle" font-size="13" fill="currentColor" font-family="monospace">${text}</text>`);
@@ -65,8 +69,8 @@ const ICONS = {
     'structure-break-nojustify': I('<polyline points="4,16 12,8 20,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
     'structure-label': I('<text x="12" y="17" text-anchor="middle" font-size="14" fill="currentColor" font-family="monospace">""</text>'),
 
-    'edit-undo': I('<path d="M8 6 L3 11 L8 16 M3 11 C3 5 9 2 15 4 C19 6 21 10 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
-    'edit-redo': I('<path d="M16 6 L21 11 L16 16 M21 11 C21 5 15 2 9 4 C5 6 3 10 4 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
+    'edit-undo': L('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>'),
+    'edit-redo': L('<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>'),
 
     'lyric-tilde': T('~'),
     'lyric-double-tilde': T('~~'),
@@ -74,9 +78,9 @@ const ICONS = {
     'lyric-cross-paren': T('(+)'),
     'lyric-hyphen': T('-'),
 
-    'lyric-bold':       I('<text x="12" y="17" text-anchor="middle" font-size="15" fill="currentColor" font-family="serif" font-weight="bold">B</text>'),
-    'lyric-italic':     I('<text x="12" y="17" text-anchor="middle" font-size="15" fill="currentColor" font-family="serif" font-style="italic">I</text>'),
-    'lyric-underline':  I('<text x="12" y="15" text-anchor="middle" font-size="14" fill="currentColor" font-family="serif">U</text><line x1="5" y1="19" x2="19" y2="19" stroke="currentColor" stroke-width="1.5"/>'),
+    'lyric-bold':       L('<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>'),
+    'lyric-italic':     L('<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>'),
+    'lyric-underline':  L('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>'),
     'lyric-small-caps': I('<text x="12" y="17" text-anchor="middle" font-size="11" fill="currentColor" font-family="serif" font-variant="small-caps">SC</text>'),
 };
 

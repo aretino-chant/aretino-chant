@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "aretino": "./bin/aretino.js"
+    "aretino": "bin/aretino.js"
   },
   "scripts": {
     "test": "node --test"

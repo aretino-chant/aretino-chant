@@ -1,0 +1,5 @@
+_aretino
+.texlive-cache
+*.aux
+*pdf
+out/

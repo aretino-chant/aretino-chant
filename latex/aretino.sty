@@ -1,0 +1,257 @@
+% aretino.sty — LuaLaTeX package for Aretino chant notation
+%
+% Requirements:
+%   - LuaLaTeX with --shell-escape
+%   - rsvg-convert  (sudo apt install librsvg2-bin)
+%   - aretino CLI   (node /path/to/aretino.js  or  npm link in packages/cli)
+%
+% Usage:
+%   \usepackage{aretino}
+%   \aretinosetup{
+%     cli           = node /path/to/aretino.js,   % full command string, shell-trusted
+%     width-mm      = 160,
+%     staff-space-mm= 1.75,
+%   }
+%
+%   \aretinofile{mypiece.aretino}
+%   \aretinofile[width-mm=120]{mypiece.aretino}
+%
+%   \begin{aretino}
+%   (g2) c d e
+%   w:Do-mi-nus
+%   \end{aretino}
+%
+%   \begin{aretino}[width-mm=120, zoom=1.5]
+%   ...
+%   \end{aretino}
+%
+% Compile: lualatex --shell-escape document.tex
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{aretino}[2026/05/28 v0.1 Aretino chant for LuaLaTeX]
+
+\RequirePackage{graphicx}
+\RequirePackage{xkeyval}
+\RequirePackage{luacode}
+\RequirePackage{fancyvrb}
+\RequirePackage{iftex}
+\RequireLuaTeX
+
+% ---- Package defaults ----
+
+\def\aretino@cli{aretino}
+\def\aretino@rsvg{rsvg-convert}
+\def\aretino@cachedir{_aretino}
+\def\aretino@widthmm{}
+\def\aretino@staffspacemm{}
+\def\aretino@lyricsize{}
+\def\aretino@lyricfont{}
+\def\aretino@notespacing{}
+\def\aretino@zoom{}
+\def\aretino@fontfile{}
+\def\aretino@fontitalic{}
+\def\aretino@fontbold{}
+\def\aretino@fontboldit{}
+\def\aretino@hiderepeatclef{}
+
+% ---- Package options ----
+
+\DeclareOptionX{cli}{\def\aretino@cli{#1}}
+\DeclareOptionX{rsvg}{\def\aretino@rsvg{#1}}
+\DeclareOptionX{cachedir}{\def\aretino@cachedir{#1}}
+\ProcessOptionsX\relax
+
+% ---- \aretinosetup ----
+
+\define@key{aretinoset}{cli}{\def\aretino@cli{#1}}
+\define@key{aretinoset}{rsvg}{\def\aretino@rsvg{#1}}
+\define@key{aretinoset}{cachedir}{\def\aretino@cachedir{#1}}
+\define@key{aretinoset}{width-mm}{\def\aretino@widthmm{#1}}
+\define@key{aretinoset}{staff-space-mm}{\def\aretino@staffspacemm{#1}}
+\define@key{aretinoset}{lyric-size}{\def\aretino@lyricsize{#1}}
+\define@key{aretinoset}{lyric-font}{\def\aretino@lyricfont{#1}}
+\define@key{aretinoset}{note-spacing}{\def\aretino@notespacing{#1}}
+\define@key{aretinoset}{zoom}{\def\aretino@zoom{#1}}
+\define@key{aretinoset}{font-file}{\def\aretino@fontfile{#1}}
+\define@key{aretinoset}{font-italic}{\def\aretino@fontitalic{#1}}
+\define@key{aretinoset}{font-bold}{\def\aretino@fontbold{#1}}
+\define@key{aretinoset}{font-bold-italic}{\def\aretino@fontboldit{#1}}
+\define@key{aretinoset}{hide-repeat-clef}[true]{\def\aretino@hiderepeatclef{#1}}
+
+\newcommand{\aretinosetup}[1]{\setkeys{aretinoset}{#1}}
+
+% ---- Counter for unique temp file names ----
+
+\newcounter{aretino@counter}
+
+% ---- Lua implementation ----
+% luacode* environment: % and \ are regular characters (no TeX interpretation)
+
+\begin{luacode*}
+aretino = {}
+
+-- Fail early if full --shell-escape was not given. Restricted shell escape
+-- cannot run arbitrary local commands such as node or rsvg-convert.
+if status.shell_escape ~= 1 then
+  tex.error("Package aretino: full --shell-escape is required. Rerun with: lualatex --shell-escape")
+end
+
+-- single-quote a shell argument (POSIX sh safe)
+function aretino.sq(s)
+  return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+
+function aretino.ensure_dir(dir)
+  os.execute("mkdir -p " .. aretino.sq(dir))
+end
+
+function aretino.run(cmd)
+  local ok, how, code = os.execute(cmd)
+  if type(ok) == "number" then
+    return ok == 0, ok
+  end
+  if ok == true then
+    return true, 0
+  end
+  return false, code or how
+end
+
+function aretino.build_args(opts)
+  local t = {}
+  local function add(flag, val)
+    if val and val ~= "" then
+      table.insert(t, flag .. " " .. aretino.sq(val))
+    end
+  end
+  add("--width-mm",        opts["width-mm"])
+  add("--staff-space-mm",  opts["staff-space-mm"])
+  add("--lyric-size",      opts["lyric-size"])
+  add("--lyric-font",      opts["lyric-font"])
+  add("--note-spacing",    opts["note-spacing"])
+  add("--zoom",            opts["zoom"])
+  add("--font-file",       opts["font-file"])
+  add("--font-italic",     opts["font-italic"])
+  add("--font-bold",       opts["font-bold"])
+  add("--font-bold-italic",opts["font-bold-italic"])
+  if opts["hide-repeat-clef"] == "true" then
+    table.insert(t, "--hide-repeat-clef")
+  end
+  return table.concat(t, " ")
+end
+
+-- xkeyval has already applied local overrides via \setkeys in a TeX group;
+-- just read the (already-merged) macro values here.
+function aretino.render(inputfile)
+  local cachedir = token.get_macro("aretino@cachedir")
+  local cli      = token.get_macro("aretino@cli")
+  local rsvg     = token.get_macro("aretino@rsvg")
+
+  local opts = {
+    ["width-mm"]         = token.get_macro("aretino@widthmm"),
+    ["staff-space-mm"]   = token.get_macro("aretino@staffspacemm"),
+    ["lyric-size"]       = token.get_macro("aretino@lyricsize"),
+    ["lyric-font"]       = token.get_macro("aretino@lyricfont"),
+    ["note-spacing"]     = token.get_macro("aretino@notespacing"),
+    ["zoom"]             = token.get_macro("aretino@zoom"),
+    ["font-file"]        = token.get_macro("aretino@fontfile"),
+    ["font-italic"]      = token.get_macro("aretino@fontitalic"),
+    ["font-bold"]        = token.get_macro("aretino@fontbold"),
+    ["font-bold-italic"] = token.get_macro("aretino@fontboldit"),
+    ["hide-repeat-clef"] = token.get_macro("aretino@hiderepeatclef"),
+  }
+
+  local counter  = tex.count["c@aretino@counter"]
+  local basename = cachedir .. "/aretino-" .. string.format("%04d", counter)
+  local svgfile  = basename .. ".svg"
+  local pdffile  = basename .. ".pdf"
+
+  aretino.ensure_dir(cachedir)
+
+  local extra   = aretino.build_args(opts)
+  local cmd_svg = cli .. " " .. aretino.sq(inputfile) .. " " .. extra
+                  .. " -o " .. aretino.sq(svgfile)
+  local cmd_pdf = rsvg .. " -f pdf -o " .. aretino.sq(pdffile)
+                  .. " " .. aretino.sq(svgfile)
+
+  local ok_svg, status_svg = aretino.run(cmd_svg)
+  if not ok_svg then
+    tex.error("aretino: SVG generation failed (status " .. tostring(status_svg) .. "): " .. cmd_svg)
+    return
+  end
+  local ok_pdf, status_pdf = aretino.run(cmd_pdf)
+  if not ok_pdf then
+    tex.error("aretino: SVG to PDF conversion failed (status " .. tostring(status_pdf) .. "): " .. cmd_pdf)
+    return
+  end
+
+  tex.print("\\includegraphics{" .. pdffile .. "}")
+end
+
+\end{luacode*}
+
+% ---- Internal render command ----
+% #1 = .aretino input file   #2 = local options string
+% Local options are applied via \setkeys inside a group so global defaults
+% are automatically restored when the group ends.
+\def\aretino@setlocalkeys#1{\setkeys{aretinoset}{#1}}
+\newcommand{\aretino@render}[2]{%
+  \begingroup
+    \edef\aretino@localopts{#2}%
+    \expandafter\aretino@setlocalkeys\expandafter{\aretino@localopts}%
+    \directlua{aretino.render("\luatexluaescapestring{#1}")}%
+  \endgroup
+}
+
+% ---- \aretinofile[options]{file} ----
+\newcommand{\aretinofile}[2][]{%
+  \stepcounter{aretino@counter}%
+  \aretino@render{#2}{#1}%
+}
+
+% ---- aretino environment ----
+% fancyvrb handles verbatim body capture without recursive active-newline
+% scanning, so Aretino comments and backslashes remain literal.
+%
+% VerbatimOut normally insists that its own \begin line has no trailing input.
+% Here it is started from inside \begin{aretino}, after that physical line has
+% already been consumed, so call the same lower-level writer and start directly
+% with the first body line.
+\def\aretino@beginverbatimout#1{%
+  \@bsphack
+  \begingroup
+    \def\FV@KeyValues{}%
+    \FV@UseKeyValues
+    \FV@DefineWhiteSpace
+    \def\FV@Space{\space}%
+    \FV@DefineTabOut
+    \def\FV@ProcessLine{\immediate\write\FV@OutFile}%
+    \immediate\openout\FV@OutFile #1\relax
+    \let\FV@FontScanPrep\relax
+    \let\@noligs\relax
+    \FV@CatCodes
+    \VerbatimEnvironment
+    \FV@DefineCheckEnd
+    \FV@GetLine
+}
+
+\def\aretino@endverbatimout{%
+  \immediate\closeout\FV@OutFile
+  \endgroup
+  \@esphack
+}
+
+\newenvironment{aretino}[1][]{%
+  \VerbatimEnvironment
+  \stepcounter{aretino@counter}%
+  \def\aretino@env@opts{#1}%
+  \edef\aretino@env@file{%
+    \aretino@cachedir/aretino-\thearetino@counter.aretino%
+  }%
+  \directlua{
+    aretino.ensure_dir(token.get_macro("aretino@cachedir"))
+  }%
+  \aretino@beginverbatimout{\aretino@env@file}%
+}{%
+  \aretino@endverbatimout
+  \aretino@render{\aretino@env@file}{\aretino@env@opts}%
+}

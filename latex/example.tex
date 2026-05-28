@@ -1,0 +1,44 @@
+% Compile with:  lualatex --shell-escape example.tex
+\documentclass{article}
+\usepackage{aretino}
+
+% Global defaults: CLI path and page-width rendering.
+% On Linux, the CLI resolves lyric-font via fontconfig for text measurement;
+% on other platforms, or for fully reproducible builds, set font-file too.
+\aretinosetup{
+  cli      = node ../node_modules/.bin/aretino,
+  width-mm = 150,
+  lyric-font=EB Garamond
+}
+
+\begin{document}
+
+\section*{Inline notation}
+
+\begin{aretino}
+(g2) c d e
+w:Ky-ri-e
+\end{aretino}
+
+\section*{With local options}
+
+\begin{aretino}[width-mm=80, zoom=1.2]
+(g2) c d e
+w:Glo-ri-a
+\end{aretino}
+
+Another example:
+
+\noindent
+\begin{aretino}[hide-repeat-clef]
+%indent: 5
+(g2) f (Bb)ABC C.D'CBC. F'DC-BCDC. , (Bb)C'Ag-fBA g- g f. || A A'gf-ef.(Bb)f`AB`C'.D'CBC. , (Bb)C'Ag-fBA g- g f. || F- E F'ED-EFC.(Bb)FCD'./AB`C'. , (Bb)C'Ag-fBA g- g f. || F- E F'ED-EFC. , FEF'ED-EFC.(Bb)FCD'./AB`C'. , (Bb)C'Ag-fBA g- g f. ||
+w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-lé-i-son. (<ij.>) Ký-ri-e (*) ~ (**) e-lé-i-son.
+\end{aretino}
+
+\section*{From file}
+
+\aretinofile{alleluia.aretino}
+\aretinofile[zoom=1.4, width-mm=80]{alleluia.aretino}
+
+\end{document}

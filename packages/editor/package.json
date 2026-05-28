@@ -1,6 +1,6 @@
 {
   "name": "@aretino-chant/editor",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "CodeMirror-based editor web component for Aretino chant notation.",
   "type": "module",
   "exports": {

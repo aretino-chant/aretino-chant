@@ -98,7 +98,7 @@ function wrapVerseText(lineText, firstX, contX, firstAvailW, contAvailW, fontSiz
 // Returns { svg, bottom } where bottom is the y-coordinate of the last line's baseline.
 export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
     const fontSize = ctx.lyricSize;
-    const fontFamily = ctx.lyricFont;
+    const fontFamily = ctx.textFont;
     const measureFn = ctx.measureText ?? measureTextWidth;
     // 110% line height within a verse, 130% baseline distance between verse blocks.
     const lineHeight = fontSize * 1.1;

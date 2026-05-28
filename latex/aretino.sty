@@ -45,7 +45,7 @@
 \def\aretino@widthmm{}
 \def\aretino@staffspacemm{}
 \def\aretino@lyricsize{}
-\def\aretino@lyricfont{}
+\def\aretino@textfont{}
 \def\aretino@notespacing{}
 \def\aretino@zoom{}
 \def\aretino@fontfile{}
@@ -69,7 +69,7 @@
 \define@key{aretinoset}{width-mm}{\def\aretino@widthmm{#1}}
 \define@key{aretinoset}{staff-space-mm}{\def\aretino@staffspacemm{#1}}
 \define@key{aretinoset}{lyric-size}{\def\aretino@lyricsize{#1}}
-\define@key{aretinoset}{lyric-font}{\def\aretino@lyricfont{#1}}
+\define@key{aretinoset}{text-font}{\def\aretino@textfont{#1}}
 \define@key{aretinoset}{note-spacing}{\def\aretino@notespacing{#1}}
 \define@key{aretinoset}{zoom}{\def\aretino@zoom{#1}}
 \define@key{aretinoset}{font-file}{\def\aretino@fontfile{#1}}
@@ -126,7 +126,7 @@ function aretino.build_args(opts)
   add("--width-mm",        opts["width-mm"])
   add("--staff-space-mm",  opts["staff-space-mm"])
   add("--lyric-size",      opts["lyric-size"])
-  add("--lyric-font",      opts["lyric-font"])
+  add("--text-font",       opts["text-font"])
   add("--note-spacing",    opts["note-spacing"])
   add("--zoom",            opts["zoom"])
   add("--font-file",       opts["font-file"])
@@ -150,7 +150,7 @@ function aretino.render(inputfile)
     ["width-mm"]         = token.get_macro("aretino@widthmm"),
     ["staff-space-mm"]   = token.get_macro("aretino@staffspacemm"),
     ["lyric-size"]       = token.get_macro("aretino@lyricsize"),
-    ["lyric-font"]       = token.get_macro("aretino@lyricfont"),
+    ["text-font"]        = token.get_macro("aretino@textfont"),
     ["note-spacing"]     = token.get_macro("aretino@notespacing"),
     ["zoom"]             = token.get_macro("aretino@zoom"),
     ["font-file"]        = token.get_macro("aretino@fontfile"),

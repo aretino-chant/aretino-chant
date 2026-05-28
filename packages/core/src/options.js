@@ -9,7 +9,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     zoom: 'number',
     staffSpaceMm: 'number',
     lyricSize: 'number',
-    lyricFont: 'string',
+    textFont: 'string',
     noteSpacing: 'number',
     staffGap: 'number',
     lyricDistance: 'number',

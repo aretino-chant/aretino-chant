@@ -241,7 +241,7 @@ export function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         return '';
     }
     const fontSize = ctx.lyricSize;
-    const fontFamily = ctx.lyricFont;
+    const fontFamily = ctx.textFont;
     const parts = [];
     const n = Math.min(labels.length, barlines.length);
     for (let i = 0; i < n; i++) {
@@ -331,7 +331,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         return '';
     }
     const fontSize = ctx.lyricSize;
-    const fontFamily = ctx.lyricFont;
+    const fontFamily = ctx.textFont;
     // Minimum gap between syllables of different words: the font's real space
     // character, so an implicit word break is spaced exactly like an explicit
     // ~ (which renders a literal space). A fixed fraction of the font size

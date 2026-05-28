@@ -22,7 +22,7 @@ Options:
   --dpi <n>                 DPI for mm→px conversion (default: 96)
   --staff-space-mm <mm>     Physical staff space size (default: 1.75)
   --lyric-size <pt>         Lyric font size in points (default: 10)
-  --lyric-font <family>     CSS font-family string for lyrics; on Linux this is
+  --text-font <family>      CSS font-family string for rendered text; on Linux this is
                             also resolved via fontconfig for measurement
   --note-spacing <n>        Note spacing multiplier (default: 1)
   --zoom <n>                Output magnification (default: 1)
@@ -44,7 +44,7 @@ const { values, positionals } = parseArgs({
         dpi:              { type: 'string' },
         'staff-space-mm': { type: 'string' },
         'lyric-size':     { type: 'string' },
-        'lyric-font':     { type: 'string' },
+        'text-font':      { type: 'string' },
         'note-spacing':   { type: 'string' },
         zoom:             { type: 'string' },
         'font-file':        { type: 'string' },
@@ -122,7 +122,7 @@ async function main() {
     if (values.dpi !== undefined)              rendererOptions.dpi             = num(values.dpi);
     if (values['staff-space-mm'] !== undefined) rendererOptions.staffSpaceMm  = num(values['staff-space-mm']);
     if (values['lyric-size'] !== undefined)    rendererOptions.lyricSize       = num(values['lyric-size']);
-    if (values['lyric-font'] !== undefined)    rendererOptions.lyricFont       = values['lyric-font'];
+    if (values['text-font'] !== undefined)     rendererOptions.textFont       = values['text-font'];
     if (values['note-spacing'] !== undefined)  rendererOptions.noteSpacing     = num(values['note-spacing']);
     if (values.zoom !== undefined)             rendererOptions.zoom            = num(values.zoom);
     if (values['hide-repeat-clef'])            rendererOptions.hideRepeatClef  = true;
@@ -132,8 +132,8 @@ async function main() {
     if (fontInput) {
         rendererOptions.measureText = await createFontkitMeasureFn(fontInput);
     } else {
-        const effectiveLyricFont = rendererOptions.lyricFont ?? headerOptions.lyricFont;
-        const measureText = await tryCreateAutoMeasureFn(effectiveLyricFont);
+        const effectiveTextFont = rendererOptions.textFont ?? headerOptions.textFont;
+        const measureText = await tryCreateAutoMeasureFn(effectiveTextFont);
         if (measureText) rendererOptions.measureText = measureText;
     }
 

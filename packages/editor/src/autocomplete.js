@@ -36,7 +36,7 @@ const OPTION_VALUE_OPTIONS = [
     { label: 'zoom',           detail: 'number — zoom factor', section: completionSections.rendererOptions },
     { label: 'staffSpaceMm',   detail: 'number — staff space in mm', section: completionSections.rendererOptions },
     { label: 'lyricSize',      detail: 'number — lyric font size', section: completionSections.rendererOptions },
-    { label: 'lyricFont',      detail: 'string — lyric font family', section: completionSections.rendererOptions },
+    { label: 'textFont',       detail: 'string — rendered text font family', section: completionSections.rendererOptions },
     { label: 'noteSpacing',    detail: 'number — spacing between notes', section: completionSections.rendererOptions },
     { label: 'staffGap',       detail: 'number — gap between staves', section: completionSections.rendererOptions },
     { label: 'lyricDistance',  detail: 'number — distance from staff to lyrics', section: completionSections.rendererOptions },

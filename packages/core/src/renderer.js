@@ -58,7 +58,7 @@ const DEFAULT_LYRIC_SIZE_PT = 10;
 // single class to highlight the active note/token.
 const HIGHLIGHT_STYLE = `<style>.aretino-active [fill]:not([fill="none"]):not(.aretino-cursor-bg){fill:#ea580c}.aretino-active [stroke]:not([stroke="none"]):not(.aretino-cursor-bg){stroke:#ea580c}</style>`;
 
-function _flushBrace(ctx, parts, state, staffBottomY, isEnd, lyricFont) {
+function _flushBrace(ctx, parts, state, staffBottomY, isEnd, textFont) {
     const gap = ss(ctx, METRICS.overbraceGap);
     const staffTopY = staffBottomY - 4 * ctx.staffSpace;
     const topNoteY = state.minY < Infinity
@@ -94,7 +94,7 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, lyricFont) {
             braceTopOffset = (isStart !== false) ? ss(ctx, METRICS.overbraceTipDepth) : 0;
         }
         const textY = markY - braceTopOffset - gap * 0.5 - fontSize * 0.15;
-        svg += `<text x="${mx}" y="${textY}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(label))}</text>`;
+        svg += `<text x="${mx}" y="${textY}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(label))}</text>`;
     }
     parts[placeIdx] = svg;
 }
@@ -122,7 +122,7 @@ export function renderAretino(source, options = {}) {
         : Math.round((options.widthMm ?? DEFAULT_PAGE_WIDTH_MM) * pxPerMm);
     const canvasHeight = options.canvasHeight || null;
     const noteSpacing = Math.max(0.5, options.noteSpacing ?? 1);
-    const lyricFont = options.lyricFont || DEFAULT_FONT;
+    const textFont = options.textFont || DEFAULT_FONT;
     const hideRepeatClef = !!options.hideRepeatClef;
     const sourceMap = options.sourceMap !== false;
 
@@ -143,7 +143,7 @@ export function renderAretino(source, options = {}) {
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = Math.max(0, ss(ctx, options.staffGap ?? METRICS.staffGap));
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
-    ctx.lyricFont = lyricFont;
+    ctx.textFont = textFont;
     // Lyric font size in typographic points (default 12pt), converted to
     // logical units via dpi. Set independently of staff space and layout width.
     const lyricPt = Math.max(1, options.lyricSize ?? DEFAULT_LYRIC_SIZE_PT);
@@ -158,7 +158,7 @@ export function renderAretino(source, options = {}) {
     let indentWidth = 0;
     if (hasIndent) {
         const maxTextW = indentLines.length > 0
-            ? Math.max(...indentLines.map(l => measureSegmentsWidth(parseFormattingToSegments(l), indentFontSize, lyricFont, ctx.measureText)))
+            ? Math.max(...indentLines.map(l => measureSegmentsWidth(parseFormattingToSegments(l), indentFontSize, textFont, ctx.measureText)))
             : 0;
         indentWidth = Math.max(maxTextW + ctx.staffSpace * 1.5, ctx.staffSpace * 2);
     }
@@ -184,7 +184,7 @@ export function renderAretino(source, options = {}) {
             y += titleFontSize;
             for (let li = 0; li < lines.length; li++) {
                 if (li > 0) y += titleLineHeight;
-                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${titleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${titleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }
         }
         if (subtitle) {
@@ -197,7 +197,7 @@ export function renderAretino(source, options = {}) {
             if (!title) y += subTitleFontSize;
             for (let li = 0; li < lines.length; li++) {
                 if (li > 0) y += subTitleLineHeight;
-                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }            
         }
         y += titleLineHeight * 1.2;        
@@ -217,10 +217,10 @@ export function renderAretino(source, options = {}) {
                 const ri = li - rubricTop;
                 const ci = li - captionTop;
                 if (ri >= 0) {
-                    parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubricLines[ri]))}</text>`);
+                    parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubricLines[ri]))}</text>`);
                 }
                 if (ci >= 0) {
-                    parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(lyricFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(captionLines[ci]))}</text>`);
+                    parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(captionLines[ci]))}</text>`);
                 }
             }
             y += fontSize * 0.4;
@@ -277,7 +277,7 @@ export function renderAretino(source, options = {}) {
             // Inter-word gap reserved between neumes must match the gap the
             // lyric layout actually renders (a real space character), so the
             // note spacing follows the widened word break.
-            const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
+            const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
             const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
             const ligInfo = [];
             let li = 0;
@@ -295,9 +295,9 @@ export function renderAretino(source, options = {}) {
                 let maxCurrRight = 0;
                 for (const notes of verseNotes) {
                     if (li < notes.length) {
-                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.lyricFont, ctx.measureText);
+                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
                         const suffixW = notes[li].suffixSegments
-                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.lyricFont, ctx.measureText)
+                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.textFont, ctx.measureText)
                             : 0;
                         if (alignW > maxSylW) maxSylW = alignW;
                         const rightEdge = isCentered ? halfNoteW + alignW / 2 + suffixW : alignW + suffixW;
@@ -380,7 +380,7 @@ export function renderAretino(source, options = {}) {
         // on each side, i.e. extra >= maxW + 2*sideGap, where sideGap is one
         // lyric space width.
         if (hasBarlineLabels) {
-            const lyricSpace = ctx.measureText(' ', ctx.lyricSize, ctx.lyricFont) || ctx.lyricSize * 0.25;
+            const lyricSpace = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
             let bi = 0;
             for (const it of items) {
                 if (it.kind !== 'barline') {
@@ -390,7 +390,7 @@ export function renderAretino(source, options = {}) {
                 for (const barlineMap of verseBarlineMaps) {
                     const lbl = barlineMap.get(bi);
                     if (lbl) {
-                        const w = measureSegmentsWidth(lbl.segments, ctx.lyricSize, ctx.lyricFont, ctx.measureText);
+                        const w = measureSegmentsWidth(lbl.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
                         if (w > maxW) { maxW = w; }
                     }
                 }
@@ -466,7 +466,7 @@ export function renderAretino(source, options = {}) {
                 const blockFirstY = staffBottomY - ctx.staffHeight / 2 + indentFontSize * 0.35
                     - (indentLines.length - 1) * indentLineHeight / 2;
                 for (let li = 0; li < indentLines.length; li++) {
-                    parts.push(`<text x="${tx}" y="${blockFirstY + li * indentLineHeight}" font-family="${escapeAttr(lyricFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentLines[li]))}</text>`);
+                    parts.push(`<text x="${tx}" y="${blockFirstY + li * indentLineHeight}" font-family="${escapeAttr(textFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentLines[li]))}</text>`);
                 }
             }
 
@@ -615,7 +615,7 @@ export function renderAretino(source, options = {}) {
                 } else if (it.kind === 'brace-close') {
                     if (braceState) {
                         braceState.label = it.label ?? null;
-                        _flushBrace(ctx, parts, braceState, staffBottomY, true, lyricFont);
+                        _flushBrace(ctx, parts, braceState, staffBottomY, true, textFont);
                         braceState = null;
                     }
                 } else if (it.kind === 'ligature') {
@@ -627,7 +627,7 @@ export function renderAretino(source, options = {}) {
                         const fontSize = ctx.lyricSize * 0.8;
                         const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
+                        ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.textFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
@@ -669,7 +669,7 @@ export function renderAretino(source, options = {}) {
             // If a brace/arc span was opened on this row but its close is on a
             // later row, draw this row's segment and carry the state forward.
             if (braceState) {
-                _flushBrace(ctx, parts, braceState, staffBottomY, false, lyricFont);
+                _flushBrace(ctx, parts, braceState, staffBottomY, false, textFont);
                 braceState = { braceKind: braceState.braceKind, label: braceState.label, continuation: true };
             }
 
@@ -714,7 +714,7 @@ export function renderAretino(source, options = {}) {
                 y = lastLyricBottom + ctx.staffGap;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
-                    const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.lyricFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
+                    const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.textFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
                     parts.push(wrapSrc(lyric, lyricSvg, 'aretino-lyric aretino-lyric-line', undefined, undefined, undefined, undefined, sourceMap));
                     lyricY += lyricLineHeight;
                 }

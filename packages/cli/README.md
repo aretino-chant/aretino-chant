@@ -26,7 +26,7 @@ aretino input.aretino \
   --width-mm 180 \
   --staff-space-mm 1.75 \
   --lyric-size 10 \
-  --lyric-font "EB Garamond" \
+  --text-font "EB Garamond" \
   --output output.svg
 ```
 
@@ -39,7 +39,7 @@ Common mappings:
 | `dpi` | `--dpi` |
 | `staffSpaceMm` | `--staff-space-mm` |
 | `lyricSize` | `--lyric-size` |
-| `lyricFont` | `--lyric-font` |
+| `textFont` | `--text-font` |
 | `noteSpacing` | `--note-spacing` |
 | `zoom` | `--zoom` |
 | `hideRepeatClef` | `--hide-repeat-clef` |
@@ -51,12 +51,12 @@ headers. Explicit command line parameters override matching source options.
 ## Font Resolution
 
 Aretino needs real text metrics to align lyrics accurately under the notation.
-Set the text font explicitly with `--lyric-font` so the SVG text and the
+Set the text font explicitly with `--text-font` so the SVG text and the
 measured text use the same font:
 
 ```bash
 aretino input.aretino \
-  --lyric-font "EB Garamond" \
+  --text-font "EB Garamond" \
   --output output.svg
 ```
 
@@ -67,11 +67,11 @@ the SVG; the SVG renderer or converter must be able to find the same font on the
 system where the SVG is displayed or converted.
 
 For custom font files, pass the files used for measurement explicitly. Still set
-`--lyric-font` to the family name that the SVG should request:
+`--text-font` to the family name that the SVG should request:
 
 ```bash
 aretino input.aretino \
-  --lyric-font "EB Garamond" \
+  --text-font "EB Garamond" \
   --font-file ~/fonts/EBGaramond-Regular.ttf \
   --font-italic ~/fonts/EBGaramond-Italic.ttf \
   --output output.svg
@@ -89,7 +89,7 @@ Use `rsvg-convert` to convert the SVG to PDF:
 
 ```bash
 aretino input.aretino \
-  --lyric-font "EB Garamond" \
+  --text-font "EB Garamond" \
   --output output.svg
 
 rsvg-convert -f pdf -o output.pdf output.svg

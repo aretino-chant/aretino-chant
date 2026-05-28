@@ -36,7 +36,7 @@ The included `example.tex` uses:
 \aretinosetup{
   cli        = node ../node_modules/.bin/aretino,
   width-mm   = 150,
-  lyric-font = EB Garamond
+  text-font = EB Garamond
 }
 ```
 
@@ -61,7 +61,7 @@ brew install librsvg
 \aretinosetup{
   cli        = aretino,
   width-mm   = 150,
-  lyric-font = EB Garamond
+  text-font = EB Garamond
 }
 
 \begin{document}
@@ -114,7 +114,7 @@ The same keys can be set later with `\aretinosetup`.
   width-mm             = 160,
   staff-space-mm       = 1.75,
   lyric-size           = 10,
-  lyric-font           = EB Garamond,
+  text-font            = EB Garamond,
   note-spacing         = 1,
   zoom                 = 1,
   hide-repeat-clef     = false,
@@ -132,7 +132,7 @@ Option lists are comma-separated. Wrap values that contain commas in braces:
 
 ```tex
 \aretinosetup{
-  lyric-font = {Palatino Linotype, serif}
+  text-font = {Palatino Linotype, serif}
 }
 ```
 
@@ -225,7 +225,7 @@ the document is compiled with `--shell-escape`.
 | `width-mm` | `--width-mm` | Layout width in millimeters. This controls line breaking. |
 | `staff-space-mm` | `--staff-space-mm` | Physical size of one staff space in millimeters. |
 | `lyric-size` | `--lyric-size` | Lyric font size in points. |
-| `lyric-font` | `--lyric-font` | CSS font-family string used for lyrics, title, and caption. |
+| `text-font` | `--text-font` | CSS font-family string used for rendered text. |
 | `note-spacing` | `--note-spacing` | Horizontal note spacing multiplier. |
 | `zoom` | `--zoom` | Output magnification. It does not change line breaking. |
 | `font-file` | `--font-file` | Explicit upright font file for text measurement. |
@@ -251,11 +251,11 @@ header options.
 ## Fonts
 
 Aretino aligns lyrics using measured text metrics. For best results, set
-`lyric-font` to the family that should appear in the PDF:
+`text-font` to the family that should appear in the PDF:
 
 ```tex
 \aretinosetup{
-  lyric-font = EB Garamond
+  text-font = EB Garamond
 }
 ```
 
@@ -264,7 +264,7 @@ portable or fully reproducible builds, pass the font files explicitly:
 
 ```tex
 \aretinosetup{
-  lyric-font       = EB Garamond,
+  text-font        = EB Garamond,
   font-file        = /home/user/fonts/EBGaramond-Regular.ttf,
   font-italic      = /home/user/fonts/EBGaramond-Italic.ttf,
   font-bold        = /home/user/fonts/EBGaramond-Bold.ttf,
@@ -299,7 +299,7 @@ The cache can be deleted at any time; it is regenerated on the next LaTeX run.
 \aretinosetup{
   cli        = node ../node_modules/.bin/aretino,
   width-mm   = 150,
-  lyric-font = EB Garamond
+  text-font = EB Garamond
 }
 
 \begin{document}
@@ -367,8 +367,8 @@ Install `rsvg-convert` or point `rsvg` at the correct command:
 
 **Lyrics do not align exactly with the final PDF**
 
-Make sure the same lyric font is available to both the Aretino CLI and
-`rsvg-convert`. Set `lyric-font`, and use `font-file` plus the style-specific
+Make sure the same text font is available to both the Aretino CLI and
+`rsvg-convert`. Set `text-font`, and use `font-file` plus the style-specific
 font keys when the system font resolver is not enough.
 
 ## Aretino Syntax

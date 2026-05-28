@@ -79,7 +79,7 @@ All options are optional. Defaults in **bold**.
 | `zoom` | number | **1** | Magnifies the *rendered* SVG (intrinsic `width`/`height`) **without changing layout**. Min `0.1`. See [§3](#3-the-sizing-model). |
 | `staffSpaceMm` | number (mm) | **1.75** | Physical size of one staff space — drives every glyph and advance. Min `0.1`. |
 | `lyricSize` | number (pt) | **10** | Lyric font size in typographic points (converted via `dpi`). Independent of staff space. Min `1`. |
-| `lyricFont` | string | **`'Palatino Linotype', 'Book Antiqua', Palatino, serif`** | CSS `font-family` for lyrics, title, and caption. |
+| `textFont` | string | **`'Palatino Linotype', 'Book Antiqua', Palatino, serif`** | CSS `font-family` for rendered text. |
 | `noteSpacing` | number | **1** | Multiplier on horizontal advance between glyphs. Min `0.5`. |
 | `staffGap` | number (staff-spaces) | **2.5** | Vertical gap between successive staff systems. |
 | `lyricDistance` | number (staff-spaces) | **0.1** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |

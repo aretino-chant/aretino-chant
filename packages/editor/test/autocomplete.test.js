@@ -53,7 +53,7 @@ describe('aretinoComplete', () => {
         const result = complete('%option:|');
 
         expect(result.from).toBe('%option:'.length);
-        expect(labels(result)).toEqual(expect.arrayContaining(['width', 'lyricDistance', 'hideRepeatClef']));
+        expect(labels(result)).toEqual(expect.arrayContaining(['width', 'textFont', 'lyricDistance', 'hideRepeatClef']));
         expect(labels(result)).not.toContain('%title:');
     });
 

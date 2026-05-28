@@ -15,9 +15,13 @@ function firstLyricX(svg) {
   return m ? parseFloat(m[1]) : null;
 }
 
-function firstLyricFontSize(svg) {
+function firstLyricSize(svg) {
   const m = svg.match(/<text[^>]*?xml:space="preserve"[^>]*? font-size="([^"]+)"/);
   return m ? parseFloat(m[1]) : null;
+}
+
+function textFontFamilies(svg) {
+  return [...svg.matchAll(/<text[^>]*? font-family="([^"]+)"/g)].map(m => m[1]);
 }
 
 function lyricTextEntries(svg) {
@@ -117,7 +121,16 @@ describe('renderAretino', () => {
       const svgWithOptions = renderAretino(source);
 
       expect(firstLyricY(svgWithOptions)).toBeGreaterThan(firstLyricY(svgDefault));
-      expect(firstLyricFontSize(svgWithOptions)).toBeCloseTo(20 * 96 / 72, 5);
+      expect(firstLyricSize(svgWithOptions)).toBeCloseTo(20 * 96 / 72, 5);
+    });
+
+    it('applies textFont to rendered text from option headers and API options', () => {
+      const source = `%option: textFont=Header Text\n%%\n${body}`;
+      const svgFromHeader = renderAretino(source);
+      const svgFromOptions = renderAretino(body, { textFont: 'API Text' });
+
+      expect(textFontFamilies(svgFromHeader)).toContain('Header Text');
+      expect(textFontFamilies(svgFromOptions)).toContain('API Text');
     });
 
   });

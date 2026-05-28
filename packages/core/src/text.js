@@ -272,9 +272,10 @@ export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnch
         if (seg.glyph) {
             flushTextRun();
             const efs = segFontSize(seg, fontSize);
-            const { svg } = drawInlineGlyph(seg.glyph, x, y, efs, seg.color || '#000');
+            const pad = 0.15 * efs;
+            const { svg } = drawInlineGlyph(seg.glyph, x + pad / 2, y, efs, seg.color || '#000');
             parts.push(svg);
-            x += (seg.glyphAdvance || 0) * efs / 1000;
+            x += (seg.glyphAdvance || 0) * efs / 1000 + pad * 1.5;
         } else {
             if (textRun.length === 0) textRunX = x;
             textRun.push(seg);

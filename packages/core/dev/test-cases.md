@@ -271,6 +271,11 @@ w: normal \small{small text} normal \large{large text} normal
 (g2) c"<Label:>" d e f g | h
 ```
 
+Inline accidental glyphs in labels (`\b` flat, `\n` natural, `\#` sharp):
+```aretino
+(g2) c"! \b ! \n ? \# ." d e f | h
+```
+
 ## Verse Lines (W: Tag)
 
 Psalm verses under an antiphon — the typical liturgical use case:

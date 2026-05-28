@@ -536,6 +536,18 @@ const BRAVURA_ACCIDENTALS = {
     },
 };
 
+// Draw a Bravura accidental glyph inline with text, anchored at the text baseline.
+// Scale: 1000 font units = fontSize pixels (matching CSS em).
+export function drawInlineGlyph(name, x, baselineY, fontSize, color = '#000') {
+    const glyph = BRAVURA_ACCIDENTALS[name];
+    if (!glyph) return { svg: '', advance: 0 };
+    const scale = fontSize / 650;
+    return {
+        svg: `<path d="${glyph.path}" fill="${escapeAttr(color)}" transform="translate(${x}, ${baselineY - fontSize * 0.25}) scale(${scale}, ${-scale})"/>`,
+        advance: glyph.advance * scale,
+    };
+}
+
 export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY, high = false) {
     const pos = (PITCH_BASE[pitchLetter] ?? 3) + (high ? 7 : 0);
     const cy = staffBottomY - pos * ctx.pitchStep;

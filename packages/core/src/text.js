@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { escapeText, escapeAttr } from './glyphs.js';
+import { escapeText, escapeAttr, drawInlineGlyph } from './glyphs.js';
 
 // Placeholder emitted by \- escape so the syllable splitter doesn't treat it
 // as a separator. Replaced with '-' in display text and segments.
@@ -38,10 +38,10 @@ function segFontSize(seg, fontSize) {
 
 export function measureSegmentsWidth(segments, fontSize, fontFamily, measureFn = measureTextWidth) {
     if (!segments || segments.length === 0) return 0;
-    return segments.reduce(
-        (sum, seg) => sum + measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic),
-        0
-    );
+    return segments.reduce((sum, seg) => {
+        if (seg.glyph) return sum + (seg.glyphAdvance || 0) * segFontSize(seg, fontSize) / 1000;
+        return sum + measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
+    }, 0);
 }
 
 // Return a copy of `segments` covering only the characters from `startChar` onwards.
@@ -121,7 +121,7 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             ? (offsets ?? Array.from({ length: str.length }, () => null))
             : null;
         const last = segments[segments.length - 1];
-        if (last && last.bold === st.bold && last.italic === st.italic &&
+        if (last && !last.glyph && last.bold === st.bold && last.italic === st.italic &&
                 last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps &&
                 last.small === st.small && last.large === st.large) {
             last.text += str;
@@ -181,6 +181,14 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 }
             } else if (text[i] === '-') {
                 addText(LITERAL_HYPHEN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
+            } else if (text[i] === 'b' || text[i] === 'n' || text[i] === '#') {
+                const glyphMap = { b: ['flat', 226], n: ['natural', 168], '#': ['sharp', 249] };
+                const [glyphName, glyphAdvance] = glyphMap[text[i]];
+                const st = effectiveState();
+                const seg = { text: '', glyph: glyphName, glyphAdvance, ...st };
+                if (withSource) seg.sourceOffsets = [sourceAt(slashIdx) ?? sourceAt(i)];
+                segments.push(seg);
+                i++;
             } else {
                 addText(text[i], [sourceAt(i)]); i++;
             }
@@ -201,7 +209,7 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
         }
     }
 
-    return segments.filter(s => s.text !== '');
+    return segments.filter(s => s.text !== '' || s.glyph);
 }
 
 export function parseFormattingToSegments(text) {
@@ -230,6 +238,47 @@ export function renderSegments(segments) {
     }).join('');
 }
 
+// Renders segments as SVG, mixing <text> elements for text runs and <path> elements
+// for inline glyphs (\b flat, \n natural, \# sharp). Handles centering via textAnchor.
+// Returns a string of one or more SVG elements.
+export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnchor = 'middle', measureFn = measureTextWidth) {
+    if (!segments || segments.length === 0) return '';
+    const hasGlyphs = segments.some(s => s.glyph);
+    if (!hasGlyphs) {
+        return `<text xml:space="preserve" x="${cx}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="${textAnchor}" fill="#000">${renderSegments(segments)}</text>`;
+    }
+    const totalWidth = measureSegmentsWidth(segments, fontSize, fontFamily, measureFn);
+    let x = textAnchor === 'middle' ? cx - totalWidth / 2 : cx;
+    const parts = [];
+    let textRun = [];
+    let textRunX = x;
+
+    function flushTextRun() {
+        if (textRun.length === 0) return;
+        const content = renderSegments(textRun);
+        if (content) {
+            parts.push(`<text xml:space="preserve" x="${textRunX}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="start" fill="#000">${content}</text>`);
+        }
+        textRun = [];
+    }
+
+    for (const seg of segments) {
+        if (seg.glyph) {
+            flushTextRun();
+            const efs = segFontSize(seg, fontSize);
+            const { svg } = drawInlineGlyph(seg.glyph, x, y, efs, seg.color || '#000');
+            parts.push(svg);
+            x += (seg.glyphAdvance || 0) * efs / 1000;
+        } else {
+            if (textRun.length === 0) textRunX = x;
+            textRun.push(seg);
+            x += measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
+        }
+    }
+    flushTextRun();
+    return parts.join('');
+}
+
 // Returns SVG <line> elements for any underlined segments, drawn below the text
 // baseline. textX/textY match the SVG text element's x/y attributes;
 // textAnchor is 'middle' or 'start'.
@@ -241,8 +290,10 @@ export function renderUnderlines(segments, textX, textY, fontSize, fontFamily, t
     const strokeW = Math.max(0.4, fontSize * 0.055);
     const lines = [];
     for (const seg of segments) {
-        const w = measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
-        if (seg.underline) {
+        const w = seg.glyph
+            ? (seg.glyphAdvance || 0) * segFontSize(seg, fontSize) / 1000
+            : measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
+        if (seg.underline && !seg.glyph) {
             const stroke = seg.color || '#000';
             lines.push(`<line x1="${x}" y1="${lineY}" x2="${x + w}" y2="${lineY}" stroke="${escapeAttr(stroke)}" stroke-width="${strokeW}"/>`);
         }

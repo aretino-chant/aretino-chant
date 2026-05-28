@@ -33,6 +33,7 @@ import {
     measureSegmentsWidth,
     parseFormattingToSegments,
     renderSegments,
+    renderMixedLabel,
 } from './text.js';
 import { ss } from './units.js';
 import { groupSections, flattenItems } from './items.js';
@@ -95,7 +96,7 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, textFont) {
             braceTopOffset = (isStart !== false) ? ss(ctx, METRICS.overbraceTipDepth) : 0;
         }
         const textY = markY - braceTopOffset - gap * 0.5 - fontSize * 0.15;
-        svg += `<text x="${mx}" y="${textY}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(label))}</text>`;
+        svg += renderMixedLabel(parseFormattingToSegments(label), mx, textY, fontSize, textFont, 'middle', ctx.measureText);
     }
     parts[placeIdx] = svg;
 }
@@ -660,7 +661,7 @@ export function renderAretino(source, options = {}) {
                         const fontSize = ctx.lyricSize * 0.8;
                         const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        ligSvg += `<text x="${r.leftX}" y="${labelY}" font-family="${escapeAttr(ctx.textFont)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(it.label))}</text>`;
+                        ligSvg += renderMixedLabel(parseFormattingToSegments(it.label), r.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });

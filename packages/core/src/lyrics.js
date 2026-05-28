@@ -14,6 +14,7 @@ import {
     parseFormattingToSegmentsWithSource,
     renderSegments,
     renderUnderlines,
+    renderMixedLabel,
 } from './text.js';
 
 function lyricText(input) {
@@ -251,7 +252,7 @@ export function emitBarlineLabels(ctx, labels, barlines, lyricY) {
         }
         const cx = barlines[i].centerX;
         const label = labels[i];
-        const labelSvg = `<text xml:space="preserve" x="${cx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(label.segments)}</text>`
+        const labelSvg = renderMixedLabel(label.segments, cx, lyricY, fontSize, fontFamily, 'middle', ctx.measureText ?? measureTextWidth)
             + renderUnderlines(label.segments, cx, lyricY, fontSize, fontFamily, 'middle', ctx.measureText ?? measureTextWidth);
         parts.push(wrapSrc(label, labelSvg, 'aretino-lyric aretino-barline-label', undefined, undefined, undefined, undefined, ctx.sourceMap));
     }

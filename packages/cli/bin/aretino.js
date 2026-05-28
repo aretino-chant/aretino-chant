@@ -22,7 +22,10 @@ Options:
   --lyric-font <family>     CSS font-family string for lyrics
   --note-spacing <n>        Note spacing multiplier (default: 1)
   --zoom <n>                Output magnification (default: 1)
-  --font-file <path>        Font file for accurate text measurement via fontkit
+  --font-file <path>        Upright font for text measurement (variable or static)
+  --font-italic <path>      Italic font (variable or static; derives bold-italic via wght)
+  --font-bold <path>        Bold font (static override; derived from --font-file if variable)
+  --font-bold-italic <path> Bold-italic font (static override; derived from --font-italic if variable)
   --hide-repeat-clef        Don't repeat clef at the start of continuation lines
   --help, -h                Show this help
 `;
@@ -38,7 +41,10 @@ const { values, positionals } = parseArgs({
         'lyric-font':     { type: 'string' },
         'note-spacing':   { type: 'string' },
         zoom:             { type: 'string' },
-        'font-file':      { type: 'string' },
+        'font-file':        { type: 'string' },
+        'font-italic':      { type: 'string' },
+        'font-bold':        { type: 'string' },
+        'font-bold-italic': { type: 'string' },
         'hide-repeat-clef': { type: 'boolean' },
         help:             { type: 'boolean', short: 'h' },
     },
@@ -79,7 +85,16 @@ async function main() {
     if (values['hide-repeat-clef'])            rendererOptions.hideRepeatClef  = true;
 
     if (values['font-file']) {
-        rendererOptions.measureText = await createFontkitMeasureFn(values['font-file']);
+        const hasExtras = values['font-italic'] || values['font-bold'] || values['font-bold-italic'];
+        const fontInput = hasExtras
+            ? {
+                regular:    values['font-file'],
+                italic:     values['font-italic'],
+                bold:       values['font-bold'],
+                boldItalic: values['font-bold-italic'],
+            }
+            : values['font-file'];
+        rendererOptions.measureText = await createFontkitMeasureFn(fontInput);
     }
 
     const svg = renderAretino(source, rendererOptions);

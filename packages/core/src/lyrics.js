@@ -6,6 +6,7 @@ import { escapeAttr } from './glyphs.js';
 import { wrapSrc } from './svg.js';
 import {
     LITERAL_HYPHEN,
+    LITERAL_OPEN_PAREN,
     measureTextWidth,
     measureSegmentsWidth,
     sliceSegments,
@@ -124,10 +125,10 @@ export function parseSyllables(input) {
             const innerStart = i + 1;
             const innerEnd = end < 0 ? cleaned.length : end;
             const fullEnd = end < 0 ? innerEnd : end + 1;
-            const segments = buildSegments(innerStart, innerEnd, s => s.replace(/~/g, ' '));
+            const segments = buildSegments(innerStart, innerEnd, s => s.replace(/~/g, ' ').replaceAll(LITERAL_OPEN_PAREN, '('));
             i = end < 0 ? cleaned.length : end + 1;
             result.push({
-                text: cleaned.slice(innerStart, innerEnd).replace(/~/g, ' '),
+                text: cleaned.slice(innerStart, innerEnd).replace(/~/g, ' ').replaceAll(LITERAL_OPEN_PAREN, '('),
                 segments,
                 hyphenAfter: false,
                 kind: 'barline',
@@ -192,13 +193,13 @@ export function parseSyllables(input) {
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;
             if (tildeIdx !== -1) {
-                text = raw.slice(0, tildeIdx).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-');
-                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-');
+                text = raw.slice(0, tildeIdx).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
+                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
             } else {
-                text = raw.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-');
+                text = raw.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
                 alignText = text;
             }
-            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-'));
+            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '('));
             let alignSegments = text === alignText
                 ? segments
                 : sliceSegments(segments, text.length - alignText.length);

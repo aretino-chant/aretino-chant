@@ -106,8 +106,7 @@ function _flushSlur(ctx, parts, state, staffBottomY, isEnd) {
     const endNoteY = state.endNoteY > -Infinity ? state.endNoteY : staffBottomY;
     const y1 = startNoteY + gap;
     const y2 = endNoteY + gap;
-    const y = (y1 + y2) / 2;
-    const svg = drawSlur(ctx, state.startX, state.endX, y, state.dashed, state.isStart !== false, isEnd);
+    const svg = drawSlur(ctx, state.startX, state.endX, y1, y2, state.dashed, state.isStart !== false, isEnd);
     parts[state.placeIdx] = svg;
 }
 

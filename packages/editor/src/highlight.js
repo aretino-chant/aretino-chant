@@ -241,17 +241,19 @@ const bigJumpMark = Decoration.mark({ class: 'cm-aretino-big-jump' });
 function buildBigJumpDecorations(doc) {
     const builder = new RangeSetBuilder();
     let inVerse = false;
+    let inLyrics = false;
     for (let ln = 1; ln <= doc.lines; ln++) {
         const line = doc.line(ln);
         const text = line.text;
-        if (text.trim() === '') { inVerse = false; continue; }
-        if (/^\s*%/.test(text)) { inVerse = false; continue; }   // header / comment lines
-        if (/^\s*W:/.test(text)) { inVerse = true; continue; }   // verse line
-        if (/^\s*w:/.test(text)) { inVerse = false; continue; }  // lyrics line
-        // n: is always a music continuation, even after a verse
-        if (inVerse && !/^\s*n:/.test(text)) continue;           // verse continuation
+        if (text.trim() === '') { inVerse = false; inLyrics = false; continue; }
+        if (/^\s*%/.test(text)) { inVerse = false; inLyrics = false; continue; }  // header / comment lines
+        if (/^\s*W:/.test(text)) { inVerse = true; inLyrics = false; continue; }  // verse line
+        if (/^\s*w:/.test(text)) { inVerse = false; inLyrics = true; continue; }  // lyrics line
+        // n: is always a music continuation, even after a verse or lyrics block
+        if ((inVerse || inLyrics) && !/^\s*n:/.test(text)) continue;
 
         inVerse = false;
+        inLyrics = false;
         // Strip optional n: continuation prefix
         let i = 0;
         const nPfx = text.match(/^(\s*n:\s?)/);

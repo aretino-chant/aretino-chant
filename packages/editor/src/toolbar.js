@@ -28,7 +28,7 @@ const L = (body) =>
 
 // Text-label icon helper (monospace, centered)
 const T = (text) =>
-    I(`<text x="12" y="17" text-anchor="middle" font-size="13" fill="currentColor" font-family="monospace">${text}</text>`);
+    I(`<text x="12" y="17" text-anchor="middle" font-size="22" fill="currentColor" font-family="monospace">${text}</text>`);
 
 const ICONS = {
     'pitch-up':   L('<path d="m18 15-6-6-6 6"/>'),
@@ -76,13 +76,25 @@ const ICONS = {
     'lyric-tilde': T('~'),
     'lyric-double-tilde': T('~~'),
     'lyric-star-paren': T('(*)'),
-    'lyric-cross-paren': T('(+)'),
-    'lyric-hyphen': T('-'),
+    'lyric-cross-paren': T('(†)'),
+    'lyric-hyphen': T('\\–'),
 
     'lyric-bold':       L('<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>'),
     'lyric-italic':     L('<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>'),
     'lyric-underline':  L('<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>'),
-    'lyric-small-caps': I('<text x="12" y="17" text-anchor="middle" font-size="11" fill="currentColor" font-family="serif" font-variant="small-caps">SC</text>'),
+    'lyric-small-caps': I('<text x="12" y="17" text-anchor="middle" font-size="22" fill="currentColor" font-family="serif" font-variant="small-caps">Sc</text>'),
+    "lyric-dagger": T('†'),
+    'lyric-plus-plus':  T('‡'),
+    'lyric-escape-r':   T('℟'),
+    'lyric-escape-v':   T('℣'),
+    'lyric-newline':    L('<path d="M20 4v7a4 4 0 0 1-4 4H4"/><path d="m9 10-5 5 5 5"/>'),
+
+    'heading-title':    T('H1'),
+    'heading-subtitle': T('H2'),
+    'heading-rubric':   T('Rb'),
+    'heading-caption':  T('Cp'),
+    'heading-indent':   L('<polyline points="3 8 7 12 3 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/>'),
+    'heading-option':   L('<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/>'),
 };
 
 // --- Pitch helpers ---
@@ -232,7 +244,6 @@ function makeUndoRedoGroup(view) {
 }
 
 function makePitchGroup(view, ctx) {
-    if (ctx.type !== 'note') return null;
     const { note } = ctx;
     return {
         id: 'pitch',
@@ -273,7 +284,6 @@ function makePitchGroup(view, ctx) {
 }
 
 function makeShapeGroup(view, ctx) {
-    if (ctx.type !== 'note') return null;
     const { note } = ctx;
 
     const setShape = (newShape) => {
@@ -304,7 +314,6 @@ function makeShapeGroup(view, ctx) {
 }
 
 function makeModifiersGroup(view, ctx) {
-    if (ctx.type !== 'note') return null;
     const { note } = ctx;
 
     const mod = (id, label, modName, modChar, tooltip) => ({
@@ -331,7 +340,6 @@ function makeModifiersGroup(view, ctx) {
 }
 
 function makeAccidentalGroup(view, ctx) {
-    if (ctx.type !== 'note') return null;
     const { note } = ctx;
     const pitchChar = note.high ? note.pitch.toUpperCase() : note.pitch;
     const existingSymbol = note.accidental?.symbol; // 'x'=flat, 'y'=natural, '#'=sharp
@@ -407,15 +415,8 @@ function makeAccidentalGroup(view, ctx) {
 }
 
 function makeSpanGroup(view, ctx) {
-    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
-    const isNote = ctx.type === 'note';
-    const isLigature = ctx.type === 'ligature';
-    const isSelection = ctx.type === 'selection';
-    if (!isNote && !isLigature && !isSelection) return null;
-
-    // Wrap selection boundaries, or the whole ligature if cursor is on a note.
-    const from = isSelection ? ctx.selFrom : ctx.ligature.srcStart;
-    const to   = isSelection ? ctx.selTo   : ctx.ligature.srcEnd;
+    const from = ctx.type === 'selection' ? ctx.selFrom : ctx.ligature.srcStart;
+    const to   = ctx.type === 'selection' ? ctx.selTo   : ctx.ligature.srcEnd;
 
     const wrap = (open, close) => () => {
         view.dispatch({
@@ -442,7 +443,6 @@ function makeSpanGroup(view, ctx) {
 }
 
 function makeBarlineGroup(view, ctx) {
-    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
     // Insert after the current token (or at cursor if in whitespace).
     const insertAt = ctx.token ? ctx.token.srcEnd : ctx.selFrom;
     const ins = (text) => () => view.dispatch({
@@ -465,7 +465,6 @@ function makeBarlineGroup(view, ctx) {
 }
 
 function makeStructureGroup(view, ctx) {
-    if (ctx.type === 'lyric' || ctx.type === 'verse') return null;
     const insertAt = ctx.token ? ctx.token.srcEnd : ctx.selFrom;
     const ins = (text) => () => view.dispatch({
         changes: { from: insertAt, insert: ' ' + text },
@@ -500,7 +499,6 @@ function makeStructureGroup(view, ctx) {
 }
 
 function makeLyricFormattingGroup(view, ctx) {
-    if (ctx.type !== 'lyric' && ctx.type !== 'verse') return null;
     const at = ctx.selFrom;
     const ins = (text) => () => view.dispatch({
         changes: { from: at, insert: text },
@@ -536,11 +534,177 @@ function makeLyricFormattingGroup(view, ctx) {
             { id: 'lyric-tilde',       label: '~',          icon: ICONS['lyric-tilde'],       tooltip: 'Non-breaking space (~)',    enabled: true, active: false, execute: ins('~') },
             { id: 'lyric-double-tilde', label: '~~',        icon: ICONS['lyric-double-tilde'], tooltip: 'Align marker (~~)',        enabled: true, active: false, execute: ins('~~') },
             { id: 'lyric-star-paren',  label: '(*)',        icon: ICONS['lyric-star-paren'],  tooltip: 'Asterisk barline label (*)', enabled: true, active: false, execute: ins('(*)') },
-            { id: 'lyric-cross-paren', label: '(+)',        icon: ICONS['lyric-cross-paren'], tooltip: 'Cross barline label (+)',    enabled: true, active: false, execute: ins('(+)') },
-            { id: 'lyric-hyphen',      label: '-',          icon: ICONS['lyric-hyphen'],      tooltip: 'Syllable break (-)',        enabled: true, active: false, execute: ins('-') },
+            { id: 'lyric-cross-paren', label: '(†)',        icon: ICONS['lyric-cross-paren'], tooltip: 'Cross barline label (†)',    enabled: true, active: false, execute: ins('(+)') },
+            { id: 'lyric-hyphen',      label: '-',          icon: ICONS['lyric-hyphen'],      tooltip: 'Nonbreaking hyphen (\\-)',        enabled: true, active: false, execute: ins('\\-') },
+            { id: 'lyric-dagger',   label: '†',         icon: ICONS['lyric-plus-plus'],   tooltip: 'Cross (+)',           enabled: true, active: false, execute: ins('+') },
+            { id: 'lyric-plus-plus',   label: '‡',         icon: ICONS['lyric-plus-plus'],   tooltip: 'Double cross (++)',           enabled: true, active: false, execute: ins('++') },
+            { id: 'lyric-escape-r',    label: '℟',        icon: ICONS['lyric-escape-r'],    tooltip: 'Response (\\R)',           enabled: true, active: false, execute: ins('\\R') },
+            { id: 'lyric-escape-v',    label: '℣',        icon: ICONS['lyric-escape-v'],    tooltip: 'Versicle (\\V)',               enabled: true, active: false, execute: ins('\\V') },
         ],
     };
 }
+
+function makeHeadingFormattingGroup(view, ctx) {
+    const at = ctx.selFrom;
+    const ins = (text) => () => view.dispatch({
+        changes: { from: at, insert: text },
+        selection: { anchor: at + text.length },
+    });
+
+    const hasSelection = ctx.selTo > ctx.selFrom;
+    const wrap = (open, close) => () => {
+        if (hasSelection) {
+            view.dispatch({
+                changes: [
+                    { from: ctx.selFrom, insert: open },
+                    { from: ctx.selTo, insert: close },
+                ],
+                selection: { anchor: ctx.selTo + open.length + close.length },
+            });
+        } else {
+            view.dispatch({
+                changes: { from: at, insert: open + close },
+                selection: { anchor: at + open.length },
+            });
+        }
+    };
+
+    return {
+        id: 'heading-format',
+        label: 'Format',
+        actions: [
+            { id: 'lyric-bold',        label: 'Bold',       icon: ICONS['lyric-bold'],        tooltip: 'Bold ({text})',             enabled: true, active: false, execute: wrap('{', '}') },
+            { id: 'lyric-italic',      label: 'Italic',     icon: ICONS['lyric-italic'],      tooltip: 'Italic (<text>)',           enabled: true, active: false, execute: wrap('<', '>') },
+            { id: 'lyric-underline',   label: 'Underline',  icon: ICONS['lyric-underline'],   tooltip: 'Underline ([text])',        enabled: true, active: false, execute: wrap('[', ']') },
+            { id: 'lyric-small-caps',  label: 'Small caps', icon: ICONS['lyric-small-caps'],  tooltip: 'Small caps (\\sc{text})',   enabled: true, active: false, execute: wrap('\\sc{', '}') },
+            { id: 'lyric-newline',     label: 'Newline',    icon: ICONS['lyric-newline'],     tooltip: 'Newline (|)',               enabled: true, active: false, execute: ins('|') },
+            { id: 'lyric-plus-plus',   label: '++',         icon: ICONS['lyric-plus-plus'],   tooltip: 'Line break (++)',           enabled: true, active: false, execute: ins('++') },
+            { id: 'lyric-escape-r',    label: '\\R',        icon: ICONS['lyric-escape-r'],    tooltip: 'Response (\\R)',           enabled: true, active: false, execute: ins('\\R') },
+            { id: 'lyric-escape-v',    label: '\\V',        icon: ICONS['lyric-escape-v'],    tooltip: 'Versicle (\\V)',               enabled: true, active: false, execute: ins('\\V') },
+        ],
+    };
+}
+
+function isInHeaderSection(state, pos) {
+    const currentLine = state.doc.lineAt(pos);
+    const curText = currentLine.text;
+    if (/^\s*%%\s*$/.test(curText)) return false;
+    if (curText.trim() !== '' && !/^\s*%/.test(curText)) return false;
+    for (let n = 1; n < currentLine.number; n++) {
+        const text = state.doc.line(n).text;
+        if (/^\s*%%\s*$/.test(text)) return false;
+        if (text.trim() !== '' && !/^\s*%/.test(text)) return false;
+    }
+    return true;
+}
+
+function makeHeadingGroup(view) {
+    const doc = view.state.doc;
+
+    const findHeaderLine = (key) => {
+        const regex = new RegExp(`^\\s*%${key}:`, 'i');
+        for (let n = 1; n <= doc.lines; n++) {
+            const line = doc.line(n);
+            if (/^\s*%%\s*$/.test(line.text)) break;
+            if (regex.test(line.text)) return line;
+        }
+        return null;
+    };
+
+    const findInsertPos = () => {
+        let lastHeaderTo = -1;
+        for (let n = 1; n <= doc.lines; n++) {
+            const line = doc.line(n);
+            if (/^\s*%%\s*$/.test(line.text)) return { at: line.from, newlineBefore: false };
+            if (/^\s*%/.test(line.text)) lastHeaderTo = line.to;
+            else if (line.text.trim() !== '') break;
+        }
+        if (lastHeaderTo >= 0) return { at: lastHeaderTo, newlineBefore: true };
+        return { at: 0, newlineBefore: false };
+    };
+
+    const headerAction = (id, key, label, tooltip) => {
+        const line = findHeaderLine(key);
+        return {
+            id: `heading-${id}`,
+            label,
+            icon: ICONS[`heading-${id}`],
+            tooltip,
+            enabled: true,
+            active: !!line,
+            execute() {
+                if (line) {
+                    view.dispatch({ selection: { anchor: line.to } });
+                    view.focus();
+                } else {
+                    const { at, newlineBefore } = findInsertPos();
+                    const prefix = newlineBefore ? '\n' : '';
+                    const text = `%${key}: `;
+                    const suffix = newlineBefore ? '' : '\n';
+                    view.dispatch({
+                        changes: { from: at, insert: prefix + text + suffix },
+                        selection: { anchor: at + prefix.length + text.length },
+                    });
+                }
+            },
+        };
+    };
+
+    const optionLines = [];
+    for (let n = 1; n <= doc.lines; n++) {
+        const line = doc.line(n);
+        if (/^\s*%%\s*$/.test(line.text)) break;
+        if (/^\s*%option:/i.test(line.text)) optionLines.push(line);
+    }
+    const lastOptionLine = optionLines[optionLines.length - 1] ?? null;
+
+    return {
+        id: 'heading',
+        label: 'Heading',
+        actions: [
+            headerAction('title',    'title',    'Title',    'Document title (%title:)'),
+            headerAction('subtitle', 'subtitle', 'Subtitle', 'Subtitle (%subtitle:)'),
+            headerAction('rubric',   'rubric',   'Rubric',   'Liturgical rubric (%rubric:)'),
+            headerAction('caption',  'caption',  'Caption',  'Caption (%caption:)'),
+            headerAction('indent',   'indent',   'Indent',   'Staff indent (%indent:)'),
+            {
+                id: 'heading-option',
+                label: 'Option',
+                icon: ICONS['heading-option'],
+                tooltip: 'Renderer option (%option:)',
+                enabled: true,
+                active: lastOptionLine !== null,
+                execute() {
+                    if (lastOptionLine) {
+                        view.dispatch({ selection: { anchor: lastOptionLine.to } });
+                        view.focus();
+                    } else {
+                        const { at, newlineBefore } = findInsertPos();
+                        const prefix = newlineBefore ? '\n' : '';
+                        const text = '%option: ';
+                        const suffix = newlineBefore ? '' : '\n';
+                        view.dispatch({
+                            changes: { from: at, insert: prefix + text + suffix },
+                            selection: { anchor: at + prefix.length + text.length },
+                        });
+                    }
+                },
+            },
+        ],
+    };
+}
+
+// --- Mode → groups map ---
+
+const GROUPS_BY_MODE = {
+    note:      [makeUndoRedoGroup, makePitchGroup, makeShapeGroup, makeModifiersGroup, makeAccidentalGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
+    ligature:  [makeUndoRedoGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
+    selection: [makeUndoRedoGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
+    heading:   [makeUndoRedoGroup, makeHeadingGroup, makeHeadingFormattingGroup],
+    lyric:     [makeUndoRedoGroup, makeLyricFormattingGroup],
+    verse:     [makeUndoRedoGroup, makeLyricFormattingGroup],
+};
+const DEFAULT_GROUPS = [makeUndoRedoGroup, makeBarlineGroup, makeStructureGroup];
 
 // --- Main export ---
 
@@ -576,18 +740,13 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
                 }
             }
         }
+
+        // Detect heading (document header section) context.
+        if (ctx.type === 'empty' && isInHeaderSection(view.state, selFrom)) {
+            ctx = { ...ctx, type: 'heading' };
+        }
     }
 
-    const groups = [
-        makeUndoRedoGroup(view),
-        makePitchGroup(view, ctx),
-        makeShapeGroup(view, ctx),
-        makeModifiersGroup(view, ctx),
-        makeAccidentalGroup(view, ctx),
-        makeSpanGroup(view, ctx),
-        makeBarlineGroup(view, ctx),
-        makeStructureGroup(view, ctx),
-        makeLyricFormattingGroup(view, ctx),
-    ].filter(Boolean);
+    const groups = (GROUPS_BY_MODE[ctx.type] ?? DEFAULT_GROUPS).map(fn => fn(view, ctx));
     return { groups, context: { type: ctx.type } };
 }

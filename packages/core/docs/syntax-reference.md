@@ -46,7 +46,7 @@ A document is an optional **header** followed by a **body**:
 %key: value          ← header lines (optional)
 %key: value
 %%                    ← optional end-of-header marker
-(g2) g h i ||         ← body: music, lyrics, verse, and blank lines
+(g2) g a b ||         ← body: music, lyrics, verse, and blank lines
 w: text
 ```
 
@@ -70,7 +70,7 @@ Each header line is `%` `key` `:` `value`. Keys are trimmed; values are trimmed.
 %option: hideRepeatClef=true
 %indent: VII.
 %%
-(g2) h h h g h j i g h. ||
+(g2) a a a g a C b g a. ||
 w: O Lord, hear my hum-ble call to you!
 ```
 
@@ -89,7 +89,7 @@ header line, using either `name=value` or `name: value`:
 %option: lyricSize=12
 %option: hideRepeatClef=true
 %%
-(g2) h h h g h j i g h. ||
+(g2) a a a g a C b g a. ||
 w:   O Lord, hear my hum-ble call to you!
 ```
 
@@ -234,19 +234,19 @@ Adjacent pitch letters with no whitespace between them form **one ligature**
 the ligature.
 
 ```aretino
-(g2) gh hg
+(g2) ga ag
 w:   podatus clivis
 ```
 
 ```aretino
-(g2) ghg hgh
+(g2) gag aga
 w:   torculus porrectus
 ```
 
 Longer runs work too; the renderer adds a virga on melodic peaks automatically:
 
 ```aretino
-(g2) dfd ihgfghghjijigh
+(g2) dfd bagfgagaCbCbga
 ```
 
 ### Neume-separator gap (`/`)
@@ -271,17 +271,17 @@ them. The brackets may span a single note, a ligature, or several
 whitespace-separated notes or neumes.
 
 ```aretino
-(g2) g [h] i
+(g2) g [a] b
 w:   plain opt plain
 ```
 
 ```aretino
-(g2) gh [hg] ghg [hgh] g
+(g2) ga [ag] gag [aga] g
 w:   pod  cliv torc porr end
 ```
 
 ```aretino
-(g2) g [h i j] g [i h] g.
+(g2) g [a b C] g [b a] g.
 w:   a  b c d e  f g h.
 ```
 
@@ -314,15 +314,15 @@ Spans can cross system breaks; the renderer continues the mark on the next row
 automatically.
 
 ```aretino
-(g2) { g h i j } { h i j k }"melisma"
+(g2) { g a b C } { a b C D }"melisma"
 ```
 
 ```aretino
-(g2) \arc{ g h i } \line{ j k l m }
+(g2) \arc{ g a b } \line{ C D E F }
 ```
 
 ```aretino
-(g2) { g h i j }"1." g { h i j k }"2." g
+(g2) { g a b C }"1." g { a b C D }"2." g
 ```
 
 In the AST, the opening token is `{ type: 'brace-open', kind: 'brace' | 'arc' | 'line' }` and the closing token is `{ type: 'brace-close', label? }`.
@@ -343,7 +343,7 @@ the same symbol in parentheses (`(|)`, `(||)`, …) — useful to keep them from
 attaching to a neighbouring spacer or expander.
 
 ```aretino
-(g2) g h , g h ; g h | g h || g h ||| g h :| g h |:
+(g2) g a , g a ; g a | g a || g a ||| g a :| g a |:
 ```
 
 | Symbol | Kind |
@@ -360,7 +360,7 @@ attaching to a neighbouring spacer or expander.
 | `'` | breath mark |
 
 ```aretino
-(g2) g h ' g h
+(g2) g a ' g a
 ```
 
 ---
@@ -371,7 +371,7 @@ A clef is a directive `(` `letter` `line` `)` — the clef letter (`g`, `f`,
 or `c`, case-insensitive) plus the staff line it sits on.
 
 ```aretino
-(g2) d f g h  (c3) e g h  (f4) i h g
+(g2) d f g a  (c3) e g a  (f4) b a g
 ```
 
 | Directive | Clef |
@@ -396,7 +396,7 @@ letter:
 | `n` | natural |
 | `#` | sharp |
 
-So `f#` is a sharp on `f`, `ib` a flat on `i`, `n` a natural (on the default
+So `f#` is a sharp on `f`, `bb` a flat on `b`, `n` a natural (on the default
 pitch). An accidental is always drawn exactly where it is written. Outside key
 signatures, it remains in force for notes on the same staff position until the
 next barline or another accidental on that same position.
@@ -415,14 +415,14 @@ Accidentals come in three placements:
 List one or more accidentals separated by spaces. An empty `(K:)` clears it.
 
 ```aretino
-(g2) (K:f#) h h h f h i j ih h_
+(g2) (K:f#) a a a f a b C ba a_
 ```
 
 **Standalone directive** — an accidental directive on its own (not glued to a
 note) draws the sign at that position.
 
 When the pitch letter is omitted, the position defaults to the reciting
-position `i` — so `(b)` is a flat on `i`. Name the pitch explicitly whenever you
+position `b` — so `(b)` is a flat on `b`. Name the pitch explicitly whenever you
 mean another position.
 
 ---
@@ -441,18 +441,18 @@ sound.
 | `=` `==` `===` | spacer | Fixed-width gap; width scales with the number of `=` |
 
 ```aretino
-(g2) d f * g h * g f d  (||)
+(g2) d f * g a * g f d  (||)
 ```
 
 ```aretino
-(g2) d f (sp2) g = h ==== f
+(g2) d f (sp2) g = a ==== f
 ```
 
 Explicit breaks let one logical line render as several rows with controlled
 justification:
 
 ```aretino
-(g2) h h h g h j i g h. (z) h h h h g e e d. (Z) g g g h g f e d.
+(g2) a a a g a C b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 
@@ -464,7 +464,7 @@ A `w:` line carries syllable text aligned under the music line above it. A `W:`
 line carries free verse text.
 
 ```aretino
-(g2) g h i g. hi h g e_d_ , g hi a'g g. ||
+(g2) g a b g. ab a g e_d_ , g ab A'g g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 ```
 
@@ -482,7 +482,7 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 [text formatting](#15-text-formatting) as lyrics:
 
 ```aretino
-(g2) g hi h g e_d_ , g hi a'g g. ||
+(g2) g ab a g e_d_ , g ab A'g g. ||
 w: Al-le-lu-ia, * al-le-lu-ia.
 W: Dicsőség az Atyának és Fiúnak * és Szentlélek Istennek.
 W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen.
@@ -508,7 +508,7 @@ Lyric (`w:`) and verse (`W:`) text supports inline formatting. Styles nest.
 | `\X` | literal `X` — escape any special character (`\{`, `\<`, `\\`, …) |
 
 ```aretino
-(g2) c d e f g | h
+(g2) c d e f g | a
 w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \color:green{green}
 ```
 

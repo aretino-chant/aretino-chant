@@ -72,9 +72,9 @@ describe('renderAretino', () => {
   });
 
   it('separates two mora dots that land at the same vertical position', () => {
-    // Two notes at the same pitch both carrying a mora (e.g. A.g. where both
+    // Two notes at the same pitch both carrying a mora (e.g. a.a. where both
     // notes happen to share the same staff position) must not overlap.
-    const svg = renderAretino('(g2) A.A.');
+    const svg = renderAretino('(g2) a.a.');
     const circles = [...svg.matchAll(/<circle[^>]*>/g)].map(m => {
       const cy = m[0].match(/cy="([^"]+)"/)?.[1];
       return cy ? parseFloat(cy) : null;
@@ -137,39 +137,39 @@ describe('renderAretino', () => {
 
   describe('measure accidentals across wrapped rows', () => {
     it('repeats a preceding accidental before the first affected neume after an automatic wrap', () => {
-      const source = '(g2) (b) i i i i i i i i i i i i i i i i | i i';
+      const source = '(g2) (b) b b b b b b b b b b b b b b b b | b b';
       const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
 
     it('matches active accidentals by staff position after an explicit break', () => {
-      const svg = renderAretino('(b)B (z) B |', { width: 400, hideRepeatClef: true });
+      const svg = renderAretino('(b)b (z) b |', { width: 400, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
 
     it('matches active accidentals by staff position after an automatic wrap', () => {
-      const source = '(b)B B B B B B B B B B B B B B B B B B |';
+      const source = '(b)b b b b b b b b b b b b b b b b b b |';
       const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
 
     it('does not repeat a preceding accidental for unaffected staff positions', () => {
-      const svg = renderAretino('(g2) (b) (Z) h h', { width: 400, hideRepeatClef: true });
+      const svg = renderAretino('(g2) (b) (Z) a a', { width: 400, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(0);
     });
 
     it('clears measure accidentals at barlines', () => {
-      const svg = renderAretino('(g2) (b) i | (Z) i i', { width: 400, hideRepeatClef: true });
+      const svg = renderAretino('(g2) (b) b | (Z) b b', { width: 400, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(0);
     });
 
     it('lets another accidental on the same staff position replace the previous one', () => {
-      const svg = renderAretino('(g2) (b) h h (Z) (n) i i', { width: 400, hideRepeatClef: true });
+      const svg = renderAretino('(g2) (b) a a (Z) (n) b b', { width: 400, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(0);
     });
@@ -356,7 +356,7 @@ describe('renderAretino', () => {
     });
 
     it('maps inline accidentals independently from their note', () => {
-      const source = 'i(b)j';
+      const source = 'f(b)a';
       const groups = sourceMappedGroups(renderAretino(source, { width: 400, hideRepeatClef: true }));
 
       expect(groups).toContainEqual(expect.objectContaining({
@@ -366,8 +366,8 @@ describe('renderAretino', () => {
       }));
       expect(groups).toContainEqual(expect.objectContaining({
         className: expect.stringContaining('aretino-note'),
-        srcStart: source.indexOf('j'),
-        srcEnd: source.indexOf('j') + 1,
+        srcStart: source.indexOf('a'),
+        srcEnd: source.indexOf('a') + 1,
       }));
     });
 

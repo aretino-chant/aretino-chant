@@ -43,7 +43,7 @@ function noteAccidentalKey(note) {
 }
 
 function copyAccidental(acc) {
-    return { pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: true } : {}) };
+    return { pitch: acc.pitch, symbol: acc.symbol };
 }
 
 function setActiveAccidental(active, acc) {

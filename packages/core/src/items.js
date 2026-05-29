@@ -55,7 +55,7 @@ export function flattenItems(tokens) {
             }
             const accM = matchAccidental(v);
             if (accM) {
-                items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...(accM.high ? { high: accM.high } : {}), ...src });
+                items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...src });
                 continue;
             }
             const keyM = v.match(/^K:\s*(.*)$/);
@@ -66,7 +66,7 @@ export function flattenItems(tokens) {
                     for (const part of inner.split(/\s+/)) {
                         const acc = matchAccidental(part);
                         if (acc) {
-                            accidentals.push({ pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: acc.high } : {}) });
+                            accidentals.push({ pitch: acc.pitch, symbol: acc.symbol });
                         }
                     }
                 }

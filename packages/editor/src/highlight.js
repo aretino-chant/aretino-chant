@@ -189,7 +189,7 @@ const aretinoStreamParser = {
         if (ch === ';') { stream.next(); return 'punctuation'; }
         if (ch === "'") { stream.next(); return 'punctuation'; }
         if (ch === '~') { stream.next(); return 'punctuation'; }
-        if (/[a-nA-N]/.test(ch)) {
+        if (/[a-gA-G]/.test(ch)) {
             stream.next();
             stream.eatWhile(/['._\-~wts]/);
             return 'atom';
@@ -229,12 +229,11 @@ const aretinoHighlightStyle = HighlightStyle.define([
 ]);
 
 // Pitch positions mirror PITCH_BASE in core/src/glyphs.js.
-const PITCH_BASE = { a: -4, b: -3, c: -2, d: -1, e: 0, f: 1, g: 2, h: 3, i: 4, j: 5, k: 6, l: 7, m: 8, n: 9 };
+const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
 
 function atomPitchPos(ch) {
-    const base = PITCH_BASE[ch.toLowerCase()];
-    if (base === undefined) return null;
-    return base + (ch !== ch.toLowerCase() ? 7 : 0);
+    const base = PITCH_BASE[ch];
+    return base !== undefined ? base : null;
 }
 
 const bigJumpMark = Decoration.mark({ class: 'cm-aretino-big-jump' });
@@ -277,7 +276,7 @@ function buildBigJumpDecorations(doc) {
                 i += m ? m[0].length : 1;
                 continue;
             }
-            if (/[a-nA-N]/.test(ch)) {
+            if (/[a-gA-G]/.test(ch)) {
                 const pp = atomPitchPos(ch);
                 const from = line.from + i;
                 i++;

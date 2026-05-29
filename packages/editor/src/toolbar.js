@@ -99,16 +99,16 @@ const ICONS = {
 
 // --- Pitch helpers ---
 
-const PITCH_COUNT = 14; // a–n
+const PITCHES = 'ABcdefgabCDEFG';
 
 // Returns the replacement source character for a pitch shifted by `delta`
 // steps, or null if the shift would go out of range.
 function shiftedPitchChar(note, delta) {
-    const idx = note.pitch.charCodeAt(0) - 97; // a=0 … n=13
-    const total = (note.high ? PITCH_COUNT : 0) + idx + delta;
-    if (total < 0 || total >= PITCH_COUNT * 2) return null;
-    const newPitch = String.fromCharCode(97 + (total % PITCH_COUNT));
-    return total >= PITCH_COUNT ? newPitch.toUpperCase() : newPitch;
+    const idx = PITCHES.indexOf(note.pitch);
+    if (idx < 0) return null;
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= PITCHES.length) return null;
+    return PITCHES[newIdx];
 }
 
 // --- Source-text helpers ---
@@ -341,7 +341,7 @@ function makeModifiersGroup(view, ctx) {
 
 function makeAccidentalGroup(view, ctx) {
     const { note } = ctx;
-    const pitchChar = note.high ? note.pitch.toUpperCase() : note.pitch;
+    const pitchChar = note.pitch;
     const existingSymbol = note.accidental?.symbol; // 'x'=flat, 'y'=natural, '#'=sharp
 
     // Internal symbol → source character used in the (Xp) notation.

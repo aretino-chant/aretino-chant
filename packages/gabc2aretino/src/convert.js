@@ -4,7 +4,7 @@
 
 // GABC letters a-m (index 0–12) map to Aretino pitches at the same index with
 // zero transposition.  Different clefs shift this mapping by a fixed offset.
-const ARETINO_NOTES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'A', 'B', 'C', 'D', 'E', 'F'];
+const ARETINO_NOTES = ['A', 'B', 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C', 'D', 'E', 'F'];
 const GABC_LOWER   = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
 
 // Transposition (in scale steps) and optional key signature for each GABC clef.

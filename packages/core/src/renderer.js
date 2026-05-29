@@ -506,7 +506,7 @@ export function renderAretino(source, options = {}) {
 
             const startKeySig = row.startKeySig ?? [];
             for (const acc of startKeySig) {
-                const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY, acc.high ?? false);
+                const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY);
                 parts.push(a.svg);
                 cursorX += a.advance;
             }
@@ -570,7 +570,7 @@ export function renderAretino(source, options = {}) {
                     parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
                 } else if (it.kind === 'accidental') {
-                    const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY, it.high ?? false);
+                    const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY);
                     parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     let adv = a.advance;
                     if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
@@ -581,7 +581,7 @@ export function renderAretino(source, options = {}) {
                     const startX = cursorX;
                     const pieces = [];
                     for (const acc of it.accidentals) {
-                        const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY, acc.high ?? false);
+                        const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY);
                         pieces.push(a.svg);
                         cursorX += a.advance;
                     }

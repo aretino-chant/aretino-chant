@@ -156,38 +156,37 @@ W: Dicsőség az Atyának és Fiúnak *
 
 ## 4. Pitch
 
-A pitch is a single letter `a`–`n` (14 diatonic positions, low to high). The
-letter names the staff position; the active [clef](#11-clefs) maps it to a sound.
+A pitch is one of 14 diatonic positions, low to high. Notes in the **normal
+octave** (`c d e f g a b`) use lowercase; notes **outside** it use uppercase.
+The letter names the staff position; the active [clef](#11-clefs) maps it to a
+sound.
 
 ```aretino
-(g2) a b c d e f g h i j k l m n
-w:   a b c d e f g h i j k l m n
+(g2) A B c d e f g a b C D E F G
+w:   A B c d e f g a b C D E F G
 ```
 
 | Suffix | Name | Effect |
 |---|---|---|
-| *(lowercase)* | punctum | Round notehead (default) |
-| *(uppercase)* | raised octave | Shift an octave up |
 | `'` | virga | Apostrophe after a note draws it as a virga |
 
 ```aretino
-(g2) g h i j h' i' j'
-w:   g h i j h' i' j'
+(g2) e f g a b
+w:   e f g a b
 ```
 
 A bare `'` that does **not** follow a pitch is a [breath mark](#10-bar-lines),
-not an octave mark.
+not a virga.
 
 ---
 
 ## 5. Noteheads
 
-The notehead *shape* is set by the letter case and by trailing shape suffixes:
+The notehead *shape* is set by trailing shape suffixes:
 
 | Form | Shape | Example |
 |---|---|---|
-| lowercase letter | punctum | `d` |
-| uppercase letter | punctum (octave up) | `D` |
+| pitch letter | punctum | `d` |
 | letter + `'` | virga | `d'` |
 | letter + `w` | quilisma | `dw` |
 | letter + `t` | tenor note | `dt` |

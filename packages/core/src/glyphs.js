@@ -177,7 +177,7 @@ export const METRICS = {
     lyricDistance: 0.1
 };
 
-const PITCH_BASE = { a: -4, b: -3, c: -2, d: -1, e: 0, f: 1, g: 2, h: 3, i: 4, j: 5, k: 6, l: 7, m: 8, n: 9 };
+const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
 
 function stroke(ctx, ssFraction, minPx) {
     return Math.max(minPx, ssFraction * ctx.staffSpace);
@@ -188,8 +188,7 @@ function ss(ctx, n) {
 }
 
 export function pitchToPos(note) {
-    const base = PITCH_BASE[note.pitch] ?? 0;
-    return base + (note.high ? 7 : 0);
+    return PITCH_BASE[note.pitch] ?? 0;
 }
 
 export function pitchY(ctx, note, staffBottomY) {
@@ -579,8 +578,8 @@ export function drawInlineGlyph(name, x, baselineY, fontSize, color = '#000') {
     };
 }
 
-export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY, high = false) {
-    const pos = (PITCH_BASE[pitchLetter] ?? 3) + (high ? 7 : 0);
+export function drawAccidental(ctx, pitchLetter, kind, x, staffBottomY) {
+    const pos = PITCH_BASE[pitchLetter] ?? 4;
     const cy = staffBottomY - pos * ctx.pitchStep;
     // In SMuFL/Bravura: 1 em = 1000 units = 4 staff spaces.
     // Scale factor: 1 staff space in pixels / 250 font units.

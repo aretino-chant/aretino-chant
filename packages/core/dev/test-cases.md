@@ -9,7 +9,7 @@ Add test cases freely — any ` ```aretino ``` ` block becomes an interactive ed
 Use this block to experiment freely:
 
 ```aretino
-(g2) g h i ||
+(g2) g a b ||
 ```
 
 ---
@@ -19,8 +19,8 @@ Use this block to experiment freely:
 All letter pitches `a`–`n` on a G2 clef:
 
 ```aretino
-(g2) a b c d e f g h i j k l m n
-w:   a b c d e f g h i j k l m n
+(g2) A B c d e f g a b C D E F G
+w:   A B c d e f g a b C D E F G
 ```
 
 ---
@@ -28,7 +28,7 @@ w:   a b c d e f g h i j k l m n
 ## Clefs
 
 ```aretino
-(g2) d f g h  (c3) e g h  (f4) i h g
+(g2) d f g a  (c3) e g a  (f4) b a g
 ```
 
 ---
@@ -64,27 +64,27 @@ Combined modifiers:
 ## Barlines
 
 ```aretino
-(g2) g h , g h ; g h | g h || g h ||| g h :| g h |: :|: ,2
+(g2) g a , g a ; g a | g a || g a ||| g a :| g a |: :|: ,2
 w: (,) (;) (|) (||) (|||) (:|) (|:) (:|:) (,2)
 ```
 
 Dotted barline and invisible barline:
 
 ```aretino
-(g2) g h |? g h |0 g h
+(g2) g a |? g a |0 g a
 w: (dotted) (invisible)
 ```
 
 Breath mark:
 
 ```aretino
-(g2) g h ' g h
+(g2) g a ' g h
 ```
 
 Plica barline (positioned at the last note's pitch):
 
 ```aretino
-(g2) g h ~ g i ~ h f ~ g
+(g2) g a ~ g b ~ a f ~ g
 w:   (g) (i) (h)
 ```
 
@@ -95,27 +95,27 @@ w:   (g) (i) (h)
 Podatus (ascending pair), clivis (descending pair):
 
 ```aretino
-(g2) gh hg
+(g2) ga ag
 w:   podatus clivis
 ```
 
 Torculus and porrectus:
 
 ```aretino
-(g2) ghg hgh
+(g2) gag aga
 w:   torculus porrectus
 ```
 
 Longer neumes and automatic virga on peaks:
 
 ```aretino
-(g2) dfd ihgfghghjijigh
+(g2) dfd CagfgagaCbCbga
 ```
 
 Suppress auto-virga with backtick `` ` `` (peak loses stem, loosens connection without extra space):
 
 ```aretino
-(g2) ihg ih`g
+(g2) bag C`bg
 ```
 
 Neume-separator gap `/` — visual grouping within one ligature:
@@ -131,19 +131,19 @@ Neume-separator gap `/` — visual grouping within one ligature:
 Current spelling — `b` flat, `n` natural, `#` sharp:
 
 ```aretino
-(g2) (K:f#) h h h f h i j ih h_
+(g2) (K:f#) a a a f a b C ba a_
 ```
 
 Inline, standalone, and natural cancelling a key-signature accidental:
 
 ```aretino
-(g2) (K:fb) f f (fn) f f  (i#) i i
+(g2) (K:fb) f f (fn) f f  (C#) b C
 ```
 
 Uppercase accidental pitches for octave shifts:
 
 ```aretino
-(g2) (K:F# C#) i j k i j k
+(g2) (K:F# C#) b C D b C D
 ```
 
 Inline uppercase accidentals:
@@ -159,29 +159,29 @@ Inline uppercase accidentals:
 Individual parenthesized notes:
 
 ```aretino
-(g2) g [h] i [j] g
+(g2) g [a] b [c] g
 w:   plain opt plain opt plain
 ```
 
 Parenthesized neume (ligature):
 
 ```aretino
-(g2) gh [hg] ghg [hgh] g
+(g2) ga [ag] gag [aga] g
 w:   pod  cliv torc porr end
 ```
 
 Parenthesized note group (multiple notes in parens):
 
 ```aretino
-(g2) g [h i j] g [i h] g.
+(g2) g [a b C] g [b a] g.
 w:   a  b c d e  f g h.
 ```
 
 Mixed: lyrics with parenthesized syllables:
 
 ```aretino
-(g2) h h [h] h h h [gh] h. ||
-w:   Glo-ri-a (in) ex-cel-sis (De-o).
+(g2) a b [a] a a a [ga] a. ||
+w:   Glo-ri-\(a\) ex-cel-\(sis\)
 ```
 
 ---
@@ -189,8 +189,8 @@ w:   Glo-ri-a (in) ex-cel-sis (De-o).
 ## Raised Octave (uppercase)
 
 ```aretino
-(g2) g h i j A B C 
-w:   g h i j A B C
+(g2) g a b C D E F
+w:   g a b C D E F
 ```
 
 ---
@@ -198,13 +198,13 @@ w:   g h i j A B C
 ## Expander `*` and Spacers
 
 ```aretino
-(g2) d f * g h * g f d  (||)
+(g2) d f * g a * g f d  (||)
 ```
 
 Fixed-width spacers `(sp)` and `=`:
 
 ```aretino
-(g2) d f (sp2) g = h ==== f
+(g2) d f (sp2) g = a ==== f
 ```
 
 ---
@@ -212,7 +212,7 @@ Fixed-width spacers `(sp)` and `=`:
 ## Explicit Line Break `(z)` / `(Z)`
 
 ```aretino
-(g2) h h h g h j i g h. (z) h h h h g e e d. (Z) g g g h g f e d.
+(g2) a a a g a j b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 
@@ -226,7 +226,7 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 %indent: VII.
 %rubric: During procession
 %%
-(g2) h h h g h j i g h. ||
+(g2) a a a g a j b g h. ||
 w: O Lord, hear my hum-ble call to you!
 ```
 
@@ -235,7 +235,7 @@ w: O Lord, hear my hum-ble call to you!
 ## Text and Multiple Stanzas
 
 ```aretino
-(g2) g h i g. hi h g e_d_ , g AB Ag g. ||
+(g2) g a b g. ab a g e_d_ , g ab ag g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
 ```
@@ -246,7 +246,7 @@ Double (or more) hyphens assign multiple note groups to one syllable.
 `Al--le` means "Al" spans 2 note groups; `lu---ia` means "lu" spans 3.
 
 ```aretino
-(g2) cd ef gA gf ef ed c. (z)
+(g2) cd ef ga gf ef ed c. (z)
 w: Al- - le -lu - - - ia.
 ```
 
@@ -255,7 +255,7 @@ w: Al- - le -lu - - - ia.
 ## Text and formatting
 
 ```aretino
-(g2) c d e f g | h
+(g2) c d e f g | a
 w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \color:green{green}
 ```
 
@@ -268,17 +268,17 @@ w: normal \small{small text} normal \large{large text} normal
 
 ## Labels
 ```aretino
-(g2) c"<Label:>" d e f g | h
+(g2) c"<Label:>" d e f g | a
 ```
 
 Inline accidental glyphs in labels (`\b` flat, `\n` natural, `\#` sharp):
 ```aretino
-(g2) c"! \b ! \n ? \# ." d e f | h
+(g2) c"! \b ! \n ? \# ." d e f | a
 ```
 
 Stress mark glyph in labels (`\'`):
 ```aretino
-(g2) {c d e}"\' stress" f g | h
+(g2) {c d e}"\' stress" f g | a
 ```
 
 ## Verse Lines (W: Tag)
@@ -286,7 +286,7 @@ Stress mark glyph in labels (`\'`):
 Psalm verses under an antiphon — the typical liturgical use case:
 
 ```aretino
-(g2) (K:B) h_gi'hg/h_j jjjhghgh h. ;
+(g2) (K:B) a_gb'ag/a_C CCCagaga a. ;
 w: Haec di-es (\red{*})
 W: <This is the day the Lord has made; let us rejoice and be glad.>
 W: <\V. Give thanks to the Lord, for he is good, for his mercy endures forever.>
@@ -317,7 +317,7 @@ This block lays out to a fixed physical width of 18 cm — its line breaks stay
 put no matter how wide the editor is, unlike the responsive blocks above:
 
 ```aretino fixed width=18cm
-(g2) h h h g h j i g h. (z) h h h h g e e d. (Z) g g g h g f e d.
+(g2) a a a g a C b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 

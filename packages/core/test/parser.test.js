@@ -51,7 +51,7 @@ describe('parseAretino', () => {
   });
 
   it('preserves source offsets for inline accidentals', () => {
-    const source = 'i(b)j';
+    const source = 'b(b)C';
     const ast = parseAretino(source);
     const note = ast.lines[0].tokens[0].groups[0][1];
 
@@ -103,7 +103,7 @@ describe('inline comments and preprocessor directives', () => {
   });
 
   it('strips inline block comment %[ ... %] from a music line', () => {
-    const ast = parseAretino('fga %[ a comment %] hij');
+    const ast = parseAretino('fga %[ a comment %] gab');
     expect(ast.lines[0].type).toBe('music');
     const ligatures = ast.lines[0].tokens.filter(t => t.type === 'ligature');
     expect(ligatures).toHaveLength(2);
@@ -150,7 +150,7 @@ describe('inline comments and preprocessor directives', () => {
   });
 
   it('handles multi-line block comments', () => {
-    const ast = parseAretino('fga\n%[ this is\na multi-line\ncomment\n%]\nhij');
+    const ast = parseAretino('fga\n%[ this is\na multi-line\ncomment\n%]\ngab');
     const musicLines = ast.lines.filter(l => l.type === 'music');
     expect(musicLines).toHaveLength(2);
     expect(musicLines[0].tokens.find(t => t.type === 'ligature')).toBeDefined();
@@ -158,7 +158,7 @@ describe('inline comments and preprocessor directives', () => {
   });
 
   it('processes music tokens that appear after %] on the closing line', () => {
-    const ast = parseAretino('%[ comment\n%] hij');
+    const ast = parseAretino('%[ comment\n%] gab');
     const musicLines = ast.lines.filter(l => l.type === 'music');
     expect(musicLines).toHaveLength(1);
     expect(musicLines[0].tokens.find(t => t.type === 'ligature')).toBeDefined();
@@ -180,10 +180,10 @@ describe('matchAccidental', () => {
     expect(matchAccidental('f#')).toEqual({ pitch: 'f', symbol: '#' });
   });
 
-  it('defaults the omitted pitch to the reciting position (i)', () => {
-    expect(matchAccidental('b')).toEqual({ pitch: 'i', symbol: 'x' });
-    expect(matchAccidental('n')).toEqual({ pitch: 'i', symbol: 'y' });
-    expect(matchAccidental('#')).toEqual({ pitch: 'i', symbol: '#' });
+  it('defaults the omitted pitch to the reciting position (b)', () => {
+    expect(matchAccidental('b')).toEqual({ pitch: 'b', symbol: 'x' });
+    expect(matchAccidental('n')).toEqual({ pitch: 'b', symbol: 'y' });
+    expect(matchAccidental('#')).toEqual({ pitch: 'b', symbol: '#' });
   });
 
   it('rejects the former legacy Gregorio spelling (bx / by / b#)', () => {
@@ -193,9 +193,8 @@ describe('matchAccidental', () => {
     expect(matchAccidental('bx')).toBeNull();
   });
 
-  it('handles a flat/natural targeting the b or n staff position', () => {
+  it('handles a flat/natural targeting the b staff position', () => {
     expect(matchAccidental('bb')).toEqual({ pitch: 'b', symbol: 'x' });
-    expect(matchAccidental('nn')).toEqual({ pitch: 'n', symbol: 'y' });
     expect(matchAccidental('bn')).toEqual({ pitch: 'b', symbol: 'y' });
   });
 
@@ -205,11 +204,12 @@ describe('matchAccidental', () => {
     expect(matchAccidental('sp2')).toBeNull();
   });
 
-  it('handles uppercase pitch letters to indicate octave shift', () => {
-    expect(matchAccidental('Fb')).toEqual({ pitch: 'f', symbol: 'x', high: true });
-    expect(matchAccidental('Fn')).toEqual({ pitch: 'f', symbol: 'y', high: true });
-    expect(matchAccidental('F#')).toEqual({ pitch: 'f', symbol: '#', high: true });
-    expect(matchAccidental('Bb')).toEqual({ pitch: 'b', symbol: 'x', high: true });
-    expect(matchAccidental('Nn')).toEqual({ pitch: 'n', symbol: 'y', high: true });
+  it('handles uppercase pitch letters as distinct note positions', () => {
+    expect(matchAccidental('Fb')).toEqual({ pitch: 'F', symbol: 'x' });
+    expect(matchAccidental('Fn')).toEqual({ pitch: 'F', symbol: 'y' });
+    expect(matchAccidental('F#')).toEqual({ pitch: 'F', symbol: '#' });
+    expect(matchAccidental('Bb')).toEqual({ pitch: 'B', symbol: 'x' });
+    expect(matchAccidental('Ab')).toEqual({ pitch: 'A', symbol: 'x' });
+    expect(matchAccidental('Gb')).toEqual({ pitch: 'G', symbol: 'x' });
   });
 });

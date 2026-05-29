@@ -31,10 +31,9 @@
 //
 // Note shape:
 //   {
-//       pitch: 'a'..'n',
+//       pitch: one of 'A','B','c','d','e','f','g','a','b','C','D','E','F','G',
 //       virga: boolean,                  — uppercase letter
 //       noVirga: boolean,                — backtick ` suppresses auto-virga
-//       high: boolean,                   — trailing apostrophe (octave up)
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
 //       modifiers: Array<'episema'|'mora'|'plica'|'ictus'>,
 //   }
@@ -256,7 +255,7 @@ export function parseAretino(source) {
 }
 
 function isPitchLetter(c) {
-    return /[a-nA-N]/.test(c);
+    return /[a-gA-G]/.test(c);
 }
 
 // Maps each accepted accidental token to the internal symbol used downstream
@@ -264,20 +263,18 @@ function isPitchLetter(c) {
 const ACCIDENTAL_TOKENS = { b: 'x', n: 'y', '#': '#' };
 
 // Parses an accidental directive's inner text: an optional target pitch letter
-// followed by one accidental token. Returns { pitch, symbol, high? } (symbol is the
+// followed by one accidental token. Returns { pitch, symbol } (symbol is the
 // internal 'x'/'y'/'#'), or null if it isn't an accidental. When the pitch is
-// omitted it defaults to `defaultPitch` (the staff's reciting position). Uppercase
-// pitch letters set high: true (octave up).
-export function matchAccidental(inner, defaultPitch = 'i') {
-    const m = inner.match(/^([a-nA-N]?)([bn#])$/);
+// omitted it defaults to `defaultPitch` (the staff's reciting position).
+export function matchAccidental(inner, defaultPitch = 'b') {
+    const m = inner.match(/^([a-gA-G]?)([bn#])$/);
     if (!m) {
         return null;
     }
     const pitchLetter = m[1] || defaultPitch;
     return {
-        pitch: pitchLetter.toLowerCase(),
+        pitch: pitchLetter,
         symbol: ACCIDENTAL_TOKENS[m[2]],
-        ...(m[1] && pitchLetter !== pitchLetter.toLowerCase() ? { high: true } : {})
     };
 }
 
@@ -297,7 +294,7 @@ function peekInlineAccidental(line, pos) {
     if (!acc) {
         return null;
     }
-    return { pitch: acc.pitch, symbol: acc.symbol, ...(acc.high ? { high: acc.high } : {}), end: end + 1 };
+    return { pitch: acc.pitch, symbol: acc.symbol, end: end + 1 };
 }
 
 // Parses a sequence of note groups separated by '/' within line[i..limit).
@@ -321,10 +318,9 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             const pitchChar = line[i];
             i++;
             const note = {
-                pitch: pitchChar.toLowerCase(),
+                pitch: pitchChar,
                 virga: false,
                 noVirga: false,
-                high: pitchChar !== pitchChar.toLowerCase(),
                 shape: 'punctum',
                 modifiers: [],
                 modifierSpans: [],
@@ -333,7 +329,6 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 note.accidental = {
                     pitch: pendingAcc.pitch,
                     symbol: pendingAcc.symbol,
-                    ...(pendingAcc.high ? { high: pendingAcc.high } : {}),
                     srcStart: pendingAcc.srcStart,
                     srcEnd: pendingAcc.srcEnd,
                 };

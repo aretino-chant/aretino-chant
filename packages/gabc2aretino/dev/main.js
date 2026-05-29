@@ -56,7 +56,7 @@ const INITIAL_ROWS = [
     // clef transposition: each row uses a different clef, note 'd' should sound the same pitch
     '(c4) (defg)',   // c4: no transposition → d e f g
     '(c1) (efgh)',   // c1: down 1 → d e f g
-    '(c2) (abcd)',   // c2: up 4 → e f g A
+    '(c2) (abcd)',   // c2: up 4 → e f g a
     '(c3) (bcde)',   // c3: up 2 → d e f g
     '(f3) (fghi)',   // f3: down 2 → d e f g
     '(f4) (abcd)',   // f4: up 3 → d e f g

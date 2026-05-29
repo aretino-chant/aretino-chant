@@ -38,7 +38,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
 
     for (const acc of leadingCourtesyAccidentals) {
         const accX = groupStartX + courtesyAdvance;
-        const a = drawAccidental(ctx, acc.pitch, acc.symbol, accX, staffBottomY, acc.high ?? false);
+        const a = drawAccidental(ctx, acc.pitch, acc.symbol, accX, staffBottomY);
         parts.push(`<g class="aretino-accidental aretino-courtesy-accidental">${a.svg}</g>`);
         courtesyAdvance += accidentalAdvance(ctx, acc);
     }
@@ -54,7 +54,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             // Draw inline accidental before this note if present.
             if (note.accidental) {
                 const accX = cx - ss(ctx, METRICS.noteBoxWidth) * 0.5;
-                const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY, note.accidental.high ?? false);
+                const a = drawAccidental(ctx, note.accidental.pitch, note.accidental.symbol, accX, staffBottomY);
                 parts.push(wrapSrc(note.accidental, a.svg, 'aretino-accidental aretino-inline-accidental', staffBottomY, ctx.staffHeight, undefined, undefined, ctx.sourceMap));
                 cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
             }

@@ -254,9 +254,10 @@ function makePitchGroup(view, ctx) {
                 label: 'Up',
                 icon: ICONS['pitch-up'],
                 tooltip: 'Move note one step up',
-                enabled: shiftedPitchChar(note, 1) !== null,
+                enabled: !!note && shiftedPitchChar(note, 1) !== null,
                 active: false,
                 execute() {
+                    if (!note) return;
                     const ch = shiftedPitchChar(note, 1);
                     if (ch) view.dispatch({
                         changes: { from: note.srcStart, to: note.srcStart + 1, insert: ch },
@@ -269,9 +270,10 @@ function makePitchGroup(view, ctx) {
                 label: 'Down',
                 icon: ICONS['pitch-down'],
                 tooltip: 'Move note one step down',
-                enabled: shiftedPitchChar(note, -1) !== null,
+                enabled: !!note && shiftedPitchChar(note, -1) !== null,
                 active: false,
                 execute() {
+                    if (!note) return;
                     const ch = shiftedPitchChar(note, -1);
                     if (ch) view.dispatch({
                         changes: { from: note.srcStart, to: note.srcStart + 1, insert: ch },
@@ -287,6 +289,7 @@ function makeShapeGroup(view, ctx) {
     const { note } = ctx;
 
     const setShape = (newShape) => {
+        if (!note) return;
         const shapeChar = newShape === 'quilisma' ? 'w' : newShape === 'tenor' ? 't' : '';
         const pos = findShapeCharPos(view.state.doc, note);
         if (pos >= 0) {
@@ -306,9 +309,9 @@ function makeShapeGroup(view, ctx) {
         id: 'shape',
         label: 'Shape',
         actions: [
-            { id: 'shape-punctum',  label: 'Punctum',  icon: ICONS['shape-punctum'],  tooltip: 'Standard notehead',     enabled: true, active: note.shape === 'punctum',  execute() { setShape('punctum');  } },
-            { id: 'shape-tenor',    label: 'Tenor',    icon: ICONS['shape-tenor'],    tooltip: 'Tenor (reciting note)', enabled: true, active: note.shape === 'tenor',    execute() { setShape('tenor');    } },
-            { id: 'shape-quilisma', label: 'Quilisma', icon: ICONS['shape-quilisma'], tooltip: 'Quilisma notehead',     enabled: true, active: note.shape === 'quilisma', execute() { setShape('quilisma'); } },
+            { id: 'shape-punctum',  label: 'Punctum',  icon: ICONS['shape-punctum'],  tooltip: 'Standard notehead',     enabled: !!note, active: !note || note.shape === 'punctum',  execute() { setShape('punctum');  } },
+            { id: 'shape-tenor',    label: 'Tenor',    icon: ICONS['shape-tenor'],    tooltip: 'Tenor (reciting note)', enabled: !!note, active: !!note && note.shape === 'tenor',    execute() { setShape('tenor');    } },
+            { id: 'shape-quilisma', label: 'Quilisma', icon: ICONS['shape-quilisma'], tooltip: 'Quilisma notehead',     enabled: !!note, active: !!note && note.shape === 'quilisma', execute() { setShape('quilisma'); } },
         ],
     };
 }
@@ -321,9 +324,9 @@ function makeModifiersGroup(view, ctx) {
         label,
         icon: ICONS[id],
         tooltip,
-        enabled: true,
-        active: note.modifiers.includes(modName),
-        execute() { toggleModifier(view, note, modName, modChar); },
+        enabled: !!note,
+        active: !!note && note.modifiers.includes(modName),
+        execute() { if (note) toggleModifier(view, note, modName, modChar); },
     });
 
     return {
@@ -341,13 +344,14 @@ function makeModifiersGroup(view, ctx) {
 
 function makeAccidentalGroup(view, ctx) {
     const { note } = ctx;
-    const pitchChar = note.pitch;
-    const existingSymbol = note.accidental?.symbol; // 'x'=flat, 'y'=natural, '#'=sharp
+    const pitchChar = note?.pitch;
+    const existingSymbol = note?.accidental?.symbol; // 'x'=flat, 'y'=natural, '#'=sharp
 
     // Internal symbol → source character used in the (Xp) notation.
     const SRC_TOKEN = { x: 'b', y: 'n', '#': '#' };
 
     const setAccidental = (symbol) => {
+        if (!note) return;
         const insert = `(${pitchChar}${SRC_TOKEN[symbol]})`;
         if (note.accidental) {
             view.dispatch({
@@ -363,7 +367,7 @@ function makeAccidentalGroup(view, ctx) {
     };
 
     const removeAccidental = () => {
-        if (!note.accidental) return;
+        if (!note?.accidental) return;
         view.dispatch({
             changes: { from: note.accidental.srcStart, to: note.accidental.srcEnd, insert: '' },
             selection: { anchor: note.accidental.srcStart },
@@ -379,7 +383,7 @@ function makeAccidentalGroup(view, ctx) {
                 label: 'Flat',
                 icon: ICONS['accidental-flat'],
                 tooltip: 'Flat (♭)',
-                enabled: true,
+                enabled: !!note,
                 active: existingSymbol === 'x',
                 execute() { existingSymbol === 'x' ? removeAccidental() : setAccidental('x'); },
             },
@@ -388,7 +392,7 @@ function makeAccidentalGroup(view, ctx) {
                 label: 'Natural',
                 icon: ICONS['accidental-natural'],
                 tooltip: 'Natural (♮)',
-                enabled: true,
+                enabled: !!note,
                 active: existingSymbol === 'y',
                 execute() { existingSymbol === 'y' ? removeAccidental() : setAccidental('y'); },
             },
@@ -397,7 +401,7 @@ function makeAccidentalGroup(view, ctx) {
                 label: 'Sharp',
                 icon: ICONS['accidental-sharp'],
                 tooltip: 'Sharp (♯)',
-                enabled: true,
+                enabled: !!note,
                 active: existingSymbol === '#',
                 execute() { existingSymbol === '#' ? removeAccidental() : setAccidental('#'); },
             },
@@ -406,7 +410,7 @@ function makeAccidentalGroup(view, ctx) {
                 label: 'Remove',
                 icon: ICONS['accidental-remove'],
                 tooltip: 'Remove accidental',
-                enabled: !!note.accidental,
+                enabled: !!note?.accidental,
                 active: false,
                 execute: removeAccidental,
             },
@@ -415,10 +419,12 @@ function makeAccidentalGroup(view, ctx) {
 }
 
 function makeSpanGroup(view, ctx) {
-    const from = ctx.type === 'selection' ? ctx.selFrom : ctx.ligature.srcStart;
-    const to   = ctx.type === 'selection' ? ctx.selTo   : ctx.ligature.srcEnd;
+    const hasSpanCtx = ctx.type === 'selection' || ctx.type === 'note' || ctx.type === 'ligature';
+    const from = ctx.type === 'selection' ? ctx.selFrom : ctx.ligature?.srcStart ?? ctx.selFrom;
+    const to   = ctx.type === 'selection' ? ctx.selTo   : ctx.ligature?.srcEnd   ?? ctx.selTo;
 
     const wrap = (open, close) => () => {
+        if (!hasSpanCtx) return;
         view.dispatch({
             changes: [
                 { from, insert: open },
@@ -432,12 +438,12 @@ function makeSpanGroup(view, ctx) {
         id: 'span',
         label: 'Span',
         actions: [
-            { id: 'span-brace',      label: 'Brace',       icon: ICONS['span-brace'],      tooltip: 'Overbrace',           enabled: true, active: false, execute: wrap('{ ',           ' }') },
-            { id: 'span-arc',        label: 'Arc',          icon: ICONS['span-arc'],        tooltip: 'Arc brace',           enabled: true, active: false, execute: wrap('\\arc{ ',      ' }') },
-            { id: 'span-slur',       label: 'Slur',         icon: ICONS['span-slur'],       tooltip: 'Dashed slur below',   enabled: true, active: false, execute: wrap('\\slur{ ',     ' }') },
-            { id: 'span-slur-solid', label: 'Solid slur',   icon: ICONS['span-slur-solid'], tooltip: 'Solid slur below',    enabled: true, active: false, execute: wrap('\\slurSolid{ ', ' }') },
-            { id: 'span-line',       label: 'Line',         icon: ICONS['span-line'],       tooltip: 'Overline',            enabled: true, active: false, execute: wrap('\\line{ ',     ' }') },
-            { id: 'span-paren',      label: 'Parenthesis',  icon: ICONS['span-paren'],      tooltip: 'Parenthesized group', enabled: true, active: false, execute: wrap('[ ',           ' ]') },
+            { id: 'span-brace',      label: 'Brace',       icon: ICONS['span-brace'],      tooltip: 'Overbrace',           enabled: hasSpanCtx, active: false, execute: wrap('{ ',           ' }') },
+            { id: 'span-arc',        label: 'Arc',          icon: ICONS['span-arc'],        tooltip: 'Arc brace',           enabled: hasSpanCtx, active: false, execute: wrap('\\arc{ ',      ' }') },
+            { id: 'span-slur',       label: 'Slur',         icon: ICONS['span-slur'],       tooltip: 'Dashed slur below',   enabled: hasSpanCtx, active: false, execute: wrap('\\slur{ ',     ' }') },
+            { id: 'span-slur-solid', label: 'Solid slur',   icon: ICONS['span-slur-solid'], tooltip: 'Solid slur below',    enabled: hasSpanCtx, active: false, execute: wrap('\\slurSolid{ ', ' }') },
+            { id: 'span-line',       label: 'Line',         icon: ICONS['span-line'],       tooltip: 'Overline',            enabled: hasSpanCtx, active: false, execute: wrap('\\line{ ',     ' }') },
+            { id: 'span-paren',      label: 'Parenthesis',  icon: ICONS['span-paren'],      tooltip: 'Parenthesized group', enabled: hasSpanCtx, active: false, execute: wrap('[ ',           ' ]') },
         ],
     };
 }
@@ -696,15 +702,20 @@ function makeHeadingGroup(view) {
 
 // --- Mode → groups map ---
 
+// All music-context modes share this group list so the toolbar layout stays
+// stable as the caret moves. Note-specific groups disable themselves when
+// there is no note in context.
+const MUSIC_GROUPS = [makeUndoRedoGroup, makePitchGroup, makeShapeGroup, makeModifiersGroup, makeAccidentalGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup];
+
 const GROUPS_BY_MODE = {
-    note:      [makeUndoRedoGroup, makePitchGroup, makeShapeGroup, makeModifiersGroup, makeAccidentalGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
-    ligature:  [makeUndoRedoGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
-    selection: [makeUndoRedoGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup],
+    note:      MUSIC_GROUPS,
+    ligature:  MUSIC_GROUPS,
+    selection: MUSIC_GROUPS,
     heading:   [makeUndoRedoGroup, makeHeadingGroup, makeHeadingFormattingGroup],
     lyric:     [makeUndoRedoGroup, makeLyricFormattingGroup],
     verse:     [makeUndoRedoGroup, makeLyricFormattingGroup],
 };
-const DEFAULT_GROUPS = [makeUndoRedoGroup, makeBarlineGroup, makeStructureGroup];
+const DEFAULT_GROUPS = MUSIC_GROUPS;
 
 // --- Main export ---
 

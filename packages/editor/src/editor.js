@@ -126,8 +126,7 @@ const STYLE = `
 }
 
 .toolbar-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .toolbar-btn.active {

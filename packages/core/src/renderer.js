@@ -155,7 +155,7 @@ export function renderAretino(source, options = {}) {
     ctx.neumeGapAdvance = ss(ctx, METRICS.neumeGapAdvance);
     ctx.leftMargin = ss(ctx, METRICS.leftMargin);
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
-    ctx.staffGap = Math.max(0, ss(ctx, options.staffGap ?? METRICS.staffGap));
+    ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
     ctx.textFont = textFont;
     // Lyric font size in typographic points (default 12pt), converted to
@@ -778,7 +778,7 @@ export function renderAretino(source, options = {}) {
                 y = lastLyricBottom + ctx.staffGap;
                 prevRowBottom = lastLyricBottom;
             } else {
-                y = staffBottomY + ctx.staffGap;
+                y = staffBottomY + ctx.lyricDistance + ctx.lyricSize + ctx.staffGap;
                 sectionContentBottom = y;
                 contentBottom = Math.max(contentBottom, y);
                 prevRowBottom = staffBottomY;

@@ -330,7 +330,7 @@ function hungarianDigraphTransformPair(syl1, syl2) {
 // syllables of the same word when there's room.
 export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     if (syllables.length === 0) {
-        return '';
+        return { svg: '', maxX: 0 };
     }
     const fontSize = ctx.lyricSize;
     const fontFamily = ctx.textFont;
@@ -348,6 +348,8 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     const parts = [];
     let prevRight = -Infinity;
     let lastRight = null;
+    // Rightmost ink, including hyphens, so the caller can grow the viewBox width.
+    let maxX = 0;
     // Track the parts[] index and left position of the previous syllable so it can be
     // re-rendered in-place when a Hungarian digraph transform fires on collapse.
     let prevSylIdx = -1;
@@ -425,9 +427,11 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap));
         if (hyphenX !== null) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
+            if (hyphenX + hyphenSpaceW / 2 > maxX) maxX = hyphenX + hyphenSpaceW / 2;
         }
         prevRight = right;
         lastRight = right;
+        if (right > maxX) maxX = right;
     }
 
     // Word broken at the row boundary: render a trailing hyphen so the reader
@@ -436,6 +440,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     if (lastSyl && lastSyl.hyphenAfter && lastRight !== null) {
         const hyphenX = lastRight + hyphenSpaceW / 2;
         parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
+        if (hyphenX + hyphenSpaceW / 2 > maxX) maxX = hyphenX + hyphenSpaceW / 2;
     }
-    return parts.join('');
+    return { svg: parts.join(''), maxX };
 }

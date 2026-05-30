@@ -29,9 +29,21 @@ marked.use({ renderer });
 
 document.getElementById('app').innerHTML = marked.parse(testCasesSrc);
 
+// Outline each rendered SVG's bounding box so its exact extent is visible.
+// The preview lives in the editor's shadow DOM, so an adopted stylesheet is
+// used (page-level CSS can't reach it); scoped to the preview pane so the
+// toolbar's own SVG icons aren't outlined.
+const svgOutline = new CSSStyleSheet();
+svgOutline.replaceSync('.preview-pane svg { outline: 1px solid red; }');
+
 for (const { id, source } of pendingBlocks) {
     const el = document.getElementById(`block-${id}`);
-    if (el) el.value = source;
+    if (el) {
+        el.value = source;
+        if (el.shadowRoot) {
+            el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, svgOutline];
+        }
+    }
 }
 
 function setZoom(z) {

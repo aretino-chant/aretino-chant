@@ -72,15 +72,21 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, textFont) {
     const { braceKind, startX, endX, isStart, placeIdx, label } = state;
     let markY;
     let svg;
+    // Topmost rendered y of the shape (and, below, of any label) so the caller
+    // can grow the viewBox to include decorations drawn above the staff.
+    let braceTopY;
     if (braceKind === 'arc') {
         markY = topNoteY - gap;
         svg = drawOverarc(ctx, startX, endX, markY);
+        braceTopY = markY - ss(ctx, METRICS.overarcBulge);
     } else if (braceKind === 'line') {
         markY = topNoteY - gap;
         svg = drawOverline(ctx, startX, endX, markY);
+        braceTopY = markY;
     } else {
         markY = topNoteY - gap * 1.5;
         svg = drawOverbrace(ctx, startX, endX, markY, isStart !== false, isEnd);
+        braceTopY = markY - (isStart !== false ? ss(ctx, METRICS.overbraceTipDepth) : 0);
     }
 
     if (isEnd && label) {
@@ -99,8 +105,11 @@ function _flushBrace(ctx, parts, state, staffBottomY, isEnd, textFont) {
         }
         const textY = markY - braceTopOffset - gap * 0.5 - fontSize * 0.15;
         svg += renderMixedLabel(parseFormattingToSegments(label), mx, textY, fontSize, textFont, 'middle', ctx.measureText);
+        // Label text ascends ~one font size above its baseline.
+        braceTopY = Math.min(braceTopY, textY - fontSize);
     }
     parts[placeIdx] = svg;
+    return braceTopY;
 }
 
 function _flushSlur(ctx, parts, state, staffBottomY, isEnd) {
@@ -111,6 +120,9 @@ function _flushSlur(ctx, parts, state, staffBottomY, isEnd) {
     const y2 = endNoteY + gap;
     const svg = drawSlur(ctx, state.startX, state.endX, y1, y2, state.dashed, state.isStart !== false, isEnd);
     parts[state.placeIdx] = svg;
+    // Lowest y the downward arc can reach (safe upper bound on the bezier peak),
+    // so the caller can grow the viewBox to include a slur below a lyric-less staff.
+    return Math.max(y1, y2) + ss(ctx, METRICS.slurBulge);
 }
 
 export function renderAretino(source, options = {}) {
@@ -192,6 +204,12 @@ export function renderAretino(source, options = {}) {
     // per-row SVG viewBoxes always include the full content, even when staffGap
     // is smaller than the 2-staff-space above-staff headroom in the marker.
     let prevRowBottom = 0;
+    // Highest (most negative) y any content reaches and the rightmost x it
+    // reaches, so the final viewBox can grow to include decorations drawn above
+    // the staff top (overbraces/arcs/labels/high notes) or a trailing row-break
+    // hyphen pushed past the canvas width.
+    let minRenderedY = 0;
+    let maxRenderedX = width;
 
     if (!options.noHeader && ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
         const title = ast.header['title'];
@@ -493,7 +511,18 @@ export function renderAretino(source, options = {}) {
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
             const staffLeftX = ctx.leftMargin + rowIndent;
-            parts.push(`<!-- aretino-row ${globalRowIdx++} ${Math.max(0, y - 2 * ctx.staffSpace).toFixed(3)} ${prevRowBottom.toFixed(3)} -->`);
+            // The marker carries the actual content top, which isn't known until
+            // the row's decorations are drawn, so push a placeholder and patch it
+            // at the end of the row. Capture per-row values that later code mutates.
+            const nominalTop = Math.max(0, y - 2 * ctx.staffSpace);
+            const rowPrevBottom = prevRowBottom;
+            const rowIdxGlobal = globalRowIdx++;
+            const markerIdx = parts.length;
+            parts.push('');
+            // Topmost / bottommost y reached by content in this row (Infinity /
+            // -Infinity = nothing beyond the staff in that direction).
+            let rowTopY = Infinity;
+            let rowBottomY = -Infinity;
             const staffBottomY = y + ctx.staffHeight;
             parts.push(drawStaffLines(ctx, staffLeftX, staffRightX, staffBottomY));
 
@@ -673,7 +702,9 @@ export function renderAretino(source, options = {}) {
                     if (parenState) {
                         const vPad = ss(ctx, METRICS.parenthesisVPadding);
                         const spanTop = parenState.minY - vPad;
+                        if (parenState.minY < Infinity && spanTop < rowTopY) rowTopY = spanTop;
                         const spanBot = parenState.maxY + vPad;
+                        if (parenState.maxY > -Infinity && spanBot > rowBottomY) rowBottomY = spanBot;
                         const parenWidth = ss(ctx, METRICS.parenthesisWidth);
                         const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
                         parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
@@ -694,10 +725,12 @@ export function renderAretino(source, options = {}) {
                 } else if (it.kind === 'brace-close') {
                     if (braceState) {
                         braceState.label = it.label ?? null;
-                        _flushBrace(ctx, parts, braceState, staffBottomY, true, textFont);
+                        const braceTop = _flushBrace(ctx, parts, braceState, staffBottomY, true, textFont);
+                        if (braceTop < rowTopY) rowTopY = braceTop;
                         braceState = null;
                     } else if (slurState) {
-                        _flushSlur(ctx, parts, slurState, staffBottomY, true);
+                        const slurBot = _flushSlur(ctx, parts, slurState, staffBottomY, true);
+                        if (slurBot > rowBottomY) rowBottomY = slurBot;
                         slurState = null;
                     }
                 } else if (it.kind === 'ligature') {
@@ -705,11 +738,14 @@ export function renderAretino(source, options = {}) {
                     lastNote = lastGroup[lastGroup.length - 1];
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? [], it.leadingCourtesyAccidentals ?? []);
                     let ligSvg = r.svg;
+                    if (r.minY < rowTopY) rowTopY = r.minY;
+                    if (r.maxY > rowBottomY) rowBottomY = r.maxY;
                     if (it.label != null && r.minY < Infinity) {
                         const fontSize = ctx.lyricSize * 0.8;
                         const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
                         ligSvg += renderMixedLabel(parseFormattingToSegments(it.label), r.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
+                        if (labelY - fontSize < rowTopY) rowTopY = labelY - fontSize;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
                     rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
@@ -747,7 +783,9 @@ export function renderAretino(source, options = {}) {
             if (parenState) {
                 const vPad = ss(ctx, METRICS.parenthesisVPadding);
                 const spanTop = parenState.minY < Infinity ? parenState.minY - vPad : staffBottomY - 4 * ctx.staffSpace - vPad;
+                if (spanTop < rowTopY) rowTopY = spanTop;
                 const spanBot = parenState.maxY > -Infinity ? parenState.maxY + vPad : staffBottomY + vPad;
+                if (spanBot > rowBottomY) rowBottomY = spanBot;
                 const parenWidth = ss(ctx, METRICS.parenthesisWidth);
                 const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
                 parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
@@ -759,11 +797,13 @@ export function renderAretino(source, options = {}) {
             // If a brace/arc span was opened on this row but its close is on a
             // later row, draw this row's segment and carry the state forward.
             if (braceState) {
-                _flushBrace(ctx, parts, braceState, staffBottomY, false, textFont);
+                const braceTop = _flushBrace(ctx, parts, braceState, staffBottomY, false, textFont);
+                if (braceTop < rowTopY) rowTopY = braceTop;
                 braceState = { braceKind: braceState.braceKind, label: braceState.label, continuation: true };
             }
             if (slurState) {
-                _flushSlur(ctx, parts, slurState, staffBottomY, false);
+                const slurBot = _flushSlur(ctx, parts, slurState, staffBottomY, false);
+                if (slurBot > rowBottomY) rowBottomY = slurBot;
                 slurState = { dashed: slurState.dashed, continuation: true };
             }
 
@@ -783,7 +823,9 @@ export function renderAretino(source, options = {}) {
                         ? Math.max(notes.length, ligOffset + rowLigCount)
                         : ligOffset + rowLigCount;
                     const rowSyllables = notes.slice(start, end);
-                    parts.push(emitAlignedSyllables(ctx, rowSyllables, rowLigatures, lyricY));
+                    const aligned = emitAlignedSyllables(ctx, rowSyllables, rowLigatures, lyricY);
+                    parts.push(aligned.svg);
+                    if (aligned.maxX > maxRenderedX) maxRenderedX = aligned.maxX;
                     const barlineMap = verseBarlineMaps[v];
                     const matchedLabels = [];
                     const matchedBarlines = [];
@@ -824,6 +866,24 @@ export function renderAretino(source, options = {}) {
                 contentBottom = Math.max(contentBottom, y);
                 prevRowBottom = staffBottomY;
             }
+
+            // Fold in any below-staff ink (slurs, low notes, paren arcs) that reaches
+            // past the row's text/lyric bottom, so neither the full SVG nor the
+            // per-row split (whose height keys off prevRowBottom) clips it.
+            if (rowBottomY > prevRowBottom) {
+                prevRowBottom = rowBottomY;
+                y = Math.max(y, rowBottomY + ctx.staffGap);
+            }
+            contentBottom = Math.max(contentBottom, rowBottomY);
+            sectionContentBottom = Math.max(sectionContentBottom, rowBottomY);
+
+            // Patch the row marker now that the actual content top is known. The
+            // marker carries: index, nominal top (2 SS above staff), previous row's
+            // content bottom, and the real content top (which may sit above the
+            // nominal top when high notes/decorations reach further up).
+            const contentTopY = Math.min(nominalTop, rowTopY);
+            if (rowTopY < minRenderedY) minRenderedY = rowTopY;
+            parts[markerIdx] = `<!-- aretino-row ${rowIdxGlobal} ${nominalTop.toFixed(3)} ${rowPrevBottom.toFixed(3)} ${contentTopY.toFixed(3)} -->`;
         });
 
         if (sec.verses && sec.verses.length > 0) {
@@ -844,10 +904,16 @@ export function renderAretino(source, options = {}) {
     // (rather than width="100%") means a staff space renders at its true
     // physical size regardless of container width. Consumers that want
     // shrink-to-fit can add `max-width:100%;height:auto` in CSS.
-    const renderW = Math.round(width * zoom);
-    const renderH = Math.round(totalHeight * zoom);
+    // Grow the viewBox upward/rightward to include anything drawn above the page
+    // top (decorations on high notes in row 0) or past the canvas width (a trailing
+    // row-break hyphen). viewTop <= 0; viewWidth >= width.
+    const viewTop = Math.min(0, Math.floor(minRenderedY));
+    const viewWidth = maxRenderedX > width ? Math.ceil(maxRenderedX) + 1 : width;
+    const viewHeight = totalHeight - viewTop;
+    const renderW = Math.round(viewWidth * zoom);
+    const renderH = Math.round(viewHeight * zoom);
     const interactiveStyle = sourceMap ? HIGHLIGHT_STYLE : '';
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${interactiveStyle}${parts.join('')}<!-- aretino-rows-end ${totalHeight.toFixed(3)} --></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${viewTop} ${viewWidth} ${viewHeight}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${interactiveStyle}${parts.join('')}<!-- aretino-rows-end ${totalHeight.toFixed(3)} --></svg>`;
 }
 
 /**
@@ -858,7 +924,9 @@ export function splitRowSVGs(svg) {
     const svgTagMatch = svg.match(/^<svg([^>]*)>/);
     if (!svgTagMatch) return null;
     const attrs = svgTagMatch[1];
-    const viewBoxMatch = attrs.match(/viewBox="0 0 ([\d.]+) [\d.]+"/);
+    // The origin may be non-zero/negative when the renderer grew the viewBox to
+    // include content above the page top or past the canvas width; capture width.
+    const viewBoxMatch = attrs.match(/viewBox="-?[\d.]+ -?[\d.]+ ([\d.]+) -?[\d.]+"/);
     if (!viewBoxMatch) return null;
     const totalW = parseFloat(viewBoxMatch[1]);
     const widthAttrMatch = attrs.match(/\bwidth="(\d+)"/);
@@ -871,11 +939,20 @@ export function splitRowSVGs(svg) {
     // of marker i+1 so that lyrics from row i are never clipped when staffGap < 2 staff
     // spaces. When staffGap >= 2 staff spaces the nextTopY term dominates and behaviour
     // is identical to the original formula.
-    const rowRe = /<!--\s*aretino-row\s+\d+\s+([\d.]+)\s+([\d.]+)\s*-->/g;
+    // 4th field (contentTopY) is the real content top; optional for SVGs produced
+    // before it was added, in which case it falls back to the nominal top.
+    const rowRe = /<!--\s*aretino-row\s+\d+\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?\s*-->/g;
     const markers = [];
     let m;
     while ((m = rowRe.exec(inner)) !== null) {
-        markers.push({ y: parseFloat(m[1]), prevContentBottom: parseFloat(m[2]), markerStart: m.index, contentStart: m.index + m[0].length });
+        const y = parseFloat(m[1]);
+        markers.push({
+            y,
+            prevContentBottom: parseFloat(m[2]),
+            contentTopY: m[3] !== undefined ? parseFloat(m[3]) : y,
+            markerStart: m.index,
+            contentStart: m.index + m[0].length,
+        });
     }
     if (markers.length === 0) return null;
 
@@ -889,21 +966,26 @@ export function splitRowSVGs(svg) {
         const contentEnd = i + 1 < markers.length ? markers[i + 1].markerStart : innerEnd;
         const content = inner.slice(marker.contentStart, contentEnd);
         const renderW = Math.round(totalW * zoom);
-        if (i === 0) {
-            // First row: include headers (preamble) by covering the full region from y=0.
-            // Extend to at least prevContentBottom of the next marker so row-0 lyrics are
-            // not clipped when staffGap is smaller than the 2-staff-space headroom.
-            const nextTopY = i + 1 < markers.length ? markers[i + 1].y : totalH;
-            const nextPCB = i + 1 < markers.length ? markers[i + 1].prevContentBottom : totalH;
-            const rowH = parseFloat(Math.max(nextTopY, nextPCB).toFixed(3));
-            const renderH = Math.round(rowH * zoom);
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}${content}</svg>`;
-        }
         const nextTopY = i + 1 < markers.length ? markers[i + 1].y : totalH;
         const nextPCB = i + 1 < markers.length ? markers[i + 1].prevContentBottom : totalH;
-        const rowH = parseFloat((Math.max(nextTopY, nextPCB) - marker.y).toFixed(3));
+        const bottomY = Math.max(nextTopY, nextPCB);
+        if (i === 0) {
+            // First row: include headers (preamble) by covering the full region from
+            // the page top (y=0), extended up to contentTopY if a decoration/high note
+            // reaches above it. Extend down to at least the next marker's
+            // prevContentBottom so row-0 lyrics are not clipped when staffGap is
+            // smaller than the 2-staff-space headroom.
+            const rowTop = Math.min(0, marker.contentTopY);
+            const rowH = parseFloat((bottomY - rowTop).toFixed(3));
+            const renderH = Math.round(rowH * zoom);
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${rowTop} ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}${content}</svg>`;
+        }
+        // Later rows are translated so their region starts at y=0; pull the origin up
+        // to contentTopY when content reaches above the nominal top.
+        const rowTop = Math.min(marker.y, marker.contentTopY);
+        const rowH = parseFloat((bottomY - rowTop).toFixed(3));
         const renderH = Math.round(rowH * zoom);
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block"><g transform="translate(0,${-marker.y})">${content}</g></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block"><g transform="translate(0,${(-rowTop).toFixed(3)})">${content}</g></svg>`;
     });
 }
 

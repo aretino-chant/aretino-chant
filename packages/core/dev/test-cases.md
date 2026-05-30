@@ -240,6 +240,17 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
 ```
 
+## Prefix Text Alignment (`~~`)
+
+Text before `~~` is a prefix rendered to the left of the note; the part after `~~` is centred under the note.
+The preceding note must advance far enough that the prefix text doesn't collide with it.
+The first note of a row must also have enough pre-gap so the prefix doesn't go past the left margin.
+
+```aretino
+(g2) g a b c d e f
+w: a longlongprefix~~b c d e f g
+```
+
 ## Split Melisma (Multi-group syllable)
 
 Double (or more) hyphens assign multiple note groups to one syllable.

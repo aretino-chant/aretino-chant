@@ -312,18 +312,23 @@ export function renderAretino(source, options = {}) {
                     && !it.groups.some(g => g.some(n => n.shape === 'tenor'));
                 let maxSylW = 0;
                 let maxCurrRight = 0;
+                let maxPrefixW = 0;
                 for (const notes of verseNotes) {
                     if (li < notes.length) {
-                        const alignW = measureSegmentsWidth(notes[li].alignSegments || notes[li].segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
-                        const suffixW = notes[li].suffixSegments
-                            ? measureSegmentsWidth(notes[li].suffixSegments, ctx.lyricSize, ctx.textFont, ctx.measureText)
+                        const note = notes[li];
+                        const alignW = measureSegmentsWidth(note.alignSegments || note.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
+                        const suffixW = note.suffixSegments
+                            ? measureSegmentsWidth(note.suffixSegments, ctx.lyricSize, ctx.textFont, ctx.measureText)
                             : 0;
                         if (alignW > maxSylW) maxSylW = alignW;
                         const rightEdge = isCentered ? halfNoteW + alignW / 2 + suffixW : alignW + suffixW;
                         if (rightEdge > maxCurrRight) maxCurrRight = rightEdge;
+                        const fullW = measureSegmentsWidth(note.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
+                        const prefixW = fullW - alignW - suffixW;
+                        if (prefixW > maxPrefixW) maxPrefixW = prefixW;
                     }
                 }
-                ligInfo.push({ item: it, maxSylW, maxCurrRight, isCentered, itemIdx });
+                ligInfo.push({ item: it, maxSylW, maxCurrRight, isCentered, maxPrefixW, itemIdx });
                 li++;
             }
             for (let i = 0; i < ligInfo.length; i++) {
@@ -341,7 +346,11 @@ export function renderAretino(source, options = {}) {
                 if (i + 1 < ligInfo.length && !hasBarlineBetween) {
                     const next = ligInfo[i + 1];
                     if (next.isCentered) {
-                        nextLeftIntrusion = Math.max(0, next.maxSylW / 2 - halfNoteW);
+                        // Prefix text (before ~~) extends leftward past the note center.
+                        nextLeftIntrusion = Math.max(0, next.maxSylW / 2 + next.maxPrefixW - halfNoteW);
+                    } else {
+                        // Left-aligned neumes: text starts at the note's left edge; prefix extends further left.
+                        nextLeftIntrusion = next.maxPrefixW;
                     }
                 } else if (hasBarlineBetween && i + 1 < ligInfo.length) {
                     // The next syllable's leftward intrusion relative to its ligature
@@ -349,8 +358,8 @@ export function renderAretino(source, options = {}) {
                     // barlinePostExtra on the last barline before that ligature.
                     const next = ligInfo[i + 1];
                     const nextIntrusion = next.isCentered
-                        ? Math.max(0, next.maxSylW / 2 - halfNoteW)
-                        : 0;
+                        ? Math.max(0, next.maxSylW / 2 + next.maxPrefixW - halfNoteW)
+                        : next.maxPrefixW;
                     if (nextIntrusion > 0) {
                         const barlinePostGapPx = ss(ctx, METRICS.barlinePostGap);
                         // Subtract the existing post-gap but require at least minGap
@@ -525,6 +534,38 @@ export function renderAretino(source, options = {}) {
             } else {
                 // No clef and no key sig: still add one staff space of emptiness
                 cursorX += ctx.staffSpace;
+            }
+
+            // For the first syllable of a row, ensure prefix text (before ~~) doesn't
+            // extend past the staff's left edge.
+            if (alignSyllables) {
+                const firstLigItem = row.items.find(it => it.kind === 'ligature');
+                if (firstLigItem) {
+                    const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+                    const isCenteredFirst = firstLigItem.groups.reduce((s, g) => s + g.length, 0) === 1
+                        && !firstLigItem.groups.some(g => g.some(n => n.shape === 'tenor'));
+                    let maxAlignW = 0;
+                    let maxPrefixW = 0;
+                    for (const notes of verseNotes) {
+                        const ni = ligOffset;
+                        if (ni < notes.length) {
+                            const note = notes[ni];
+                            const aW = measureSegmentsWidth(note.alignSegments || note.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
+                            const sW = note.suffixSegments ? measureSegmentsWidth(note.suffixSegments, ctx.lyricSize, ctx.textFont, ctx.measureText) : 0;
+                            const fW = measureSegmentsWidth(note.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
+                            const pW = fW - aW - sW;
+                            if (aW > maxAlignW) maxAlignW = aW;
+                            if (pW > maxPrefixW) maxPrefixW = pW;
+                        }
+                    }
+                    if (maxPrefixW > 0) {
+                        const textLeft = isCenteredFirst
+                            ? cursorX + halfNoteW - maxAlignW / 2 - maxPrefixW
+                            : cursorX - maxPrefixW;
+                        const preGap = Math.max(0, staffLeftX - textLeft);
+                        cursorX += preGap;
+                    }
+                }
             }
 
             const remaining = staffRightX - cursorX;

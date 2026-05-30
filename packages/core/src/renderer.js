@@ -219,7 +219,7 @@ export function renderAretino(source, options = {}) {
                 parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }            
         }
-        y += titleLineHeight * 1.2;        
+        if (title || subtitle) y += titleLineHeight * 1.2;
         const caption = ast.header['caption'];
         const rubric = ast.header['rubric'];
         if (caption || rubric) {

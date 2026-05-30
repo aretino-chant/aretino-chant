@@ -898,7 +898,7 @@ export function renderAretino(source, options = {}) {
         currentKeySig = trailingKeySig(items, currentKeySig);
     }
 
-    const totalHeight = canvasHeight || Math.max(contentBottom + ctx.staffSpace * 0.5, 100);
+    const totalHeight = canvasHeight || contentBottom + ctx.staffSpace * 0.5;
     // viewBox is the logical layout space; the intrinsic width/height are the
     // physical pixel size magnified by `zoom`. Emitting concrete dimensions
     // (rather than width="100%") means a staff space renders at its true

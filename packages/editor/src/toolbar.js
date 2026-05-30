@@ -702,20 +702,25 @@ function makeHeadingGroup(view) {
 
 // --- Mode → groups map ---
 
-// All music-context modes share this group list so the toolbar layout stays
-// stable as the caret moves. Note-specific groups disable themselves when
-// there is no note in context.
+// The toolbar layout is driven by *mode*, not by the fine-grained context type.
+// Within music mode the cursor may be on a note, barline, clef, directive, etc.,
+// but the set of groups must remain constant — only enabled/active states change.
 const MUSIC_GROUPS = [makeUndoRedoGroup, makePitchGroup, makeShapeGroup, makeModifiersGroup, makeAccidentalGroup, makeSpanGroup, makeBarlineGroup, makeStructureGroup];
 
 const GROUPS_BY_MODE = {
-    note:      MUSIC_GROUPS,
-    ligature:  MUSIC_GROUPS,
-    selection: MUSIC_GROUPS,
-    heading:   [makeUndoRedoGroup, makeHeadingGroup, makeHeadingFormattingGroup],
-    lyric:     [makeUndoRedoGroup, makeLyricFormattingGroup],
-    verse:     [makeUndoRedoGroup, makeLyricFormattingGroup],
+    music:   MUSIC_GROUPS,
+    heading: [makeUndoRedoGroup, makeHeadingGroup, makeHeadingFormattingGroup],
+    lyric:   [makeUndoRedoGroup, makeLyricFormattingGroup],
+    verse:   [makeUndoRedoGroup, makeLyricFormattingGroup],
 };
-const DEFAULT_GROUPS = MUSIC_GROUPS;
+
+// Maps any fine-grained context type to one of the four canonical modes.
+function modeFromContext(ctx) {
+    if (ctx.type === 'lyric')   return 'lyric';
+    if (ctx.type === 'verse')   return 'verse';
+    if (ctx.type === 'heading') return 'heading';
+    return 'music'; // note, ligature, barline, clef, directive, selection, empty, …
+}
 
 // --- Main export ---
 
@@ -758,6 +763,6 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
         }
     }
 
-    const groups = (GROUPS_BY_MODE[ctx.type] ?? DEFAULT_GROUPS).map(fn => fn(view, ctx));
+    const groups = GROUPS_BY_MODE[modeFromContext(ctx)].map(fn => fn(view, ctx));
     return { groups, context: { type: ctx.type } };
 }

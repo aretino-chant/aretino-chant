@@ -418,6 +418,13 @@ List one or more accidentals separated by spaces. An empty `(K:)` clears it.
 (g2) (K:f#) a a a f a b C ba a_
 ```
 
+**Key signature shortcuts** — `(Kb)` one flat, `(Kbb)` two flats, `(K#)` one sharp, `(K##)` two sharps, `(K)` clear:
+
+```aretino
+(g2) (Kb) b C D b | (Kbb) b C D b | (K#) b C D b | (K##) b C D b | (K) b C D b
+```
+
+
 **Standalone directive** — an accidental directive on its own (not glued to a
 note) draws the sign at that position.
 

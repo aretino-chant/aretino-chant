@@ -146,6 +146,12 @@ Uppercase accidental pitches for octave shifts:
 (g2) (K:F# C#) b C D b C D
 ```
 
+Key signature shortcuts — `(Kb)` one flat, `(Kbb)` two flats, `(K#)` one sharp, `(K##)` two sharps, `(K)` clear:
+
+```aretino
+(g2) (Kb) b C D b | (Kbb) b C D b | (K#) b C D b | (K##) b C D b | (K) b C D b
+```
+
 Inline uppercase accidentals:
 
 ```aretino

@@ -58,6 +58,24 @@ export function flattenItems(tokens) {
                 items.push({ kind: 'accidental', pitch: accM.pitch, symbol: accM.symbol, ...src });
                 continue;
             }
+            const keyShortM = v.match(/^K(b+|#+)?$/);
+            if (keyShortM) {
+                const chars = keyShortM[1] ?? '';
+                const accidentals = [];
+                if (chars.length > 0) {
+                    if (chars[0] === 'b') {
+                        const ORDER = ['b', 'E', 'a', 'D', 'g', 'C', 'F'];
+                        for (let i = 0; i < Math.min(chars.length, ORDER.length); i++)
+                            accidentals.push({ pitch: ORDER[i], symbol: 'x' });
+                    } else {
+                        const ORDER = ['F', 'C', 'G', 'D', 'a', 'E', 'b'];
+                        for (let i = 0; i < Math.min(chars.length, ORDER.length); i++)
+                            accidentals.push({ pitch: ORDER[i], symbol: '#' });
+                    }
+                }
+                items.push({ kind: 'keysig', accidentals, ...src });
+                continue;
+            }
             const keyM = v.match(/^K:\s*(.*)$/);
             if (keyM) {
                 const inner = keyM[1].trim();

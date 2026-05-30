@@ -188,6 +188,10 @@ export function renderAretino(source, options = {}) {
     let y = ss(ctx, METRICS.titleTopPadding);
     let contentBottom = y;
     let globalRowIdx = 0;
+    // Tracks the actual bottom of rendered content in the previous row so that
+    // per-row SVG viewBoxes always include the full content, even when staffGap
+    // is smaller than the 2-staff-space above-staff headroom in the marker.
+    let prevRowBottom = 0;
 
     if (!options.noHeader && ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
         const title = ast.header['title'];
@@ -480,7 +484,7 @@ export function renderAretino(source, options = {}) {
         rows.forEach((row, rowIdx) => {
             const rowIndent = row.indentWidth || 0;
             const staffLeftX = ctx.leftMargin + rowIndent;
-            parts.push(`<!-- aretino-row ${globalRowIdx++} ${Math.max(0, y - 2 * ctx.staffSpace).toFixed(3)} -->`);
+            parts.push(`<!-- aretino-row ${globalRowIdx++} ${Math.max(0, y - 2 * ctx.staffSpace).toFixed(3)} ${prevRowBottom.toFixed(3)} -->`);
             const staffBottomY = y + ctx.staffHeight;
             parts.push(drawStaffLines(ctx, staffLeftX, staffRightX, staffBottomY));
 
@@ -761,6 +765,7 @@ export function renderAretino(source, options = {}) {
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
                 sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;
+                prevRowBottom = lastLyricBottom;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
                     const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.textFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
@@ -771,10 +776,12 @@ export function renderAretino(source, options = {}) {
                 contentBottom = Math.max(contentBottom, lastLyricBottom);
                 sectionContentBottom = lastLyricBottom;
                 y = lastLyricBottom + ctx.staffGap;
+                prevRowBottom = lastLyricBottom;
             } else {
                 y = staffBottomY + ctx.staffGap;
                 sectionContentBottom = y;
                 contentBottom = Math.max(contentBottom, y);
+                prevRowBottom = staffBottomY;
             }
         });
 
@@ -783,6 +790,7 @@ export function renderAretino(source, options = {}) {
             parts.push(verseResult.svg);
             y = verseResult.bottom + ctx.staffGap;
             contentBottom = Math.max(contentBottom, verseResult.bottom);
+            prevRowBottom = verseResult.bottom;
         }
 
         currentClef = trailingClef(items, currentClef);
@@ -817,11 +825,16 @@ export function splitRowSVGs(svg) {
 
     const inner = svg.slice(svgTagMatch[0].length, svg.lastIndexOf('</svg>'));
 
-    const rowRe = /<!--\s*aretino-row\s+\d+\s+([\d.]+)\s*-->/g;
+    // Each marker stores topY (viewBox top) and prevContentBottom (content bottom of
+    // the preceding row). The height of row i's SVG extends to at least prevContentBottom
+    // of marker i+1 so that lyrics from row i are never clipped when staffGap < 2 staff
+    // spaces. When staffGap >= 2 staff spaces the nextTopY term dominates and behaviour
+    // is identical to the original formula.
+    const rowRe = /<!--\s*aretino-row\s+\d+\s+([\d.]+)\s+([\d.]+)\s*-->/g;
     const markers = [];
     let m;
     while ((m = rowRe.exec(inner)) !== null) {
-        markers.push({ y: parseFloat(m[1]), markerStart: m.index, contentStart: m.index + m[0].length });
+        markers.push({ y: parseFloat(m[1]), prevContentBottom: parseFloat(m[2]), markerStart: m.index, contentStart: m.index + m[0].length });
     }
     if (markers.length === 0) return null;
 
@@ -832,17 +845,22 @@ export function splitRowSVGs(svg) {
     const preamble = inner.slice(0, markers[0].markerStart);
 
     return markers.map((marker, i) => {
-        const nextY = i + 1 < markers.length ? markers[i + 1].y : totalH;
         const contentEnd = i + 1 < markers.length ? markers[i + 1].markerStart : innerEnd;
         const content = inner.slice(marker.contentStart, contentEnd);
         const renderW = Math.round(totalW * zoom);
         if (i === 0) {
-            // First row: include headers (preamble) by covering the full region from y=0
-            const rowH = parseFloat(nextY.toFixed(3));
+            // First row: include headers (preamble) by covering the full region from y=0.
+            // Extend to at least prevContentBottom of the next marker so row-0 lyrics are
+            // not clipped when staffGap is smaller than the 2-staff-space headroom.
+            const nextTopY = i + 1 < markers.length ? markers[i + 1].y : totalH;
+            const nextPCB = i + 1 < markers.length ? markers[i + 1].prevContentBottom : totalH;
+            const rowH = parseFloat(Math.max(nextTopY, nextPCB).toFixed(3));
             const renderH = Math.round(rowH * zoom);
             return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}${content}</svg>`;
         }
-        const rowH = parseFloat((nextY - marker.y).toFixed(3));
+        const nextTopY = i + 1 < markers.length ? markers[i + 1].y : totalH;
+        const nextPCB = i + 1 < markers.length ? markers[i + 1].prevContentBottom : totalH;
+        const rowH = parseFloat((Math.max(nextTopY, nextPCB) - marker.y).toFixed(3));
         const renderH = Math.round(rowH * zoom);
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block"><g transform="translate(0,${-marker.y})">${content}</g></svg>`;
     });

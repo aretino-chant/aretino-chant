@@ -335,6 +335,15 @@ w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-l
 W: KYRIE ELEISON! CHRISTE ELEISON! KYRIE ELEISON!
 ```
 
+Per row with `staffGap=1` — lyrics must not be clipped between rows (staff gap is measured from lyric bottom, not staff line):
+
+```aretino perrow
+%option: staffGap=1
+(g2) f (bb)abC C.D'CbC. F'DC-bCDC. , (bb)C'ag-fba g- g f. || a a'gf-ef.(bb)f`ab`C'.D'CbC. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC. , FEF'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. ||
+w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-lé-i-son. (<ij.>) Ký-ri-e (*) ~ (**) e-lé-i-son.
+W: KYRIE ELEISON! CHRISTE ELEISON! KYRIE ELEISON!
+```
+
 ---
 
 ## First Row With Headers

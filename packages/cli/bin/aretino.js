@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
-import { parseAretino, parseHeaderRendererOptions, renderAretino } from '@aretino-chant/core';
+import { parseAretino, parseHeaderRendererOptions, renderAretino, splitRowSVGs } from '@aretino-chant/core';
 import { createFontkitMeasureFn } from '../src/measure-fontkit.js';
 import { resolveSystemFontForFontkit } from '../src/system-fonts.js';
 
@@ -106,43 +106,6 @@ async function tryCreateAutoMeasureFn(fontFamily) {
     }
 }
 
-function splitIntoLines(svg) {
-    const svgTagMatch = svg.match(/^<svg([^>]*)>/);
-    if (!svgTagMatch) return null;
-    const attrs = svgTagMatch[1];
-    const viewBoxMatch = attrs.match(/viewBox="0 0 ([\d.]+) [\d.]+"/);
-    if (!viewBoxMatch) return null;
-    const totalW = parseFloat(viewBoxMatch[1]);
-    const widthAttrMatch = attrs.match(/\bwidth="(\d+)"/);
-    const zoom = widthAttrMatch ? parseInt(widthAttrMatch[1]) / totalW : 1;
-
-    const inner = svg.slice(svgTagMatch[0].length, svg.lastIndexOf('</svg>'));
-
-    const rowRe = /<!--\s*aretino-row\s+\d+\s+([\d.]+)\s*-->/g;
-    const markers = [];
-    let m;
-    while ((m = rowRe.exec(inner)) !== null) {
-        markers.push({ y: parseFloat(m[1]), markerStart: m.index, contentStart: m.index + m[0].length });
-    }
-    if (markers.length === 0) return null;
-
-    const endMatch = inner.match(/<!--\s*aretino-rows-end\s+([\d.]+)\s*-->/);
-    const totalH = endMatch ? parseFloat(endMatch[1]) : 0;
-    const innerEnd = endMatch ? endMatch.index : inner.length;
-
-    const preamble = inner.slice(0, markers[0].markerStart);
-
-    return markers.map((marker, i) => {
-        const nextY = i + 1 < markers.length ? markers[i + 1].y : totalH;
-        const rowH = parseFloat((nextY - marker.y).toFixed(3));
-        const contentEnd = i + 1 < markers.length ? markers[i + 1].markerStart : innerEnd;
-        const content = inner.slice(marker.contentStart, contentEnd);
-        const renderW = Math.round(totalW * zoom);
-        const renderH = Math.round(rowH * zoom);
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}<g transform="translate(0,${-marker.y})">${content}</g></svg>`;
-    });
-}
-
 async function main() {
     let source;
     if (positionals.length > 0) {
@@ -183,7 +146,7 @@ async function main() {
             process.stderr.write('--per-line requires --output\n');
             process.exit(1);
         }
-        const lines = splitIntoLines(svg);
+        const lines = splitRowSVGs(svg);
         if (!lines) {
             process.stderr.write('No row metadata found in SVG output.\n');
             process.exit(1);

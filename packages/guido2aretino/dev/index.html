@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guido TTF → Aretino converter</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+    <header>
+        <h1>Guido TTF → Aretino</h1>
+        <p>Edit the Guido TTF column; Aretino is derived automatically.</p>
+    </header>
+    <main>
+        <table id="conversion-table">
+            <thead>
+                <tr>
+                    <th>Guido TTF source</th>
+                    <th>Aretino source</th>
+                    <th>Aretino rendered</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+        <button id="add-row">+ Add row</button>
+    </main>
+    <script type="module" src="./main.js"></script>
+</body>
+</html>

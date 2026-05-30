@@ -1,0 +1,31 @@
+{
+  "name": "@aretino-chant/guido2aretino",
+  "version": "0.1.0",
+  "description": "Converter from Guido TTF notation to Aretino chant notation.",
+  "type": "module",
+  "exports": {
+    ".": "./src/convert.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite"
+  },
+  "keywords": [
+    "gregorian",
+    "chant",
+    "guido",
+    "converter"
+  ],
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "peerDependencies": {
+    "@aretino-chant/core": "*"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21"
+  }
+}

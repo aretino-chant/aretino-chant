@@ -189,7 +189,7 @@ export function renderAretino(source, options = {}) {
     let contentBottom = y;
     let globalRowIdx = 0;
 
-    if (ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
+    if (!options.noHeader && ast.header && (ast.header['title'] || ast.header['subtitle'] || ast.header['caption'] || ast.header['rubric'])) {
         const title = ast.header['title'];
         const subtitle = ast.header['subtitle'];
         const titleFontSize = ctx.lyricSize * 1.2;
@@ -789,7 +789,7 @@ export function renderAretino(source, options = {}) {
         currentKeySig = trailingKeySig(items, currentKeySig);
     }
 
-    const totalHeight = canvasHeight || Math.max(contentBottom, y + ctx.staffSpace, 100);
+    const totalHeight = canvasHeight || Math.max(contentBottom + ctx.staffSpace * 0.5, 100);
     // viewBox is the logical layout space; the intrinsic width/height are the
     // physical pixel size magnified by `zoom`. Emitting concrete dimensions
     // (rather than width="100%") means a staff space renders at its true
@@ -833,11 +833,27 @@ export function splitRowSVGs(svg) {
 
     return markers.map((marker, i) => {
         const nextY = i + 1 < markers.length ? markers[i + 1].y : totalH;
-        const rowH = parseFloat((nextY - marker.y).toFixed(3));
         const contentEnd = i + 1 < markers.length ? markers[i + 1].markerStart : innerEnd;
         const content = inner.slice(marker.contentStart, contentEnd);
         const renderW = Math.round(totalW * zoom);
+        if (i === 0) {
+            // First row: include headers (preamble) by covering the full region from y=0
+            const rowH = parseFloat(nextY.toFixed(3));
+            const renderH = Math.round(rowH * zoom);
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}${content}</svg>`;
+        }
+        const rowH = parseFloat((nextY - marker.y).toFixed(3));
         const renderH = Math.round(rowH * zoom);
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block">${preamble}<g transform="translate(0,${-marker.y})">${content}</g></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${rowH}" width="${renderW}" height="${renderH}" preserveAspectRatio="xMidYMin meet" style="display:block"><g transform="translate(0,${-marker.y})">${content}</g></svg>`;
     });
+}
+
+/**
+ * Render only the first musical staff row, with no title/header content.
+ * Returns a standalone SVG string, or null if the source produces no rows.
+ */
+export function renderFirstRow(source, options = {}) {
+    const svg = renderAretino(source, { ...options, noHeader: true });
+    const rows = splitRowSVGs(svg);
+    return rows ? rows[0] : null;
 }

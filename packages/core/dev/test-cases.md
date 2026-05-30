@@ -321,3 +321,45 @@ put no matter how wide the editor is, unlike the responsive blocks above:
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 
+---
+
+## Per Row Rendering
+
+Each row of the piece is rendered as a separate SVG (via `splitRowSVGs`). The Kyrie VIII has four rows.
+
+```aretino perrow
+%indent: 5
+%rubric: Kyrie VIII.
+(g2) f (bb)abC C.D'CbC. F'DC-bCDC. , (bb)C'ag-fba g- g f. || a a'gf-ef.(bb)f`ab`C'.D'CbC. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC. , FEF'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. ||
+w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-lé-i-son. (<ij.>) Ký-ri-e (*) ~ (**) e-lé-i-son.
+W: KYRIE ELEISON! CHRISTE ELEISON! KYRIE ELEISON!
+```
+
+---
+
+## First Row With Headers
+
+Only the first row, including the rubric header (via `splitRowSVGs()[0]`):
+
+```aretino firstrow
+%indent: 5
+%rubric: Kyrie VIII.
+(g2) f (bb)abC C.D'CbC. F'DC-bCDC. , (bb)C'ag-fba g- g f. || a a'gf-ef.(bb)f`ab`C'.D'CbC. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC. , FEF'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. ||
+w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-lé-i-son. (<ij.>) Ký-ri-e (*) ~ (**) e-lé-i-son.
+W: KYRIE ELEISON! CHRISTE ELEISON! KYRIE ELEISON!
+```
+
+---
+
+## First Row Without Headers
+
+Only the first staff row, with no title/rubric content (via `renderFirstRow`):
+
+```aretino firstrow noheader
+%indent: 5
+%rubric: Kyrie VIII.
+(g2) f (bb)abC C.D'CbC. F'DC-bCDC. , (bb)C'ag-fba g- g f. || a a'gf-ef.(bb)f`ab`C'.D'CbC. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. || F- E F'ED-EFC. , FEF'ED-EFC.(bb)FCD'./ab`C'. , (bb)C'ag-fba g- g f. ||
+w: KY-ri-e *~~ e-lé-i-son. (<iij.>) Chri-ste e-lé-i-son. (<iij.>) Ký-ri-e e-lé-i-son. (<ij.>) Ký-ri-e (*) ~ (**) e-lé-i-son.
+W: KYRIE ELEISON! CHRISTE ELEISON! KYRIE ELEISON!
+```
+

@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import { renderAretino } from '../src/index.js';
+import { renderAretino, splitRowSVGs, renderFirstRow } from '../src/index.js';
 import testCasesSrc from './test-cases.md?raw';
 
 // On-screen magnification for the editor preview. The physical staff space
@@ -28,11 +28,25 @@ const pendingBlocks = [];
 // e.g. ```aretino fixed width=18cm  ->  { fixed: true, widthMm: 180 }.
 // A `fixed` block lays out to a fixed physical width (non-responsive): its
 // line breaks stay put regardless of the editor's on-screen size.
+// `perrow` splits into individual row SVGs. `firstrow` renders only the first
+// row; add `noheader` to suppress header content (uses renderFirstRow).
 function parseBlockOptions(words) {
     const opts = {};
     for (const word of words) {
         if (word === 'fixed') {
             opts.fixed = true;
+            continue;
+        }
+        if (word === 'perrow') {
+            opts.perrow = true;
+            continue;
+        }
+        if (word === 'firstrow') {
+            opts.firstrow = true;
+            continue;
+        }
+        if (word === 'noheader') {
+            opts.noheader = true;
             continue;
         }
         const m = /^width=(\d+(?:\.\d+)?)(mm|cm)$/.exec(word);
@@ -84,6 +98,23 @@ function renderBlock(id, source) {
             // Non-responsive: lay out to a fixed physical width so line breaks
             // stay put. `zoom` only magnifies pixels for legible editing.
             preview.innerHTML = renderAretino(source, { widthMm: opts.widthMm, zoom: editorZoom });
+        } else if (opts.perrow) {
+            const containerWidth = preview.clientWidth || 800;
+            const width = Math.max(120, Math.round(containerWidth / editorZoom));
+            const svg = renderAretino(source, { width, zoom: editorZoom });
+            const rows = splitRowSVGs(svg);
+            preview.innerHTML = rows ? rows.join('') : svg;
+        } else if (opts.firstrow && opts.noheader) {
+            const containerWidth = preview.clientWidth || 800;
+            const width = Math.max(120, Math.round(containerWidth / editorZoom));
+            const svg = renderFirstRow(source, { width, zoom: editorZoom });
+            preview.innerHTML = svg ?? '';
+        } else if (opts.firstrow) {
+            const containerWidth = preview.clientWidth || 800;
+            const width = Math.max(120, Math.round(containerWidth / editorZoom));
+            const svg = renderAretino(source, { width, zoom: editorZoom });
+            const rows = splitRowSVGs(svg);
+            preview.innerHTML = rows ? rows[0] : svg;
         } else {
             // Lay out to the container width, then zoom: render width × zoom ≈
             // container width, so the SVG fills the preview at editor scale and

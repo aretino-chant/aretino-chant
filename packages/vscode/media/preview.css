@@ -85,6 +85,12 @@ body {
     height: auto;
 }
 
+/* Source-mapped tokens (notes, ligatures, barlines, lyrics, …) are clickable:
+   a click moves the editor caret to that token. Show a hand to signal it. */
+#content [data-src-start] {
+    cursor: pointer;
+}
+
 .empty {
     color: #888;
     font-style: italic;

@@ -201,20 +201,18 @@ class AretinoPreviewManager {
     }
 }
 
-// Move the editor's caret to a source offset (from a preview click) and scroll
-// it into view. Focuses an already-visible editor for the document when there is
-// one; otherwise opens it beside, without stealing focus from the preview pane.
+// Move the editor's caret to a source offset (from a preview click), focus the
+// text editor, and scroll the caret into view. Reuses an already-visible editor
+// for the document and its column when there is one; otherwise opens it.
 function revealOffset(document, offset) {
     const position = document.positionAt(offset);
     const selection = new vscode.Selection(position, position);
     const existing = vscode.window.visibleTextEditors.find((ed) => ed.document === document);
-    if (existing) {
-        existing.selection = selection;
-        existing.revealRange(selection, vscode.TextEditorRevealType.Default);
-        return;
-    }
     vscode.window
-        .showTextDocument(document, { viewColumn: vscode.ViewColumn.One, preserveFocus: true })
+        .showTextDocument(document, {
+            viewColumn: existing ? existing.viewColumn : vscode.ViewColumn.One,
+            preserveFocus: false,
+        })
         .then((editor) => {
             editor.selection = selection;
             editor.revealRange(selection, vscode.TextEditorRevealType.Default);

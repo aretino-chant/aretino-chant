@@ -50,15 +50,6 @@ const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
 
 let recitationChainCounter = 0;
 
-// An empty per-ligature syllable placeholder (no text), used when padding a
-// recitation split across verses that don't recite.
-function emptyRecitationSyllable() {
-    return {
-        text: '', alignText: '', segments: [], alignSegments: [], suffixSegments: [],
-        hyphenAfter: false, hyphenMandatory: false, kind: 'note',
-    };
-}
-
 // Splits a recitation syllable's whitespace-separated words into one syllable
 // per word, preserving per-character formatting via segment slicing. Returns
 // null when the syllable is a single word (nothing to wrap).
@@ -92,9 +83,16 @@ function splitRecitationWords(syl) {
 // A tenor (recitation) note carries its whole recited phrase as one syllable
 // (words joined by ~). To let that phrase wrap between words — repeating the
 // tenor notehead at each line start — expand the single tenor ligature into one
-// glyphless "piece" per word, splitting the matching syllable in every verse in
-// lockstep so the 1-ligature⇄1-syllable indexing the renderer relies on holds.
+// glyphless "piece" per word, splitting the matching syllable so the
+// 1-ligature⇄1-syllable indexing the renderer relies on holds.
+//
+// Only a single stanza can wrap this way: with two or more lyrics rows on the
+// same tenor note each verse would need its own — generally different — word
+// break points, which the lockstep 1-ligature⇄1-syllable layout cannot express,
+// so we leave the note whole and don't wrap at all.
 function expandTenorRecitations(items, verseNotes) {
+    if (verseNotes.length !== 1) return;
+    const notes = verseNotes[0];
     let li = 0;
     for (let ii = 0; ii < items.length; ii++) {
         const it = items[ii];
@@ -102,8 +100,8 @@ function expandTenorRecitations(items, verseNotes) {
         const isSingleTenor = it.groups.length === 1
             && it.groups[0].length === 1
             && it.groups[0][0].shape === 'tenor';
-        const syl0 = verseNotes[0]?.[li];
-        const words = isSingleTenor && syl0 ? splitRecitationWords(syl0) : null;
+        const syl = notes[li];
+        const words = isSingleTenor && syl ? splitRecitationWords(syl) : null;
         if (!words) { li++; continue; }
         const chainId = ++recitationChainCounter;
         const pieces = words.map((w, k) => ({
@@ -112,28 +110,7 @@ function expandTenorRecitations(items, verseNotes) {
         }));
         items.splice(ii, 1, ...pieces);
         ii += pieces.length - 1;
-        for (let v = 0; v < verseNotes.length; v++) {
-            const notes = verseNotes[v];
-            if (li >= notes.length) continue;
-            if (v === 0) {
-                notes.splice(li, 1, ...words);
-            } else {
-                // Move the trailing-hyphen flags onto the last piece so the
-                // connection to the following syllable lands at the phrase's
-                // end (mirroring the verse-0 word split above).
-                const orig = notes[li];
-                const hyphenAfter = orig.hyphenAfter || false;
-                const hyphenMandatory = orig.hyphenMandatory || false;
-                orig.hyphenAfter = false;
-                orig.hyphenMandatory = false;
-                const pad = [orig];
-                for (let k = 1; k < words.length; k++) pad.push(emptyRecitationSyllable());
-                const lastPad = pad[pad.length - 1];
-                lastPad.hyphenAfter = hyphenAfter;
-                lastPad.hyphenMandatory = hyphenMandatory;
-                notes.splice(li, 1, ...pad);
-            }
-        }
+        notes.splice(li, 1, ...words);
         li += words.length;
     }
 }
@@ -370,6 +347,7 @@ export function renderAretino(source, options = {}) {
         const verseNotes = verseSyllables.map(arr => expandSyllablesForLigatures(arr.filter(s => s.kind === 'note')));
         // Expand any tenor recitation (single tenor note + multi-word syllable)
         // into one glyphless piece per word so the phrase can wrap between words.
+        // Only happens with a single stanza (see expandTenorRecitations).
         expandTenorRecitations(items, verseNotes);
         const verseBarlines = verseSyllables.map(arr => arr.filter(s => s.kind === 'barline'));
         const verseCount = sec.lyrics.length;

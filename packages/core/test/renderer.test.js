@@ -420,6 +420,17 @@ describe('renderAretino', () => {
       expect(new Set(lyr.map(l => l.y)).size).toBe(1);
     });
 
+    it('does not wrap when two or more stanzas recite on the same tenor note', () => {
+      // Each verse would need its own (different) word-wrap points, which the
+      // lockstep ligature⇄syllable layout cannot express, so the phrase stays
+      // whole: a single tenor notehead and every word of both verses rendered.
+      const svg = renderAretino(`at\nw: ${PHRASE}\nw: ${PHRASE}`, { width: 200 });
+      expect(tenorGlyphCount(svg)).toBe(1);
+      const ys = new Set(lyricTextEntries(svg).map(l => l.y));
+      // Exactly two lyric rows (one per stanza); nothing wrapped onto new rows.
+      expect(ys.size).toBe(2);
+    });
+
     it('keeps a hyphen-joined syllable snug after the recited phrase', () => {
       // The last recited word inherits the phrase's trailing hyphen ("orosz-lán"),
       // so the following syllable butts up with a hyphen gap, not a word gap —

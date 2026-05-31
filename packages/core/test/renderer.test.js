@@ -395,6 +395,31 @@ describe('renderAretino', () => {
       expect(tenorGlyphCount(svg)).toBe(rows + 1);
     });
 
+    it('never strands a lone word (orphan/widow) when wrapping a phrase', () => {
+      // Try a range of widths so the greedy fit breaks the phrase at every
+      // possible position; no row may carry a single word of the phrase.
+      const words = PHRASE.split('~');
+      for (let width = 120; width <= 600; width += 10) {
+        const svg = renderAretino(`at\nw: ${PHRASE}`, { width });
+        const lyr = lyricTextEntries(svg).filter(l => words.includes(l.text));
+        const perRow = new Map();
+        for (const l of lyr) perRow.set(l.y, (perRow.get(l.y) || 0) + 1);
+        const counts = [...perRow.values()];
+        // A single-word row is only acceptable if the whole phrase is one word.
+        if (counts.length > 1) {
+          expect(counts.every(c => c >= 2)).toBe(true);
+        }
+      }
+    });
+
+    it('does not wrap a three-word phrase (any break orphans a word)', () => {
+      // alpha|beta|gamma: breaking after alpha widows gamma, breaking after
+      // beta orphans alpha — so it stays whole, narrowing nothing below 3 words.
+      const svg = renderAretino('at\nw: alpha~beta~gamma', { width: 150 });
+      const lyr = lyricTextEntries(svg).filter(l => ['alpha', 'beta', 'gamma'].includes(l.text));
+      expect(new Set(lyr.map(l => l.y)).size).toBe(1);
+    });
+
     it('keeps a hyphen-joined syllable snug after the recited phrase', () => {
       // The last recited word inherits the phrase's trailing hyphen ("orosz-lán"),
       // so the following syllable butts up with a hyphen gap, not a word gap —

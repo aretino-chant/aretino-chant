@@ -174,6 +174,32 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
                 } else {
                     finalize(true);
                 }
+            } else if (item.kind === 'ligature' && item.recitationGlyphless) {
+                // A wrapping tenor recitation must not strand a single word at a
+                // line edge: no orphan (a lone first word left on this row) and
+                // no widow (a lone last word pushed to the next). Breaking before
+                // chain piece p is allowed only when p === 0 (the whole phrase
+                // wraps) or 2 ≤ p ≤ N-2. If p is a forbidden break, carry the
+                // already-placed trailing words of the phrase to the next row
+                // until the break lands on an allowed position.
+                const N = item.recitationChainLen;
+                const carried = [];
+                let p = item.recitationChainIndex;
+                const breakAllowed = q => q === 0 || (q >= 2 && q <= N - 2);
+                while (!breakAllowed(p) && cur.length > 0) {
+                    const top = cur[cur.length - 1];
+                    if (!(top.kind === 'ligature' && top.recitationGlyphless
+                        && top.recitationChainId === item.recitationChainId)) break;
+                    cur.pop();
+                    curWidth -= measureItem(ctx, top);
+                    carried.unshift(top);
+                    p = top.recitationChainIndex;
+                }
+                finalize(true);
+                for (const c of carried) {
+                    cur.push(c);
+                    curWidth += measureItem(ctx, c);
+                }
             } else {
                 finalize(true);
                 if (item.kind === 'clef') {

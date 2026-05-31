@@ -106,7 +106,10 @@ function expandTenorRecitations(items, verseNotes) {
         const words = isSingleTenor && syl0 ? splitRecitationWords(syl0) : null;
         if (!words) { li++; continue; }
         const chainId = ++recitationChainCounter;
-        const pieces = words.map(() => ({ ...it, recitationGlyphless: true, recitationChainId: chainId }));
+        const pieces = words.map((w, k) => ({
+            ...it, recitationGlyphless: true, recitationChainId: chainId,
+            recitationChainIndex: k, recitationChainLen: words.length,
+        }));
         items.splice(ii, 1, ...pieces);
         ii += pieces.length - 1;
         for (let v = 0; v < verseNotes.length; v++) {

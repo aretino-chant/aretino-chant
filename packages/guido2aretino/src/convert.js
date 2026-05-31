@@ -29,8 +29,8 @@ const QUILISMA_MAP = {
 // Guido TTF tenor note characters (CP1252 code = pitch_index + 0x9F)
 // Pitches: c(0) _dt(0xA0=NBSP,skip) e(2) f(3) g(4) a(5) b(6) C(7) _Dt(0xA7=§,conflicts) E(9) F(10) G(11)
 const TENOR_MAP = {
-    'Ÿ': 'ct', '¡': 'et', '¢': 'ft', '£': 'gt',
-    '¤': 'at', '¥': 'bt', '¦': 'Ct', '©': 'Ft', 'ª': 'Gt',
+    'Ÿ': 'dt', '¡': 'et', '¢': 'ft', '£': 'gt',
+    '¤': 'at', '¥': 'bt', '¦': 'Ct', '©': 'Dt', 'ª': 'Et',
 };
 
 // Guido TTF small note characters (CP1252 code = pitch_index + 0x82)
@@ -109,6 +109,13 @@ export function guidoToAretino(input) {
 
         if (ch === 'X') {
             appendToken(afterClef ? '(Kb)' : '(b)');
+            afterClef = false;
+            i++;
+            continue;
+        }
+
+        if (ch === 'B') {
+            appendToken('(Eb)');
             afterClef = false;
             i++;
             continue;

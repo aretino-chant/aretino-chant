@@ -1,0 +1,117 @@
+{
+  "name": "@aretino-chant/vscode",
+  "displayName": "Aretino Chant Preview",
+  "version": "0.1.0",
+  "description": "Live SVG preview for Aretino chant notation (.aretino files).",
+  "publisher": "aretino-chant",
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretino-chant/aretino-chant.git",
+    "directory": "packages/vscode"
+  },
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "gregorian",
+    "chant",
+    "music-notation",
+    "aretino",
+    "preview"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:aretino"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "aretino",
+        "aliases": [
+          "Aretino Chant",
+          "aretino"
+        ],
+        "extensions": [
+          ".aretino"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "aretino.showPreviewToSide",
+        "title": "Open Preview to the Side",
+        "category": "Aretino",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "aretino.showPreview",
+        "title": "Open Preview",
+        "category": "Aretino",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "aretino.showPreviewToSide",
+          "when": "resourceLangId == aretino",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "aretino.showPreviewToSide",
+          "when": "resourceLangId == aretino"
+        },
+        {
+          "command": "aretino.showPreview",
+          "when": "resourceLangId == aretino"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "aretino.showPreviewToSide",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "resourceLangId == aretino"
+      }
+    ],
+    "configuration": {
+      "title": "Aretino Chant Preview",
+      "properties": {
+        "aretino.preview.autoOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open the preview to the side when an .aretino file is opened."
+        },
+        "aretino.preview.defaultZoom": {
+          "type": "number",
+          "default": 1.4,
+          "minimum": 0.5,
+          "maximum": 6,
+          "description": "Initial on-screen magnification for the preview. The print staff space is small, so the preview is magnified for legibility without affecting layout."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "dependencies": {
+    "@aretino-chant/core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.84.0",
+    "esbuild": "^0.21.0"
+  }
+}

@@ -91,7 +91,7 @@ export const METRICS = {
     plicaStrokeMinPx: 0.7,
 
     // --- "Barline" plica (barline rendered like a glyph plica) ----------
-    plicaBarlineAnchorX: 0.2,            // x offset of both endpoints from notehead center
+    plicaBarlineAnchorX: -0.5,            // x offset of both endpoints from notehead center
     plicaBarlineTopY: 0.5,               // y offset above center (top-right corner of head)
     plicaBarlineBottomY: 0.5,           // y offset below center (under bottom-right corner)
     plicaBarlineBulge: 0.6,              // outward push of control points → curve depth

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseAretino, renderAretino, splitRowSVGs } from '../src/index.js';
 import { METRICS } from '../src/glyphs.js';
+import { measureTextWidth } from '../src/text.js';
 
 function firstLyricY(svg) {
   // Extract the y attribute from the first <text> element that contains
@@ -374,6 +375,23 @@ describe('renderAretino', () => {
           .sort((a, b) => a.x1 - b.x1);
       }
 
+      function extenderText(svg, text) {
+        const lyricY = firstLyricY(svg);
+        return [...svg.matchAll(/<text\b([^>]*)>(.*?)<\/text>/g)]
+          .map(m => {
+            const attrs = m[1];
+            return {
+              x: parseFloat(new RegExp('\\bx="([^"]+)"').exec(attrs)?.[1]),
+              y: parseFloat(new RegExp('\\by="([^"]+)"').exec(attrs)?.[1]),
+              fontFamily: new RegExp('\\bfont-family="([^"]+)"').exec(attrs)?.[1] || '',
+              fontSize: parseFloat(new RegExp('\\bfont-size="([^"]+)"').exec(attrs)?.[1]),
+              anchor: new RegExp('\\btext-anchor="([^"]+)"').exec(attrs)?.[1] || null,
+              text: m[2].replace(/<[^>]*>/g, ''),
+            };
+          })
+          .filter(t => t.text === text && Math.abs(t.y - lyricY) < 0.5);
+      }
+
       it('draws a single continuous prolongation line over the held neumes', () => {
         // "ro___" (3 underscores) holds the syllable over its own neume plus two
         // more: notes 1-3 of the four. The 4th is left empty.
@@ -386,12 +404,17 @@ describe('renderAretino', () => {
 
       it('renders trailing punctuation at the far end of the extender', () => {
         const svg = renderAretino('(c4) g g g g\nw: ro___.', { width: 600 });
+        const unsuffixedSvg = renderAretino('(c4) g g g g\nw: ro___', { width: 600 });
         const lines = extenderLines(svg);
-        const lineEnd = lines[lines.length - 1].x2;
-        const periodXs = [...svg.matchAll(/<text[^>]*? x="([\d.]+)"[^>]*>\.<\/text>/g)]
-          .map(m => parseFloat(m[1]));
-        // The '.' sits at (or just past) the extender's right end, not back at "ro".
-        expect(periodXs.some(x => x >= lineEnd - 0.5)).toBe(true);
+        const lineEndWithoutSuffix = extenderLines(unsuffixedSvg)[0].x2;
+        const periods = extenderText(svg, '.');
+
+        expect(periods.length).toBe(1);
+        // The '.' is part of the held span: its right edge lands where the
+        // unsuffixed extender line would end, so it does not lengthen the span.
+        expect(periods[0].anchor).toBe('end');
+        expect(periods[0].x).toBeCloseTo(lineEndWithoutSuffix, 5);
+        expect(lines[lines.length - 1].x2).toBeLessThan(periods[0].x);
       });
 
       it('a single underscore extends over the current ligature', () => {
@@ -424,6 +447,18 @@ describe('renderAretino', () => {
         const svg = renderAretino('(c4) g\nw: a_', { width: 600 });
         expect(extenderLines(svg).length).toBe(0);
         expect(lyricTextEntries(svg).map(l => l.text).join('')).toContain('a');
+      });
+
+      it('renders trailing punctuation even when the extender line is too short', () => {
+        const svg = renderAretino('(c4) g\nw: a_.', { width: 600 });
+        const syllable = extenderText(svg, 'a')[0];
+        const periods = extenderText(svg, '.');
+        const syllableRight = syllable.x + measureTextWidth('a', syllable.fontSize, syllable.fontFamily) / 2;
+
+        expect(extenderLines(svg).length).toBe(0);
+        expect(periods.length).toBe(1);
+        expect(periods[0].anchor).toBe('start');
+        expect(periods[0].x).toBeCloseTo(syllableRight, 5);
       });
 
       it('\\_ renders a literal underscore instead of an extender', () => {

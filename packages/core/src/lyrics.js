@@ -401,6 +401,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     // next row's first extended neume.
     let extStartX = null;
     let extEndX = null;
+    let extTextRightX = null;
     const extenderGap = fontSize * 0.15;
     const extenderStrokeW = Math.max(0.5, fontSize * 0.06);
     // Prolongation lines shorter than this are visual stubs, so they are dropped.
@@ -408,12 +409,16 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     // the text, so most single-underscore ("ro_") extenders draw nothing.
     const extenderMinLen = fontSize * 0.5;
     const flushExtender = () => {
+        let drewLine = false;
         if (extStartX !== null && extEndX !== null && extEndX - extStartX >= extenderMinLen) {
             parts.push(`<line x1="${extStartX}" y1="${lyricY}" x2="${extEndX}" y2="${lyricY}" stroke="#000" stroke-width="${extenderStrokeW}"/>`);
             if (extEndX > maxX) maxX = extEndX;
+            drewLine = true;
         }
         extStartX = null;
         extEndX = null;
+        extTextRightX = null;
+        return drewLine;
     };
 
     for (let i = 0; i < workSyllables.length; i++) {
@@ -491,8 +496,9 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         }
         // Extender ("ro_", "ro__"): the syllable is held over its own neume plus
         // one further neume per extra underscore. Build a single continuous
-        // prolongation line from just past the syllable text to the right edge of
-        // the last held neume; trailing punctuation ("ro_.") sits at that far end.
+        // prolongation line from just past the syllable text toward the right edge
+        // of the last held neume; trailing punctuation ("ro_.") is included in
+        // that held span rather than extending beyond it.
         const isExtenderHead = (syl.extenderCount || 0) > 0;
         if (isExtenderHead || syl.extender) {
             const lig = i < ligatures.length ? ligatures[i] : null;
@@ -500,6 +506,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             if (isExtenderHead) {
                 // Head: the line starts past this syllable's text and already
                 // covers the syllable's own (current) neume.
+                extTextRightX = right;
                 extStartX = right + extenderGap;
             } else if (extStartX === null) {
                 // Row started mid-extender: begin at this neume's left edge.
@@ -509,15 +516,19 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             const isLast = isExtenderHead ? syl.extenderCount === 1 : syl.extenderLast;
             if (isLast) {
                 const suf = syl.extenderSuffixSegments || [];
-                const lineEnd = extEndX;
-                flushExtender();
+                const targetRight = extEndX;
+                const sufW = measureSegmentsWidth(suf, fontSize, fontFamily, measureFn);
+                if (sufW > 0 && targetRight !== null) {
+                    extEndX = targetRight - sufW - extenderGap;
+                }
+                const textRight = extTextRightX;
+                const drewLine = flushExtender();
                 if (suf.length) {
-                    // Punctuation sits at the far end of the held span, but never
-                    // back inside the syllable text when the line was dropped.
-                    const sx = Math.max(lineEnd, right) + extenderGap;
-                    parts.push(`<text xml:space="preserve" x="${sx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(suf)}</text>`);
-                    const sufW = measureSegmentsWidth(suf, fontSize, fontFamily, measureFn);
-                    if (sx + sufW > maxX) maxX = sx + sufW;
+                    const sx = drewLine ? targetRight : (textRight ?? targetRight ?? right);
+                    const anchor = drewLine ? 'end' : 'start';
+                    parts.push(`<text xml:space="preserve" x="${sx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="${anchor}" fill="#000">${renderSegments(suf)}</text>`);
+                    const suffixRight = drewLine ? sx : sx + sufW;
+                    if (suffixRight > maxX) maxX = suffixRight;
                 }
             }
         }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAretino, renderAretino } from '../src/index.js';
+import { parseAretino, renderAretino, splitRowSVGs } from '../src/index.js';
 import { METRICS } from '../src/glyphs.js';
 
 function firstLyricY(svg) {
@@ -49,6 +49,30 @@ function sourceMappedGroups(svg) {
     }));
 }
 
+function viewBoxBottom(svg) {
+  const m = svg.match(/viewBox="([^"]+)"/);
+  if (!m) return null;
+  const [, y, , h] = m[1].split(/\s+/).map(Number);
+  return y + h;
+}
+
+function maxLineY(svg) {
+  const ys = [...svg.matchAll(/\sy[12]="([^"]+)"/g)].map(m => Number(m[1]));
+  return Math.max(...ys);
+}
+
+function staffBottom(svg) {
+  const m = svg.match(/data-staff-bottom="([^"]+)"/);
+  return m ? Number(m[1]) : null;
+}
+
+function renderedStaffSpace(svg) {
+  const ys = [...svg.matchAll(/<line[^>]* y1="([^"]+)" x2=/g)]
+    .slice(0, METRICS.staffLineCount)
+    .map(m => Number(m[1]));
+  return Math.abs(ys[0] - ys[1]);
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -82,6 +106,18 @@ describe('renderAretino', () => {
     // There should be exactly two mora dots and their cy values must differ.
     expect(circles.length).toBe(2);
     expect(circles[0]).not.toBeCloseTo(circles[1], 1);
+  });
+
+  it('sizes lyricless row splits to include below-staff ligature ink', () => {
+    const row = splitRowSVGs(renderAretino('(g2) A\'_-', { width: 600 }))?.[0];
+    expect(row).toBeTruthy();
+    expect(viewBoxBottom(row)).toBeGreaterThanOrEqual(maxLineY(row));
+  });
+
+  it('sizes lyricless row splits to include clefs below the staff', () => {
+    const row = splitRowSVGs(renderAretino('(g1)', { width: 600 }))?.[0];
+    expect(row).toBeTruthy();
+    expect(viewBoxBottom(row)).toBeGreaterThan(staffBottom(row) + renderedStaffSpace(row));
   });
 
   describe('lyricDistance option', () => {

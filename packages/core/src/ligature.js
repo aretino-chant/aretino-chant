@@ -17,6 +17,7 @@ import {
     noteheadRightPoint,
     noteheadLeftPoint,
     drawAccidental,
+    noteInkBounds,
 } from './glyphs.js';
 import { ss } from './units.js';
 import { accidentalSymbolAdvance, accidentalAdvance } from './accidentals.js';
@@ -64,9 +65,6 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                 firstNoteCx = cx;
             }
             lastNoteCx = cx;
-            const halfH = ss(ctx, METRICS.noteBoxHeight) * 0.5;
-            if (cy - halfH < allNotesMinY) allNotesMinY = cy - halfH;
-            if (cy + halfH > allNotesMaxY) allNotesMaxY = cy + halfH;
             if (i < notes.length - 1) {
                 cx += ctx.ligatureStepAdvance;
             }
@@ -179,6 +177,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             const p = positions[i];
             const prevCy = i > 0 ? positions[i - 1].cy : null;
             const drawnNote = autoVirga[i] ? { ...p.note, virga: true } : p.note;
+            const bounds = noteInkBounds(ctx, drawnNote, p.cy, staffBottomY, prevCy);
+            if (bounds.minY < allNotesMinY) allNotesMinY = bounds.minY;
+            if (bounds.maxY > allNotesMaxY) allNotesMaxY = bounds.maxY;
             const noteParts = [drawNoteHead(ctx, drawnNote, p.cx, p.cy, staffBottomY, prevCy)];
             const modifierSpans = p.note.modifierSpans ?? [];
             for (let mi = 0; mi < p.note.modifiers.length; mi++) {
@@ -199,6 +200,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                     if (moraDotYForNote.has(i)) {
                         const targetDotY = moraDotYForNote.get(i);
                         moraCy = onLine ? targetDotY + ctx.staffSpace / 2 : targetDotY;
+                        const r = ss(ctx, METRICS.moraRadius);
+                        if (targetDotY - r < allNotesMinY) allNotesMinY = targetDotY - r;
+                        if (targetDotY + r > allNotesMaxY) allNotesMaxY = targetDotY + r;
                     }
                     glyph = drawMora(ctx, drawCx, moraCy, onLine);
                 } else if (mod === 'ictus') {

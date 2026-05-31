@@ -542,6 +542,8 @@ export function renderAretino(source, options = {}) {
 
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
+                if (c.minY < rowTopY) rowTopY = c.minY;
+                if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                 parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                 cursorX += c.advance - ss(ctx, METRICS.clefPostGap) + ss(ctx, METRICS.clefInlinePostGap);
             }
@@ -641,6 +643,8 @@ export function renderAretino(source, options = {}) {
                 const it = row.items[idx];
                 if (it.kind === 'clef') {
                     const c = drawClef(ctx, it.clef, cursorX, staffBottomY);
+                    if (c.minY < rowTopY) rowTopY = c.minY;
+                    if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                     parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
                 } else if (it.kind === 'accidental') {
@@ -861,7 +865,7 @@ export function renderAretino(source, options = {}) {
                 y = lastLyricBottom + ctx.staffGap;
                 prevRowBottom = lastLyricBottom;
             } else {
-                y = staffBottomY + ctx.lyricDistance + ctx.lyricSize + ctx.staffGap;
+                y = staffBottomY;
                 sectionContentBottom = y;
                 contentBottom = Math.max(contentBottom, y);
                 prevRowBottom = staffBottomY;

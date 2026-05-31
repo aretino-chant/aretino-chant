@@ -302,6 +302,62 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
     return parts.join('');
 }
 
+export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
+    const isSmall = note.modifiers && note.modifiers.includes('small');
+    const scale = isSmall ? METRICS.smallNoteScale : 1;
+    const halfNoteH = ss(ctx, METRICS.noteBoxHeight) * 0.5 * scale;
+    let minY = cy - halfNoteH;
+    let maxY = cy + halfNoteH;
+
+    if (note.shape === 'tenor') {
+        const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
+        minY = Math.min(minY, cy - halfH);
+        maxY = Math.max(maxY, cy + halfH);
+    }
+
+    if (note.shape === 'quilisma') {
+        const noteH = ss(ctx, METRICS.noteBoxHeight);
+        const totalRise = noteH * METRICS.quilismaSlope;
+        const offsetY = noteH * METRICS.quilismaOffsetY;
+        minY = Math.min(minY, cy + offsetY - totalRise - noteH * METRICS.quilismaPeakUp);
+        maxY = Math.max(maxY, cy + offsetY + noteH * METRICS.quilismaTrough);
+    }
+
+    if (note.shape === 'virga' || note.virga) {
+        const stemLength = prevCy !== null && prevCy > cy
+            ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
+            : ss(ctx, METRICS.virgaStemLength);
+        const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
+        const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
+        maxY = Math.max(maxY, cy + cappedLength);
+    }
+
+    for (const mod of note.modifiers ?? []) {
+        const onLine = pitchToPos(note) % 2 === 0;
+        if (mod === 'episema') {
+            minY = Math.min(minY, cy - (onLine ? ctx.staffSpace * 1.5 : ctx.staffSpace));
+        } else if (mod === 'mora') {
+            const dotY = onLine ? cy - ctx.staffSpace / 2 : cy;
+            const r = ss(ctx, METRICS.moraRadius);
+            minY = Math.min(minY, dotY - r);
+            maxY = Math.max(maxY, dotY + r);
+        } else if (mod === 'ictus') {
+            const below = note.modifiers.includes('episema');
+            const h = ss(ctx, METRICS.ictusHeight);
+            const topY = below
+                ? cy + ctx.staffSpace * (onLine ? 1.25 : 0.75)
+                : cy - (onLine ? ctx.staffSpace * 1.75 : ctx.staffSpace * 1.25);
+            minY = Math.min(minY, topY);
+            maxY = Math.max(maxY, topY + h);
+        } else if (mod === 'plica') {
+            minY = Math.min(minY, cy - ss(ctx, METRICS.plicaTopY));
+            maxY = Math.max(maxY, cy + ss(ctx, METRICS.plicaBottomY));
+        }
+    }
+
+    return { minY, maxY };
+}
+
 export function drawEpisema(ctx, cx, cy, onLine = false) {
     const w = ss(ctx, METRICS.episemaWidth);
     const y = cy - (onLine ? ctx.staffSpace * 1.5 : ctx.staffSpace);
@@ -480,7 +536,7 @@ export function drawClef(ctx, clef, x, staffBottomY) {
             + `<path d="${pathD}" fill="#000" fill-rule="evenodd"/>`
             + '</g>';
         const advance = (2621 - 1186) * k + ss(ctx, METRICS.clefPostGap);
-        return { svg, advance };
+        return { svg, advance, minY: lineY + (5608 - 8149) * k, maxY: lineY + (9674 - 8149) * k };
     }
     if (letter === 'f') {
         // Bass clef path from https://commons.wikimedia.org/wiki/File:Bass_clef.svg
@@ -517,7 +573,7 @@ export function drawClef(ctx, clef, x, staffBottomY) {
             + `<path d="${pathD}" fill="#000" fill-rule="evenodd"/>`
             + '</g>';
         const advance = (2889 - 1239) * k + ss(ctx, METRICS.clefPostGap);
-        return { svg, advance };
+        return { svg, advance, minY: lineY + (6390 - 6968) * k, maxY: lineY + (8297 - 6968) * k };
     }
     if (letter === 'c') {
         // Square C-clef (bracket-style "C" centered on its line).
@@ -529,9 +585,9 @@ export function drawClef(ctx, clef, x, staffBottomY) {
         const bottom = lineY + h / 2;
         const right = left + w;
         const svg = `<path d="M ${right} ${top} L ${left} ${top} L ${left} ${bottom} L ${right} ${bottom}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
-        return { svg, advance: w + ss(ctx, METRICS.clefCRightPadding) };
+        return { svg, advance: w + ss(ctx, METRICS.clefCRightPadding), minY: top - sw / 2, maxY: bottom + sw / 2 };
     }
-    return { svg: '', advance: 0 };
+    return { svg: '', advance: 0, minY: Infinity, maxY: -Infinity };
 }
 
 // Bravura (SMuFL) glyph paths — extracted from the official OTF.

@@ -216,6 +216,7 @@
     "@aretino-chant/core": "*",
     "@aretino-chant/editor": "*",
     "@types/vscode": "^1.84.0",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.21.0"
   }
 }

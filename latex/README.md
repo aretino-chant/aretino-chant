@@ -18,7 +18,8 @@ inside a normal LaTeX score, handout, booklet, or article.
 Install the CLI globally:
 
 ```bash
-npm install -g @aretino-chant/cli
+npm install -g @aretino-chant/core@latest
+npm install -g @aretino-chant/cli@latest
 ```
 
 For development from this repository, install the workspaces from the repository

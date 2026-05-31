@@ -8,6 +8,7 @@
 // render — otherwise syllable spacing is computed against a fallback font.
 
 import { parseAretino, parseHeaderRendererOptions, renderAretino } from '@aretino-chant/core';
+import { highlightAtSelection, sourceSpanFromPreviewClick } from '@aretino-chant/editor';
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 6;
@@ -25,6 +26,8 @@ const persisted = vscode.getState() || {};
 const bootZoom = (window.__ARETINO__ && window.__ARETINO__.defaultZoom) || 1.4;
 
 let currentText = '';
+// Latest editor caret/selection as source offsets { from, to }, or null.
+let currentSelection = null;
 let zoom = clampZoom(persisted.zoom ?? bootZoom);
 
 function clampZoom(z) {
@@ -60,11 +63,20 @@ function render() {
         }
         contentEl.innerHTML = renderAretino(ast, opts);
         errorEl.hidden = true;
+        applyHighlight();
     } catch (err) {
         errorEl.textContent = err && err.message ? err.message : String(err);
         errorEl.hidden = false;
     }
     scrollEl.scrollTop = prevScroll;
+}
+
+// Paint the caret highlight onto the currently rendered SVG. Safe to call after
+// every render and on every selection change; it clears any previous highlight
+// first and no-ops when there is no selection or no source-mapped token.
+function applyHighlight() {
+    if (!currentSelection) return;
+    highlightAtSelection(contentEl, currentSelection);
 }
 
 function setZoom(z) {
@@ -104,6 +116,15 @@ function wireUi() {
         { passive: false },
     );
 
+    // Click a rendered glyph to move the editor's caret to that token. Mirrors
+    // the built-in editor preview: the caret lands just after the clicked token.
+    contentEl.addEventListener('click', (e) => {
+        const span = sourceSpanFromPreviewClick(e, contentEl);
+        if (span) {
+            vscode.postMessage({ type: 'reveal', offset: span.srcEnd });
+        }
+    });
+
     let resizeTimer = null;
     const ro = new ResizeObserver(() => {
         clearTimeout(resizeTimer);
@@ -115,7 +136,13 @@ function wireUi() {
         const msg = event.data;
         if (msg && msg.type === 'update') {
             currentText = msg.text;
+            currentSelection = msg.selection ?? currentSelection;
             render();
+        } else if (msg && msg.type === 'selection') {
+            // Caret moved without an edit: repaint the highlight in place rather
+            // than re-rendering the whole score.
+            currentSelection = msg.selection ?? null;
+            applyHighlight();
         }
     });
 }

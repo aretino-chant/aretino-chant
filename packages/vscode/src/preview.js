@@ -27,6 +27,16 @@ class AretinoPreviewManager {
                 }
             }),
         );
+
+        // Move the preview's caret highlight when the editor's caret moves.
+        this._disposables.push(
+            vscode.window.onDidChangeTextEditorSelection((e) => {
+                const panel = this._panels.get(e.textEditor.document.uri.toString());
+                if (panel) {
+                    this._postSelection(panel, e.textEditor);
+                }
+            }),
+        );
     }
 
     maybeAutoOpen(editor) {
@@ -74,6 +84,8 @@ class AretinoPreviewManager {
         const messageSub = panel.webview.onDidReceiveMessage((msg) => {
             if (msg && msg.type === 'ready') {
                 this._postUpdate(panel, document);
+            } else if (msg && msg.type === 'reveal' && Number.isFinite(msg.offset)) {
+                revealOffset(document, msg.offset);
             }
         });
 
@@ -87,7 +99,27 @@ class AretinoPreviewManager {
     }
 
     _postUpdate(panel, document) {
-        panel.webview.postMessage({ type: 'update', text: document.getText() });
+        // Re-rendering wipes the previous highlight, so send the current caret
+        // alongside the text and let the webview repaint it after rendering.
+        panel.webview.postMessage({
+            type: 'update',
+            text: document.getText(),
+            selection: this._selectionFor(document),
+        });
+    }
+
+    _postSelection(panel, editor) {
+        panel.webview.postMessage({
+            type: 'selection',
+            selection: selectionOffsets(editor, editor.document),
+        });
+    }
+
+    // Caret/selection of a visible editor for `document`, as source offsets, or
+    // null when no editor is currently showing it.
+    _selectionFor(document) {
+        const editor = vscode.window.visibleTextEditors.find((ed) => ed.document === document);
+        return editor ? selectionOffsets(editor, document) : null;
     }
 
     _buildHtml(webview) {
@@ -167,6 +199,37 @@ class AretinoPreviewManager {
         }
         this._disposables = [];
     }
+}
+
+// Move the editor's caret to a source offset (from a preview click) and scroll
+// it into view. Focuses an already-visible editor for the document when there is
+// one; otherwise opens it beside, without stealing focus from the preview pane.
+function revealOffset(document, offset) {
+    const position = document.positionAt(offset);
+    const selection = new vscode.Selection(position, position);
+    const existing = vscode.window.visibleTextEditors.find((ed) => ed.document === document);
+    if (existing) {
+        existing.selection = selection;
+        existing.revealRange(selection, vscode.TextEditorRevealType.Default);
+        return;
+    }
+    vscode.window
+        .showTextDocument(document, { viewColumn: vscode.ViewColumn.One, preserveFocus: true })
+        .then((editor) => {
+            editor.selection = selection;
+            editor.revealRange(selection, vscode.TextEditorRevealType.Default);
+        });
+}
+
+// Primary selection as absolute source character offsets { from, to }. The core
+// renderer's data-src-* attributes are offsets into document.getText(), which is
+// exactly what offsetAt() returns, so the two line up without conversion.
+function selectionOffsets(editor, document) {
+    const sel = editor.selection;
+    return {
+        from: document.offsetAt(sel.start),
+        to: document.offsetAt(sel.end),
+    };
 }
 
 function pathBasename(uri) {

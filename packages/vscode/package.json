@@ -108,7 +108,8 @@
     "vscode:prepublish": "node esbuild.js --production"
   },
   "dependencies": {
-    "@aretino-chant/core": "*"
+    "@aretino-chant/core": "*",
+    "@aretino-chant/editor": "*"
   },
   "devDependencies": {
     "@types/vscode": "^1.84.0",

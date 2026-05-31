@@ -1,6 +1,6 @@
 {
   "name": "@aretino-chant/guido2aretino",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Converter from Guido TTF notation to Aretino chant notation.",
   "type": "module",
   "exports": {

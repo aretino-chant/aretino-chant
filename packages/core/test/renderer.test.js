@@ -454,6 +454,53 @@ describe('renderAretino', () => {
     });
   });
 
+  describe('justification', () => {
+    // Rightmost staff-line end = the right margin (staffRightX).
+    function staffRightX(svg) {
+      const xs = [...svg.matchAll(/<line[^>]* x2="([^"]+)" y2=/g)].map(m => parseFloat(m[1]));
+      return xs.length ? Math.max(...xs) : null;
+    }
+    function barlineX1s(svg) {
+      return [...svg.matchAll(/class="[^"]*aretino-barline[^"]*"[^>]*>\s*<[^>]+x1="([^"]+)"/g)]
+        .map(m => parseFloat(m[1]));
+    }
+
+    it('leaves only barlinePostGap after a barline that ends a justified row', () => {
+      // (z) forces a justified break, so the first row ends with the barline and
+      // is stretched to the right margin. The barline must keep only its normal
+      // post-gap before the margin — the same as an automatic wrap — instead of
+      // a wider reserve surviving as a void.
+      const svg = renderAretino('g g g g | (z) g g g g', { width: 600, hideRepeatClef: true });
+      const rows = splitRowSVGs(svg);
+      expect(rows.length).toBeGreaterThan(1);
+
+      const firstRow = rows[0];
+      const bars = barlineX1s(firstRow);
+      expect(bars.length).toBeGreaterThan(0);
+      const barX1 = Math.max(...bars);
+      const rightX = staffRightX(firstRow);
+      const ss = renderedStaffSpace(firstRow);
+
+      // Barline glyph right edge = x1 - barlineOffsetX(0.3ss) + barlineAdvance(0.8ss).
+      // The remaining gap to the margin must equal one barlinePostGap (0.5ss).
+      const glyphRightEdge = barX1 - 0.3 * ss + 0.8 * ss;
+      expect(rightX - glyphRightEdge).toBeCloseTo(METRICS.barlinePostGap * ss, 1);
+    });
+
+    it('keeps the line-final barline gap independent of trailing syllable reserve', () => {
+      // The note after the barline carries a wide syllable, which reserves extra
+      // space after the barline (barlinePostExtra). When (z) breaks the row right
+      // after the barline, that reserve must not survive and push the barline away
+      // from the margin — the line-final barline lands in the same place whether
+      // the wrapped-away syllable is narrow or wide.
+      const narrow = renderAretino('g g | (z) g\nw: a a b', { width: 600 });
+      const wide = renderAretino('g g | (z) g\nw: a a Wiiiiiiiiiide', { width: 600 });
+
+      const barX = svg => Math.max(...barlineX1s(splitRowSVGs(svg)[0]));
+      expect(barX(narrow)).toBeCloseTo(barX(wide), 1);
+    });
+  });
+
   describe('slur spans', () => {
     it('renders a dashed slur arc below notes', () => {
       const svg = renderAretino('c = \\slur{c d}', { width: 600 });

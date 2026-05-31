@@ -131,7 +131,7 @@ export const METRICS = {
     barlineStrokeMinPx: 0.8,
     barlineOffsetX: 0.3,               // gap before line
     barlineAdvance: 0.8,
-    barlinePostGap: 1,                 // gap after barline (one staff space)
+    barlinePostGap: 0.5,                 // gap after barline (one staff space)
     barlineDoubleSecondOffsetX: 1.0,   // second line offset for '||'
     barlineDoubleAdvance: 1.5,
     barlineRepeatAdvance: 2.4,           // advance for repeat signs (wider than double)

@@ -600,7 +600,20 @@ export function renderAretino(source, options = {}) {
             }
 
             const remaining = staffRightX - cursorX;
-            const extra = Math.max(0, remaining - row.itemsWidth);
+            // When a row ends with a barline, the post-gap reserved for the
+            // FOLLOWING syllable (barlinePostExtra) is meaningless — that syllable
+            // has wrapped to the next line, so nothing follows the barline here.
+            // Drop that reserve so the final barline keeps only its normal
+            // barlinePostGap (plus any room its own centred label needs) before the
+            // right margin, instead of the next syllable's reserve surviving as a
+            // void. This makes a manual (z) break after a barline match an
+            // automatic wrap.
+            let itemsWidth = row.itemsWidth;
+            const lastItem = row.items[row.items.length - 1];
+            if (lastItem && lastItem.kind === 'barline') {
+                itemsWidth -= (lastItem.barlinePostExtra || 0);
+            }
+            const extra = Math.max(0, remaining - itemsWidth);
             const expanderCount = row.items.reduce((n, it) => n + (it.kind === 'expander' ? 1 : 0), 0);
             // Accidental+ligature pairs are glued — don't count them as a gap.
             const gluedPairs = row.items.reduce((n, it, i) => n + (it.kind === 'accidental' && i + 1 < row.items.length && row.items[i + 1].kind === 'ligature' ? 1 : 0), 0);

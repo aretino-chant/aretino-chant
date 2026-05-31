@@ -2,6 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+// NOTE: The VS Code extension duplicates these suggestion lists and the
+// context-detection logic in packages/vscode/src/completion.js (its CommonJS
+// extension host cannot import this CodeMirror-based module). Keep the two in
+// sync when adding directives or completion rules.
+
 import { pickedCompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 

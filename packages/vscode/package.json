@@ -1,11 +1,12 @@
 {
-  "name": "@aretino-chant/vscode",
-  "displayName": "Aretino Chant Preview",
-  "version": "0.1.0",
-  "description": "Live SVG preview for Aretino chant notation (.aretino files).",
+  "name": "aretino-chant-tools",
+  "displayName": "Aretino Chant Tools",
+  "version": "0.1.1",
+  "description": "Language support and live SVG preview for Aretino chant notation (.aretino files).",
   "publisher": "aretino-chant",
   "license": "MPL-2.0",
   "author": "Bertalan Fodor",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/aretino-chant/aretino-chant.git",
@@ -44,35 +45,97 @@
       }
     ],
     "semanticTokenTypes": [
-      { "id": "aretinoMeta", "description": "Aretino header key (%key:) and %% separator" },
-      { "id": "aretinoComment", "description": "Aretino comment (% … and %[ … %] blocks)" },
-      { "id": "aretinoFormat", "description": "Aretino inline-formatting delimiters { } < > [ ]" },
-      { "id": "aretinoKeyword", "description": "Aretino line prefix (w:/W:/n:) and (directives)" },
-      { "id": "aretinoText", "description": "Aretino lyric/verse/header text and \"labels\"" },
-      { "id": "aretinoPitch", "description": "Aretino pitch note plus modifiers" },
-      { "id": "aretinoBarline", "description": "Aretino barlines , ; | || ||| :| |: :|: '" },
-      { "id": "aretinoOperator", "description": "Aretino expander *, spacer =, neume separator /" },
-      { "id": "aretinoNeume", "description": "Aretino neume grouping brackets [ ]" },
-      { "id": "aretinoStrong", "description": "Aretino {bold} text" },
-      { "id": "aretinoEmphasis", "description": "Aretino <italic> text" },
-      { "id": "aretinoLink", "description": "Aretino [underline] text" }
+      {
+        "id": "aretinoMeta",
+        "description": "Aretino header key (%key:) and %% separator"
+      },
+      {
+        "id": "aretinoComment",
+        "description": "Aretino comment (% … and %[ … %] blocks)"
+      },
+      {
+        "id": "aretinoFormat",
+        "description": "Aretino inline-formatting delimiters { } < > [ ]"
+      },
+      {
+        "id": "aretinoKeyword",
+        "description": "Aretino line prefix (w:/W:/n:) and (directives)"
+      },
+      {
+        "id": "aretinoText",
+        "description": "Aretino lyric/verse/header text and \"labels\""
+      },
+      {
+        "id": "aretinoPitch",
+        "description": "Aretino pitch note plus modifiers"
+      },
+      {
+        "id": "aretinoBarline",
+        "description": "Aretino barlines , ; | || ||| :| |: :|: '"
+      },
+      {
+        "id": "aretinoOperator",
+        "description": "Aretino expander *, spacer =, neume separator /"
+      },
+      {
+        "id": "aretinoNeume",
+        "description": "Aretino neume grouping brackets [ ]"
+      },
+      {
+        "id": "aretinoStrong",
+        "description": "Aretino {bold} text"
+      },
+      {
+        "id": "aretinoEmphasis",
+        "description": "Aretino <italic> text"
+      },
+      {
+        "id": "aretinoLink",
+        "description": "Aretino [underline] text"
+      }
     ],
     "semanticTokenScopes": [
       {
         "language": "aretino",
         "scopes": {
-          "aretinoMeta": ["entity.name.tag.aretino"],
-          "aretinoComment": ["comment.line.aretino"],
-          "aretinoFormat": ["punctuation.definition.tag.aretino"],
-          "aretinoKeyword": ["keyword.control.aretino"],
-          "aretinoText": ["string.quoted.aretino"],
-          "aretinoPitch": ["constant.numeric.aretino"],
-          "aretinoBarline": ["keyword.control.aretino"],
-          "aretinoOperator": ["keyword.operator.aretino"],
-          "aretinoNeume": ["variable.other.constant.aretino", "constant.other.aretino"],
-          "aretinoStrong": ["markup.bold.aretino"],
-          "aretinoEmphasis": ["markup.italic.aretino"],
-          "aretinoLink": ["markup.underline.link.aretino", "markup.underline.aretino"]
+          "aretinoMeta": [
+            "entity.name.tag.aretino"
+          ],
+          "aretinoComment": [
+            "comment.line.aretino"
+          ],
+          "aretinoFormat": [
+            "punctuation.definition.tag.aretino"
+          ],
+          "aretinoKeyword": [
+            "keyword.control.aretino"
+          ],
+          "aretinoText": [
+            "string.quoted.aretino"
+          ],
+          "aretinoPitch": [
+            "constant.numeric.aretino"
+          ],
+          "aretinoBarline": [
+            "keyword.control.aretino"
+          ],
+          "aretinoOperator": [
+            "keyword.operator.aretino"
+          ],
+          "aretinoNeume": [
+            "variable.other.constant.aretino",
+            "constant.other.aretino"
+          ],
+          "aretinoStrong": [
+            "markup.bold.aretino"
+          ],
+          "aretinoEmphasis": [
+            "markup.italic.aretino"
+          ],
+          "aretinoLink": [
+            "markup.underline.link.aretino",
+            "markup.underline.aretino"
+          ]
         }
       }
     ],
@@ -118,7 +181,7 @@
       }
     ],
     "configuration": {
-      "title": "Aretino Chant Preview",
+      "title": "Aretino Chant Tools",
       "properties": {
         "aretino.preview.autoOpen": {
           "type": "boolean",
@@ -145,13 +208,13 @@
   "scripts": {
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "vscode:prepublish": "node esbuild.js --production"
-  },
-  "dependencies": {
-    "@aretino-chant/core": "*",
-    "@aretino-chant/editor": "*"
+    "vscode:prepublish": "node esbuild.js --production",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies"
   },
   "devDependencies": {
+    "@aretino-chant/core": "*",
+    "@aretino-chant/editor": "*",
     "@types/vscode": "^1.84.0",
     "esbuild": "^0.21.0"
   }

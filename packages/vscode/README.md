@@ -1,7 +1,7 @@
-# Aretino Chant Preview
+# Aretino Chant Tools
 
-A VS Code extension that renders a live SVG preview of [Aretino chant
-notation](https://aretino-chant.github.io) `.aretino` files.
+A VS Code extension with language support and a live SVG preview for
+[Aretino chant notation](https://aretino-chant.github.io) `.aretino` files.
 
 ## Features
 
@@ -31,7 +31,7 @@ notation](https://aretino-chant.github.io) `.aretino` files.
 
 ```sh
 npm install            # from the monorepo root
-npm run build -w @aretino-chant/vscode   # bundle the webview
+npm run build -w aretino-chant-tools   # bundle the webview
 # then press F5 in VS Code with this folder open to launch an Extension Host
 ```
 

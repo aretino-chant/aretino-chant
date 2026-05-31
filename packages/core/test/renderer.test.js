@@ -358,6 +358,62 @@ describe('renderAretino', () => {
     });
   });
 
+  describe('tenor recitation wrapping', () => {
+    const PHRASE = 'alpha~beta~gamma~delta~epsilon~zeta~eta~theta~iota~kappa';
+    const tenorGlyphCount = svg => (svg.match(/aretino-token aretino-ligature/g) || []).length;
+
+    it('wraps a long recited phrase across rows, repeating the tenor notehead', () => {
+      const svg = renderAretino(`at\nw: ${PHRASE}`, { width: 200 });
+      const lyr = lyricTextEntries(svg);
+      const rows = new Set(lyr.map(l => l.y)).size;
+      // All ten words still rendered, split over more than one row.
+      expect(lyr.map(l => l.text)).toEqual(PHRASE.split('~'));
+      expect(rows).toBeGreaterThan(1);
+      // One tenor notehead is drawn at the start of every row.
+      expect(tenorGlyphCount(svg)).toBe(rows);
+    });
+
+    it('keeps a phrase that fits on one line with a single tenor notehead', () => {
+      const svg = renderAretino(`at\nw: ${PHRASE}`, { width: 2000 });
+      const lyr = lyricTextEntries(svg);
+      expect(new Set(lyr.map(l => l.y)).size).toBe(1);
+      expect(tenorGlyphCount(svg)).toBe(1);
+    });
+
+    it('does not expand a single-word tenor syllable', () => {
+      const svg = renderAretino('at\nw: solo', { width: 600 });
+      expect(tenorGlyphCount(svg)).toBe(1);
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['solo']);
+    });
+
+    it('renders following notes after a wrapped recitation', () => {
+      const svg = renderAretino(`at b |\nw: ${PHRASE}`, { width: 200 });
+      const lyr = lyricTextEntries(svg);
+      const rows = new Set(lyr.map(l => l.y)).size;
+      // Recited words plus the trailing plain note: one tenor glyph per row + b.
+      expect(lyr.map(l => l.text)).toEqual(PHRASE.split('~'));
+      expect(tenorGlyphCount(svg)).toBe(rows + 1);
+    });
+
+    it('keeps a hyphen-joined syllable snug after the recited phrase', () => {
+      // The last recited word inherits the phrase's trailing hyphen ("orosz-lán"),
+      // so the following syllable butts up with a hyphen gap, not a word gap —
+      // matching a plain (non-recited) tenor + note pair.
+      const lyrX = svg => [...svg.matchAll(/<text[^>]*?xml:space="preserve"[^>]*? x="([^"]+)"[^>]*? y="([^"]+)"[^>]*>(.*?)<\/text>/g)]
+        .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]), text: m[3].replace(/<[^>]*>/g, '') }));
+      const gapBetween = (svg, a, b) => {
+        const xs = lyrX(svg);
+        const ai = xs.find(e => e.text === a);
+        // The following syllable shares the last recited word's row.
+        const bi = xs.find(e => e.text === b && e.y === ai.y);
+        return bi.x - ai.x;
+      };
+      const recited = renderAretino('at b |\nw: alpha~beta~orosz-lán', { width: 300 });
+      const plain = renderAretino('at b |\nw: orosz-lán', { width: 600 });
+      expect(gapBetween(recited, 'orosz', 'lán')).toBeCloseTo(gapBetween(plain, 'orosz', 'lán'), 1);
+    });
+  });
+
   describe('source-mapped caret elements', () => {
     it('can render without interactive source-map and highlight markup', () => {
       const svg = renderAretino('(g2) g-.', { sourceMap: false });

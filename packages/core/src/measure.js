@@ -130,6 +130,12 @@ export function measureItem(ctx, item) {
         return 0;
     }
     if (item.kind === 'ligature') {
+        // A recitation piece draws no notehead of its own (the repeated tenor
+        // glyph sits at the row-start word's left edge), so its width is purely
+        // the word's prose advance carried in syllableExtra.
+        if (item.recitationGlyphless) {
+            return item.syllableExtra || 0;
+        }
         return accidentalListAdvance(ctx, item.leadingCourtesyAccidentals)
             + measureLigature(ctx, item.groups, item.gaps ?? [])
             + (item.syllableExtra || 0);

@@ -33,6 +33,8 @@ import {
 import {
     measureTextWidth,
     measureSegmentsWidth,
+    sliceSegments,
+    trimSegmentsEnd,
     parseFormattingToSegments,
     renderSegments,
     renderMixedLabel,
@@ -45,6 +47,93 @@ import { measureLigature, measureBarline, rowLowestNoteY } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
+
+let recitationChainCounter = 0;
+
+// An empty per-ligature syllable placeholder (no text), used when padding a
+// recitation split across verses that don't recite.
+function emptyRecitationSyllable() {
+    return {
+        text: '', alignText: '', segments: [], alignSegments: [], suffixSegments: [],
+        hyphenAfter: false, hyphenMandatory: false, kind: 'note',
+    };
+}
+
+// Splits a recitation syllable's whitespace-separated words into one syllable
+// per word, preserving per-character formatting via segment slicing. Returns
+// null when the syllable is a single word (nothing to wrap).
+function splitRecitationWords(syl) {
+    const text = syl.text || '';
+    if (!/\s/.test(text.trim())) return null;
+    const segments = syl.segments || [];
+    const words = [];
+    const re = /\S+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const start = m.index;
+        const wordSegs = trimSegmentsEnd(sliceSegments(segments, start), m[0].length);
+        words.push({
+            text: m[0], alignText: m[0],
+            segments: wordSegs, alignSegments: wordSegs, suffixSegments: [],
+            hyphenAfter: false, hyphenMandatory: false, kind: 'note',
+        });
+    }
+    if (words.length < 2) return null;
+    // The hyphen/connection to the syllable *after* the recited phrase
+    // (e.g. the "lán" of "...orosz-lán") belongs to the last word, so it
+    // butts up against the following note with a snug hyphen gap instead of
+    // a full word gap.
+    const last = words[words.length - 1];
+    last.hyphenAfter = syl.hyphenAfter || false;
+    last.hyphenMandatory = syl.hyphenMandatory || false;
+    return words;
+}
+
+// A tenor (recitation) note carries its whole recited phrase as one syllable
+// (words joined by ~). To let that phrase wrap between words — repeating the
+// tenor notehead at each line start — expand the single tenor ligature into one
+// glyphless "piece" per word, splitting the matching syllable in every verse in
+// lockstep so the 1-ligature⇄1-syllable indexing the renderer relies on holds.
+function expandTenorRecitations(items, verseNotes) {
+    let li = 0;
+    for (let ii = 0; ii < items.length; ii++) {
+        const it = items[ii];
+        if (it.kind !== 'ligature') continue;
+        const isSingleTenor = it.groups.length === 1
+            && it.groups[0].length === 1
+            && it.groups[0][0].shape === 'tenor';
+        const syl0 = verseNotes[0]?.[li];
+        const words = isSingleTenor && syl0 ? splitRecitationWords(syl0) : null;
+        if (!words) { li++; continue; }
+        const chainId = ++recitationChainCounter;
+        const pieces = words.map(() => ({ ...it, recitationGlyphless: true, recitationChainId: chainId }));
+        items.splice(ii, 1, ...pieces);
+        ii += pieces.length - 1;
+        for (let v = 0; v < verseNotes.length; v++) {
+            const notes = verseNotes[v];
+            if (li >= notes.length) continue;
+            if (v === 0) {
+                notes.splice(li, 1, ...words);
+            } else {
+                // Move the trailing-hyphen flags onto the last piece so the
+                // connection to the following syllable lands at the phrase's
+                // end (mirroring the verse-0 word split above).
+                const orig = notes[li];
+                const hyphenAfter = orig.hyphenAfter || false;
+                const hyphenMandatory = orig.hyphenMandatory || false;
+                orig.hyphenAfter = false;
+                orig.hyphenMandatory = false;
+                const pad = [orig];
+                for (let k = 1; k < words.length; k++) pad.push(emptyRecitationSyllable());
+                const lastPad = pad[pad.length - 1];
+                lastPad.hyphenAfter = hyphenAfter;
+                lastPad.hyphenMandatory = hyphenMandatory;
+                notes.splice(li, 1, ...pad);
+            }
+        }
+        li += words.length;
+    }
+}
 
 const MM_PER_INCH = 25.4;
 const DEFAULT_DPI = 96;
@@ -276,6 +365,9 @@ export function renderAretino(source, options = {}) {
 
         const verseSyllables = sec.lyrics.map(parseSyllables);
         const verseNotes = verseSyllables.map(arr => expandSyllablesForLigatures(arr.filter(s => s.kind === 'note')));
+        // Expand any tenor recitation (single tenor note + multi-word syllable)
+        // into one glyphless piece per word so the phrase can wrap between words.
+        expandTenorRecitations(items, verseNotes);
         const verseBarlines = verseSyllables.map(arr => arr.filter(s => s.kind === 'barline'));
         const verseCount = sec.lyrics.length;
         const totalLigatures = items.reduce((n, it) => n + (it.kind === 'ligature' ? 1 : 0), 0);
@@ -351,7 +443,9 @@ export function renderAretino(source, options = {}) {
             }
             for (let i = 0; i < ligInfo.length; i++) {
                 const { item, maxSylW, maxCurrRight, isCentered } = ligInfo[i];
-                const baseAdv = measureLigature(ctx, item.groups, item.gaps ?? []);
+                // Recitation pieces have no notehead footprint: their whole advance
+                // is the word's prose width carried by syllableExtra.
+                const baseAdv = item.recitationGlyphless ? 0 : measureLigature(ctx, item.groups, item.gaps ?? []);
                 // Right-edge offset from the ligature's left, including trailing punctuation.
                 const currRight = maxCurrRight;
                 // How far the next syllable extends to the left of the next ligature's
@@ -539,6 +633,10 @@ export function renderAretino(source, options = {}) {
             let cursorX = staffLeftX;
             const rowLigatures = [];
             const rowBarlines = [];
+            // Recitation chains whose tenor notehead has already been drawn on
+            // this row; the first piece of each chain per row draws the glyph,
+            // giving the "repeat the note at each line start" behaviour.
+            const recitationGlyphDrawn = new Set();
 
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
@@ -750,6 +848,21 @@ export function renderAretino(source, options = {}) {
                         if (slurBot > rowBottomY) rowBottomY = slurBot;
                         slurState = null;
                     }
+                } else if (it.kind === 'ligature' && it.recitationGlyphless) {
+                    // Recitation piece: one word of a wrapping tenor phrase. Draw
+                    // the tenor notehead only for the first piece of this chain on
+                    // the row (the original on the first row, repeated thereafter);
+                    // the word itself is laid out as a left-aligned syllable.
+                    lastNote = it.groups[0][0];
+                    if (!recitationGlyphDrawn.has(it.recitationChainId)) {
+                        const g = emitLigature(ctx, it.groups, cursorX, staffBottomY, [], []);
+                        parts.push(wrapSrc(it, g.svg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, g.leftX, g.rightX - g.leftX, sourceMap));
+                        if (g.minY < rowTopY) rowTopY = g.minY;
+                        if (g.maxY > rowBottomY) rowBottomY = g.maxY;
+                        recitationGlyphDrawn.add(it.recitationChainId);
+                    }
+                    rowLigatures.push({ centerX: cursorX, leftX: cursorX, shouldAlignLeft: true });
+                    cursorX += (it.syllableExtra || 0);
                 } else if (it.kind === 'ligature') {
                     const lastGroup = it.groups[it.groups.length - 1];
                     lastNote = lastGroup[lastGroup.length - 1];

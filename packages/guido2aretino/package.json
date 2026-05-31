@@ -1,6 +1,6 @@
 {
   "name": "@aretino-chant/guido2aretino",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Converter from Guido TTF notation to Aretino chant notation.",
   "type": "module",
   "exports": {
@@ -12,7 +12,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "test": "vitest run"
   },
   "keywords": [
     "gregorian",
@@ -26,6 +27,7 @@
     "@aretino-chant/core": "*"
   },
   "devDependencies": {
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vitest": "^2.0.0"
   }
 }

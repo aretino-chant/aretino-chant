@@ -1,5 +1,12 @@
 import { renderAretino } from '@aretino-chant/core';
-import { guidoToAretino } from '../src/convert.js';
+import { guidoToAretino, guidoTextToAretino } from '../src/convert.js';
+
+const SAMPLE_TEXT =
+    'Hús-----vét   ün-ne--pe  e-lőtt      @       tör---------tént: Tud----ván ' +
+    'Jé-zus, hogy az Ő     ó---rá--ja  el----------jött, hogy át------men-jen a ' +
+    'vi-lág--ból az A-tyá---------hoz, a va-cso-ra  vé--gén fel------------------kelt, ' +
+    'és ken---dőt     kö-tött ma-ga  e-lé,        vi-zet ön----tött a tál----ba,  ' +
+    's_mos-ni kezd-te  a ta-nít-vá-nyok lá------bát.';
 
 const INITIAL_ROWS = [
     // example from spec: full melody with clef, key sig, barlines
@@ -96,3 +103,13 @@ for (const row of INITIAL_ROWS) {
 }
 
 document.getElementById('add-row').addEventListener('click', () => addRow(''));
+
+// Lyric text converter
+const textInput = document.getElementById('text-input');
+const textOutput = document.getElementById('text-output');
+function updateText() {
+    textOutput.value = guidoTextToAretino(textInput.value);
+}
+textInput.addEventListener('input', updateText);
+textInput.value = SAMPLE_TEXT;
+updateText();

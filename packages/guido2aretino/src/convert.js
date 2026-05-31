@@ -49,6 +49,25 @@ const PLICA_CHARS = new Set(["'", '"', '+', '=', '!', '(', ')', '/', '%', '§'])
 // Barline characters
 const BARLINE_MAP = { ':': ',', ',': '|', '.': '|||', ';': ';' };
 
+// Guido lyrics are aligned to the font by hand: editors pad with runs of
+// hyphens and spaces (and the occasional NBSP) purely for visual spacing. That
+// hand-tuning can't be reproduced faithfully, so we normalise to plain Aretino
+// lyric text following the typical conventions:
+//   - a run of hyphens is a single syllable break                 ---  → -
+//   - a run of horizontal whitespace is a single space            '   ' → ' '
+//   - '_' is a nonbreaking space joining the syllable             _    → ~
+//   - '@' has no Aretino equivalent and is dropped                @    → (removed)
+// Newlines are preserved; whitespace around them is trimmed.
+export function guidoTextToAretino(input) {
+    return input
+        .replace(/_/g, '~')                    // nonbreaking space → ~
+        .replace(/@/g, '')                     // unknown marker → dropped
+        .replace(/-+/g, '-')                   // collapse hyphen runs
+        .replace(/[^\S\n]+/g, ' ')             // collapse horizontal whitespace runs
+        .replace(/[^\S\n]*\n[^\S\n]*/g, '\n')  // trim whitespace around newlines
+        .trim();
+}
+
 export function guidoToAretino(input) {
     let output = '';
     let i = 0;

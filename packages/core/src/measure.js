@@ -57,6 +57,56 @@ export function measureLigature(ctx, groups, gaps = []) {
     return measureSplitLigature(ctx, split.groups, split.gaps);
 }
 
+export function measureLigatureVisualRight(ctx, groups, gaps = []) {
+    const split = splitGroupsAtInternalMora(groups, gaps);
+    groups = split.groups;
+    gaps = split.gaps;
+
+    const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+    let groupStartX = 0;
+    let lastNoteCx = null;
+
+    for (let g = 0; g < groups.length; g++) {
+        const notes = groups[g];
+        let cx = groupStartX + halfNoteW;
+
+        for (let i = 0; i < notes.length; i++) {
+            const note = notes[i];
+            if (note.accidental) {
+                cx += accidentalSymbolAdvance(ctx, note.accidental.symbol);
+            }
+            lastNoteCx = cx;
+            if (i < notes.length - 1) {
+                cx += ctx.ligatureStepAdvance;
+            }
+        }
+
+        if (g < groups.length - 1) {
+            const gapType = gaps[g] ?? 1;
+            const slashCount = typeof gapType === 'number' ? gapType : 0;
+            const lastNote = notes[notes.length - 1];
+            const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
+            const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
+            const moraOverhang = (hasMora || moraNoteCount >= 2)
+                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
+                : 0;
+            const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
+            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
+        }
+    }
+
+    if (lastNoteCx === null) {
+        return 0;
+    }
+
+    const lastGroup = groups[groups.length - 1];
+    const lastNote = lastGroup?.[lastGroup.length - 1];
+    const lastNoteHasMora = lastNote?.modifiers?.includes('mora');
+    const allMoraNoteCount = groups.reduce((sum, group) => sum + group.filter(note => note.modifiers?.includes('mora')).length, 0);
+    const hasMora = lastNoteHasMora || allMoraNoteCount >= 2;
+    return lastNoteCx + ss(ctx, hasMora ? METRICS.moraOffsetX + METRICS.moraRadius : METRICS.noteBoxWidth * 0.5);
+}
+
 export function measureSplitLigature(ctx, groups, gaps) {
     let total = 0;
     for (let g = 0; g < groups.length; g++) {

@@ -43,7 +43,7 @@ import { ss } from './units.js';
 import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
-import { measureLigature, measureBarline, rowLowestNoteY } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -419,16 +419,22 @@ export function renderAretino(source, options = {}) {
                         if (prefixW > maxPrefixW) maxPrefixW = prefixW;
                     }
                 }
-                ligInfo.push({ item: it, maxSylW, maxCurrRight, isCentered, maxPrefixW, itemIdx });
+                const visualRight = it.recitationGlyphless
+                    ? 0
+                    : measureLigatureVisualRight(ctx, it.groups, it.gaps ?? []);
+                const protectedCurrRight = isCentered
+                    ? maxCurrRight
+                    : Math.max(maxCurrRight, visualRight);
+                ligInfo.push({ item: it, maxSylW, protectedCurrRight, isCentered, maxPrefixW, itemIdx });
                 li++;
             }
             for (let i = 0; i < ligInfo.length; i++) {
-                const { item, maxSylW, maxCurrRight, isCentered } = ligInfo[i];
+                const { item, maxSylW, protectedCurrRight, isCentered } = ligInfo[i];
                 // Recitation pieces have no notehead footprint: their whole advance
                 // is the word's prose width carried by syllableExtra.
                 const baseAdv = item.recitationGlyphless ? 0 : measureLigature(ctx, item.groups, item.gaps ?? []);
                 // Right-edge offset from the ligature's left, including trailing punctuation.
-                const currRight = maxCurrRight;
+                const currRight = protectedCurrRight;
                 // How far the next syllable extends to the left of the next ligature's
                 // start (positive = intrudes). Only centered syllables intrude leftward.
                 // If a barline sits between the two ligatures, the barline provides

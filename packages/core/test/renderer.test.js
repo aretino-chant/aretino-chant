@@ -26,11 +26,18 @@ function textFontFamilies(svg) {
 }
 
 function lyricTextEntries(svg) {
-  return [...svg.matchAll(/<text[^>]*?xml:space="preserve"[^>]*? y="([^"]+)"[^>]*>(.*?)<\/text>/g)]
-    .map(m => ({
-      y: parseFloat(m[1]),
-      text: m[2].replace(/<[^>]*>/g, ''),
-    }));
+  return [...svg.matchAll(/<text\b([^>]*)xml:space="preserve"([^>]*)>(.*?)<\/text>/g)]
+    .map(m => {
+      const attrs = `${m[1]} ${m[2]}`;
+      const attr = name => new RegExp(`\\b${name}="([^"]+)"`).exec(attrs)?.[1] ?? null;
+      return {
+        x: parseFloat(attr('x')),
+        y: parseFloat(attr('y')),
+        fontFamily: attr('font-family'),
+        fontSize: parseFloat(attr('font-size')),
+        text: m[3].replace(/<[^>]*>/g, ''),
+      };
+    });
 }
 
 function courtesyAccidentalCount(svg) {
@@ -48,6 +55,15 @@ function sourceMappedGroups(svg) {
       srcStart: Number(m[2]),
       srcEnd: Number(m[3]),
     }));
+}
+
+function ligatureBoxes(svg) {
+  return [...svg.matchAll(/<g class="aretino-token aretino-ligature"[^>]*data-bbox-x="([^"]+)" data-bbox-width="([^"]+)"/g)]
+    .map(m => {
+      const x = Number(m[1]);
+      const width = Number(m[2]);
+      return { x, width, right: x + width };
+    });
 }
 
 function viewBoxBottom(svg) {
@@ -248,6 +264,17 @@ describe('renderAretino', () => {
       expect(xNoPunct).not.toBeNull();
       expect(xWithPunct).not.toBeNull();
       expect(xWithPunct).toBeGreaterThan(xNoPunct);
+    });
+
+    it('keeps a following syllable out from under a long neume when the hyphen is shown', () => {
+      const svg = renderAretino('fgabag c\nw: i-gyam', { width: 600 });
+      const gyam = lyricTextEntries(svg).find(l => l.text === 'gyam');
+      const firstLigature = ligatureBoxes(svg)[0];
+      const gyamW = measureTextWidth(gyam.text, gyam.fontSize, gyam.fontFamily);
+      const gyamLeft = gyam.x - gyamW / 2;
+
+      expect(renderedHyphenCount(svg)).toBe(1);
+      expect(gyamLeft).toBeGreaterThanOrEqual(firstLigature.right - 0.01);
     });
 
     it('preserves small and large formatting in aligned lyric syllables', () => {

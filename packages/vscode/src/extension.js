@@ -6,8 +6,11 @@
 
 const vscode = require('vscode');
 const { AretinoPreviewManager } = require('./preview');
+const { registerHighlighting } = require('./highlight');
 
 function activate(context) {
+    registerHighlighting(context);
+
     const manager = new AretinoPreviewManager(context);
     context.subscriptions.push(manager);
 

@@ -15,9 +15,13 @@ describe('guidoTextToAretino', () => {
         expect(guidoTextToAretino('s_mos-ni')).toBe('s~mos-ni');
     });
 
-    it('drops @ and collapses the surrounding whitespace', () => {
+    it('converts @ to a nonbreaking space (~)', () => {
         expect(guidoTextToAretino('e-lőtt      @       tör---tént'))
-            .toBe('e-lőtt tör-tént');
+            .toBe('e-lőtt ~ tör-tént');
+    });
+
+    it('converts text markers to parenthesized Aretino markers', () => {
+        expect(guidoTextToAretino('Al-le-lu-ja * †')).toBe('Al-le-lu-ja (*) (†)');
     });
 
     it('collapses tabs and non-breaking spaces too', () => {
@@ -35,7 +39,7 @@ describe('guidoTextToAretino', () => {
             'Tud----ván Jé-zus, hogy az Ő     ó---rá--ja  el----------jött, ' +
             's_mos-ni kezd-te  a ta-nít-vá-nyok lá-------------------bát.';
         const expected =
-            'Hús-vét ün-ne-pe e-lőtt tör-tént: ' +
+            'Hús-vét ün-ne-pe e-lőtt ~ tör-tént: ' +
             'Tud-ván Jé-zus, hogy az Ő ó-rá-ja el-jött, ' +
             's~mos-ni kezd-te a ta-nít-vá-nyok lá-bát.';
         expect(guidoTextToAretino(input)).toBe(expected);

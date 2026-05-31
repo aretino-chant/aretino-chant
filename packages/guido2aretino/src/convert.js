@@ -55,13 +55,16 @@ const BARLINE_MAP = { ':': ',', ',': '|', '.': '|||', ';': ';' };
 // lyric text following the typical conventions:
 //   - a run of hyphens is a single syllable break                 ---  → -
 //   - a run of horizontal whitespace is a single space            '   ' → ' '
-//   - '_' is a nonbreaking space joining the syllable             _    → ~
-//   - '@' has no Aretino equivalent and is dropped                @    → (removed)
+//   - '_' and '@' are nonbreaking spaces joining the syllable     _ @  → ~
+//   - '*' is a parenthesized asterisk marker                      *    → (*)
+//   - '†' is a parenthesized dagger marker                        †    → (†)
 // Newlines are preserved; whitespace around them is trimmed.
 export function guidoTextToAretino(input) {
     return input
         .replace(/_/g, '~')                    // nonbreaking space → ~
-        .replace(/@/g, '')                     // unknown marker → dropped
+        .replace(/@/g, '~')                    // nonbreaking space → ~
+        .replace(/\*/g, '(*)')                 // asterisk marker
+        .replace(/†/g, '(†)')                  // dagger marker
         .replace(/-+/g, '-')                   // collapse hyphen runs
         .replace(/[^\S\n]+/g, ' ')             // collapse horizontal whitespace runs
         .replace(/[^\S\n]*\n[^\S\n]*/g, '\n')  // trim whitespace around newlines

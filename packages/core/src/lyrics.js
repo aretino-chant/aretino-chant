@@ -7,6 +7,7 @@ import { wrapSrc } from './svg.js';
 import {
     LITERAL_HYPHEN,
     LITERAL_OPEN_PAREN,
+    LITERAL_UNDERSCORE,
     measureTextWidth,
     measureSegmentsWidth,
     sliceSegments,
@@ -38,20 +39,32 @@ function sourceSpanFromOffsets(offsets) {
 // noteGroupCount=N occupies N consecutive ligature slots: the first slot
 // carries the real text; subsequent slots are empty placeholders with
 // hyphenAfter=true so the hyphen-connector and snug spacing still apply.
+//
+// An extender syllable ("ro__") is held over extenderCount neumes total: its
+// own neume plus one per *extra* underscore. So "ro_" covers just its own
+// neume, "ro__" its own plus the next, etc. The placeholder slots (one per
+// extra underscore) are marked `extender:true` so a continuous prolongation
+// line is drawn over them instead of hyphens; the last one carries
+// `extenderLast` (and the extender's trailing punctuation).
 export function expandSyllablesForLigatures(notes) {
     const expanded = [];
     for (const syl of notes) {
         const n = syl.noteGroupCount || 1;
+        const isExtender = (syl.extenderCount || 0) > 0;
         expanded.push(syl);
         for (let k = 1; k < n; k++) {
+            const isLast = k === n - 1;
             expanded.push({
                 text: '',
                 alignText: '',
                 segments: [],
                 alignSegments: [],
                 suffixSegments: [],
-                hyphenAfter: k < n - 1 ? true : syl.hyphenAfter,
-                hyphenMandatory: syl.hyphenMandatory || false,
+                hyphenAfter: isExtender ? false : (isLast ? syl.hyphenAfter : true),
+                hyphenMandatory: isExtender ? false : (syl.hyphenMandatory || false),
+                extender: isExtender,
+                extenderLast: isExtender && isLast,
+                extenderSuffixSegments: isExtender && isLast ? (syl.extenderSuffixSegments || []) : [],
                 kind: 'note',
             });
         }
@@ -173,33 +186,48 @@ export function parseSyllables(input) {
         let wPos = 0;
         while (wPos < word.length) {
             const sylStart = wPos;
-            while (wPos < word.length && word[wPos] !== '-' && word[wPos] !== '=') wPos++;
+            while (wPos < word.length && word[wPos] !== '-' && word[wPos] !== '=' && word[wPos] !== '_') wPos++;
             const sylEnd = wPos;
             let trailingHyphens = 0;
             let hyphenMandatory = false;
-            while (wPos < word.length && (word[wPos] === '-' || word[wPos] === '=')) {
-                if (word[wPos] === '=') hyphenMandatory = true;
-                trailingHyphens++;
+            let extenderCount = 0;
+            while (wPos < word.length && (word[wPos] === '-' || word[wPos] === '=' || word[wPos] === '_')) {
+                if (word[wPos] === '=') { hyphenMandatory = true; trailingHyphens++; }
+                else if (word[wPos] === '_') { extenderCount++; }
+                else { trailingHyphens++; }
                 wPos++;
             }
+            // Punctuation right after an extender run (e.g. "ro_.") belongs to the
+            // extender's end: it is drawn at the right edge of the last extended
+            // neume, mirroring how "ro." sits at the right of ro's own neume.
+            let sufStart = -1;
+            let sufEnd = -1;
+            if (extenderCount > 0) {
+                sufStart = wPos;
+                while (wPos < word.length && '.,;:!?'.includes(word[wPos])) wPos++;
+                sufEnd = wPos;
+            }
             if (sylEnd > sylStart) {
-                sylParts.push({ raw: word.slice(sylStart, sylEnd), startIdx: sylStart, endIdx: sylEnd, trailingHyphens, hyphenMandatory });
+                sylParts.push({ raw: word.slice(sylStart, sylEnd), startIdx: sylStart, endIdx: sylEnd, trailingHyphens, hyphenMandatory, extenderCount, sufStart, sufEnd });
             }
         }
-        for (const { raw, startIdx, endIdx, trailingHyphens, hyphenMandatory } of sylParts) {
+        for (const { raw, startIdx, endIdx, trailingHyphens, hyphenMandatory, extenderCount, sufStart, sufEnd } of sylParts) {
+            const isExtender = extenderCount > 0;
             const absStart = wordCharIndexes[startIdx];
             const absEnd = wordCharIndexes[endIdx - 1] + 1;
+            // Match the hyphen convention: a syllable's source span covers only its
+            // own letters, not the trailing separators (hyphens/underscores).
             const sourceSpan = sourceSpanForCleanedRange(absStart, absEnd);
             const tildeIdx = raw.indexOf('~~');
             let text, alignText;
             if (tildeIdx !== -1) {
-                text = raw.slice(0, tildeIdx).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
-                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
+                text = raw.slice(0, tildeIdx).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_') + ' ' + raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_');
+                alignText = raw.slice(tildeIdx + 2).replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_');
             } else {
-                text = raw.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(');
+                text = raw.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_');
                 alignText = text;
             }
-            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '('));
+            const segments = buildSegments(absStart, absEnd, s => s.replace(/~~/g, ' ').replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_'));
             let alignSegments = text === alignText
                 ? segments
                 : sliceSegments(segments, text.length - alignText.length);
@@ -212,19 +240,31 @@ export function parseSyllables(input) {
                 suffixSegments = sliceSegments(alignSegments, coreLen);
                 alignSegments = trimSegmentsEnd(alignSegments, coreLen);
             }
+            // Extender trailing punctuation, rendered at the line's far end.
+            let extenderSuffixSegments = [];
+            if (isExtender && sufEnd > sufStart) {
+                const sufAbsStart = wordCharIndexes[sufStart];
+                const sufAbsEnd = wordCharIndexes[sufEnd - 1] + 1;
+                extenderSuffixSegments = buildSegments(sufAbsStart, sufAbsEnd, s => s.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_'));
+            }
+            // An extender holds the syllable over its own neume plus one per
+            // *extra* underscore, so it occupies extenderCount neumes in total.
+            const groupCount = isExtender ? extenderCount : Math.max(1, trailingHyphens);
             result.push({
                 text,
                 alignText,
                 segments,
                 alignSegments,
                 suffixSegments,
-                hyphenAfter: trailingHyphens > 0,
-                hyphenMandatory: trailingHyphens > 0 && hyphenMandatory,
-                noteGroupCount: Math.max(1, trailingHyphens),
+                hyphenAfter: !isExtender && trailingHyphens > 0,
+                hyphenMandatory: !isExtender && trailingHyphens > 0 && hyphenMandatory,
+                noteGroupCount: groupCount,
+                extenderCount: isExtender ? extenderCount : 0,
+                extenderSuffixSegments,
                 kind: 'note',
                 ...sourceSpan,
             });
-            noteCount += Math.max(1, trailingHyphens);
+            noteCount += groupCount;
         }
     }
     return result;
@@ -355,6 +395,26 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     let prevSylIdx = -1;
     let prevLeft = 0;
     const workSyllables = syllables.slice();
+    // Extender prolongation line: the x-span [extStartX, extEndX] of the line
+    // currently being built, or nulls when no extender is in progress. State is
+    // reset per call, i.e. per row, so a line that wraps simply restarts at the
+    // next row's first extended neume.
+    let extStartX = null;
+    let extEndX = null;
+    const extenderGap = fontSize * 0.15;
+    const extenderStrokeW = Math.max(0.5, fontSize * 0.06);
+    // Prolongation lines shorter than this are visual stubs, so they are dropped.
+    // A single short note under the syllable text leaves little or no room past
+    // the text, so most single-underscore ("ro_") extenders draw nothing.
+    const extenderMinLen = fontSize * 0.5;
+    const flushExtender = () => {
+        if (extStartX !== null && extEndX !== null && extEndX - extStartX >= extenderMinLen) {
+            parts.push(`<line x1="${extStartX}" y1="${lyricY}" x2="${extEndX}" y2="${lyricY}" stroke="#000" stroke-width="${extenderStrokeW}"/>`);
+            if (extEndX > maxX) maxX = extEndX;
+        }
+        extStartX = null;
+        extEndX = null;
+    };
 
     for (let i = 0; i < workSyllables.length; i++) {
         let syl = workSyllables[i];
@@ -429,10 +489,45 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
             if (hyphenX + hyphenSpaceW / 2 > maxX) maxX = hyphenX + hyphenSpaceW / 2;
         }
+        // Extender ("ro_", "ro__"): the syllable is held over its own neume plus
+        // one further neume per extra underscore. Build a single continuous
+        // prolongation line from just past the syllable text to the right edge of
+        // the last held neume; trailing punctuation ("ro_.") sits at that far end.
+        const isExtenderHead = (syl.extenderCount || 0) > 0;
+        if (isExtenderHead || syl.extender) {
+            const lig = i < ligatures.length ? ligatures[i] : null;
+            const ligRight = lig ? (lig.rightX ?? lig.centerX) : right;
+            if (isExtenderHead) {
+                // Head: the line starts past this syllable's text and already
+                // covers the syllable's own (current) neume.
+                extStartX = right + extenderGap;
+            } else if (extStartX === null) {
+                // Row started mid-extender: begin at this neume's left edge.
+                extStartX = lig ? lig.leftX : left;
+            }
+            extEndX = ligRight;
+            const isLast = isExtenderHead ? syl.extenderCount === 1 : syl.extenderLast;
+            if (isLast) {
+                const suf = syl.extenderSuffixSegments || [];
+                const lineEnd = extEndX;
+                flushExtender();
+                if (suf.length) {
+                    // Punctuation sits at the far end of the held span, but never
+                    // back inside the syllable text when the line was dropped.
+                    const sx = Math.max(lineEnd, right) + extenderGap;
+                    parts.push(`<text xml:space="preserve" x="${sx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="start" fill="#000">${renderSegments(suf)}</text>`);
+                    const sufW = measureSegmentsWidth(suf, fontSize, fontFamily, measureFn);
+                    if (sx + sufW > maxX) maxX = sx + sufW;
+                }
+            }
+        }
         prevRight = right;
         lastRight = right;
         if (right > maxX) maxX = right;
     }
+    // An extender that runs to the end of the row (its last slot is on the next
+    // row) still needs its in-row span drawn.
+    flushExtender();
 
     // Word broken at the row boundary: render a trailing hyphen so the reader
     // knows the syllable continues on the next row.

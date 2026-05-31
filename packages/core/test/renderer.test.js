@@ -356,6 +356,82 @@ describe('renderAretino', () => {
         expect(renderedHyphenCount(svg)).toBe(1);
       });
     });
+
+    describe('_ extender line', () => {
+      // Prolongation segments sit on the lyric baseline (horizontal: y1 === y2 ===
+      // lyricY), distinct from staff lines (higher up) and note decorations.
+      function extenderLines(svg) {
+        const lyricY = firstLyricY(svg);
+        return [...svg.matchAll(/<line ([^>]*?)\/>/g)]
+          .map(m => m[1])
+          .map(a => ({
+            x1: parseFloat(/x1="([\d.]+)"/.exec(a)?.[1]),
+            x2: parseFloat(/x2="([\d.]+)"/.exec(a)?.[1]),
+            y1: parseFloat(/y1="([\d.]+)"/.exec(a)?.[1]),
+            y2: parseFloat(/y2="([\d.]+)"/.exec(a)?.[1]),
+          }))
+          .filter(l => Math.abs(l.y1 - lyricY) < 0.5 && Math.abs(l.y1 - l.y2) < 0.01 && l.x2 > l.x1)
+          .sort((a, b) => a.x1 - b.x1);
+      }
+
+      it('draws a single continuous prolongation line over the held neumes', () => {
+        // "ro___" (3 underscores) holds the syllable over its own neume plus two
+        // more: notes 1-3 of the four. The 4th is left empty.
+        const svg = renderAretino('(c4) g g g g\nw: ro___', { width: 600 });
+        const lines = extenderLines(svg);
+        // One unbroken line, starting past "ro" and running well to its right.
+        expect(lines.length).toBe(1);
+        expect(lines[0].x2 - lines[0].x1).toBeGreaterThan(0);
+      });
+
+      it('renders trailing punctuation at the far end of the extender', () => {
+        const svg = renderAretino('(c4) g g g g\nw: ro___.', { width: 600 });
+        const lines = extenderLines(svg);
+        const lineEnd = lines[lines.length - 1].x2;
+        const periodXs = [...svg.matchAll(/<text[^>]*? x="([\d.]+)"[^>]*>\.<\/text>/g)]
+          .map(m => parseFloat(m[1]));
+        // The '.' sits at (or just past) the extender's right end, not back at "ro".
+        expect(periodXs.some(x => x >= lineEnd - 0.5)).toBe(true);
+      });
+
+      it('a single underscore extends over the current ligature', () => {
+        // "a_" holds "a" over its own (wide) ligature only; "b" follows on the
+        // next neume. The prolongation line ends before "b".
+        const svg = renderAretino('(c4) gfgfg g\nw: a_ b', { width: 600 });
+        const lines = extenderLines(svg);
+        expect(lines.length).toBe(1);
+        const lyrics = lyricTextEntries(svg).map(l => l.text).join(' ');
+        expect(lyrics).toContain('a');
+        expect(lyrics).toContain('b');
+        // "b" sits on the next neume, past the end of the prolongation line.
+        const bX = parseFloat(/<text[^>]*? x="([\d.]+)"[^>]*>b<\/text>/.exec(svg)?.[1]);
+        expect(bX).toBeGreaterThan(lines[0].x2);
+      });
+
+      it('a second underscore extends over the next neume too', () => {
+        // "a__" holds over its own ligature plus the following one ("extend both");
+        // the line reaches further right than the single-underscore case.
+        const wide = renderAretino('(c4) gfgfg gfgfg g\nw: a__ b', { width: 600 });
+        const narrow = renderAretino('(c4) gfgfg gfgfg g\nw: a_ b', { width: 600 });
+        const wideEnd = extenderLines(wide)[0].x2;
+        const narrowEnd = extenderLines(narrow)[0].x2;
+        expect(wideEnd).toBeGreaterThan(narrowEnd);
+      });
+
+      it('draws nothing when the held span is too short (single short note)', () => {
+        // "a_" over a single short note leaves no room past the text for a
+        // meaningful line, so none is drawn.
+        const svg = renderAretino('(c4) g\nw: a_', { width: 600 });
+        expect(extenderLines(svg).length).toBe(0);
+        expect(lyricTextEntries(svg).map(l => l.text).join('')).toContain('a');
+      });
+
+      it('\\_ renders a literal underscore instead of an extender', () => {
+        const svg = renderAretino('(c4) g\nw: a\\_b', { width: 600 });
+        expect(extenderLines(svg).length).toBe(0);
+        expect(lyricTextEntries(svg).map(l => l.text).join('')).toContain('a_b');
+      });
+    });
   });
 
   describe('tenor recitation wrapping', () => {

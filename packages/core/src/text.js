@@ -12,6 +12,10 @@ export const LITERAL_HYPHEN = '\uE001';
 // as a barline-label opener. Replaced with '(' in display text and segments.
 export const LITERAL_OPEN_PAREN = '\uE002';
 
+// Placeholder emitted by \_ escape so the syllable splitter doesn't treat it
+// as an extender-line marker. Replaced with '_' in display text and segments.
+export const LITERAL_UNDERSCORE = '\uE003';
+
 let _measureCanvas = null;
 
 export function measureTextWidth(text, fontSize, fontFamily, bold = false, italic = false) {
@@ -187,6 +191,8 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
                 addText(LITERAL_HYPHEN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text[i] === '(') {
                 addText(LITERAL_OPEN_PAREN, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
+            } else if (text[i] === '_') {
+                addText(LITERAL_UNDERSCORE, [sourceAt(slashIdx) ?? sourceAt(i)]); i++;
             } else if (text[i] === 'b' || text[i] === 'n' || text[i] === '#' || text[i] === "'") {
                 const glyphMap = { b: ['flat', 226], n: ['natural', 168], '#': ['sharp', 249], "'": ['stress', 235] };
                 const [glyphName, glyphAdvance] = glyphMap[text[i]];

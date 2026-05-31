@@ -9,7 +9,10 @@ const DEMO_SOURCE =`%title: Alleluia | Second line
 w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 
 at b |
-w: This~is~a~very~very~long~text~sung~on~the~same~note~so~probably~won't~fit~on~one~line`;
+w: This~is~a~very~very~long~text~sung~on~the~same~note~so~probably~won't~fit~on~one~line
+
+(c4) gfgfg gfgfg g g
+w: a__ b ro_.`;
 
 const demo = document.getElementById('demo');
 const eventOut = document.getElementById('event-out');

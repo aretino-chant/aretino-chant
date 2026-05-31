@@ -481,7 +481,15 @@ export function renderAretino(source, options = {}) {
                     for (const notes of verseNotes) {
                         if (i < notes.length && i + 1 < notes.length) {
                             pairExists = true;
-                            if (!notes[i].hyphenAfter) {
+                            // Neumes within an extender run butt together with no word
+                            // gap, just like a hyphen. The run's last slot (a single-
+                            // underscore head, or the final placeholder) ends the word,
+                            // so it does not connect to the following neume.
+                            const ni = notes[i];
+                            const connects = ni.hyphenAfter
+                                || (ni.extenderCount || 0) >= 2
+                                || (ni.extender && !ni.extenderLast);
+                            if (!connects) {
                                 allHyphenated = false;
                                 break;
                             }
@@ -842,7 +850,7 @@ export function renderAretino(source, options = {}) {
                         if (g.maxY > rowBottomY) rowBottomY = g.maxY;
                         recitationGlyphDrawn.add(it.recitationChainId);
                     }
-                    rowLigatures.push({ centerX: cursorX, leftX: cursorX, shouldAlignLeft: true });
+                    rowLigatures.push({ centerX: cursorX, leftX: cursorX, rightX: cursorX, shouldAlignLeft: true });
                     cursorX += (it.syllableExtra || 0);
                 } else if (it.kind === 'ligature') {
                     const lastGroup = it.groups[it.groups.length - 1];
@@ -859,7 +867,7 @@ export function renderAretino(source, options = {}) {
                         if (labelY - fontSize < rowTopY) rowTopY = labelY - fontSize;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
-                    rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, shouldAlignLeft: r.shouldAlignLeft });
+                    rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft });
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
                         if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;

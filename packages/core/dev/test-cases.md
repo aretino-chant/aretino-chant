@@ -281,6 +281,16 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 w: normal \small{small text} normal \large{large text} normal
 ```
 
+```
+at b |
+w: This~is~a~very~very~long~text~sung~on~the~same~note~so~probably~won't~fit~on~one~line
+```
+
+```
+(c4) gfgfg gfgfg g g
+w: a__ b ro_.`;
+```
+
 ---
 
 ## Labels

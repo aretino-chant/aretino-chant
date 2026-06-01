@@ -176,6 +176,17 @@ function aretino.render(inputfile)
   local extra = aretino.build_args(opts)
 
   if perline == "true" then
+    -- Remove stale per-line files so a shorter re-render doesn't include old lines.
+    do
+      local j = 1
+      while true do
+        local stale = basename .. "-" .. string.format("%03d", j)
+        if not io.open(stale .. ".svg", "r") then break end
+        os.remove(stale .. ".svg")
+        os.remove(stale .. ".pdf")
+        j = j + 1
+      end
+    end
     -- CLI writes basename-001.svg, basename-002.svg, …
     local svgbase = basename .. ".svg"
     local cmd_svg = cli .. " " .. aretino.sq(inputfile) .. " " .. extra

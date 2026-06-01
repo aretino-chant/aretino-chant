@@ -481,9 +481,21 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | `-` | Syllable boundary **within** a word — spaces after the hyphen are ignored, joined syllables butt together, and a hyphen appears only if the neumes leave room |
 | `\-` | Literal hyphen inside one syllable — useful when multiple words are sung on the same note, e.g. `only-begotten` |
 | `=` | Mandatory syllable boundary **within** a word — like `-`, but the hyphen is always shown and doesn't collapse when spacing is tight |
+| `_` | Extender line — holds the syllable over its own neume; each additional `_` extends it over one more following neume |
+| `\_` | Literal underscore inside one syllable |
 | `~` | Renders as a literal (non-breaking) space — keeps a multi-word unit in one syllable, e.g. `(unbreakable~space)` |
 | `~~` | Splits a syllable's display text from its alignment text |
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
+
+Extender underscores follow the syllable they extend: `ro_` holds `ro` over its
+own neume, `ro__` extends through the next neume, `ro___` through the next two,
+and so on. Trailing punctuation after the underscores belongs to the far end of
+the extender line:
+
+```aretino
+(g2) g g g g
+w: ro___.
+```
 
 `W:` verse lines flow as ordinary text (psalm tone style) and accept the same
 [text formatting](#15-text-formatting) as lyrics:

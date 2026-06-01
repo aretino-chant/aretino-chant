@@ -60,10 +60,10 @@ export const METRICS = {
     tenorOutlineStroke: 0.15,
     tenorOutlineStrokeMinPx: 0.8,
     tenorSideStrokeOffset: 0.15,      // gap between head edge and side stroke
-    tenorSideStrokeHalfHeight: 0.9,
+    tenorSideStrokeHalfHeight: 0.75,
     tenorSideStroke: 0.15,             // thickness of the two vertical bars
     tenorSideStrokeMinPx: 1.4,
-    tenorAdvanceExtra: 0.5,            // extra advance vs. a normal note (wider glyph)
+    tenorAdvanceExtra: 1.5,            // extra advance vs. a normal note (wider glyph)
 
     // --- Small notehead (optional psalm-tone notes) ----------------------
     smallNoteScale: 0.7,               // scale factor for small noteheads
@@ -90,14 +90,6 @@ export const METRICS = {
     plicaStroke: 0.15,
     plicaStrokeMinPx: 0.7,
 
-    // --- "Barline" plica (barline rendered like a glyph plica) ----------
-    plicaBarlineAnchorX: -0.5,            // x offset of both endpoints from notehead center
-    plicaBarlineTopY: 0.5,               // y offset above center (top-right corner of head)
-    plicaBarlineBottomY: 0.5,           // y offset below center (under bottom-right corner)
-    plicaBarlineBulge: 0.6,              // outward push of control points → curve depth
-    plicaBarlineStroke: 0.15,
-    plicaBarlineStrokeMinPx: 0.7,
-
     // --- Ligature connectors ----------------------------------------------
     ligatureConnectorStroke: 0.11,
     ligatureConnectorStrokeMinPx: 0.7,
@@ -111,10 +103,6 @@ export const METRICS = {
     quilismaOffsetY: 0.3,             // downward shift of entire glyph, × noteBoxHeight
 
     // --- Clefs ------------------------------------------------------------
-    clefCHeight: 0.9,
-    clefCWidth: 0.7,
-    clefCStroke: 0.34,
-    clefCStrokeMinPx: 0.9,
     clefCLeftPadding: 0.15,            // gap before C-clef body
     clefCRightPadding: 0.6,            // gap after C-clef body
     clefPostGap: 1,                  // gap after start-of-system clef
@@ -278,7 +266,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         const sideX = (noteW / 2 + ss(ctx, METRICS.tenorSideStrokeOffset)) * scale;
         const { dx: edgeDx } = noteheadEdgeOffset(ctx);
         // Shift the whole glyph right so its left outer stroke edge aligns with the normal notehead's left edge.
-        const tenorCx = cx + (sideX + sideSW / 2 - edgeDx * scale);
+        const tenorCx = cx + (sideX + sideSW - edgeDx * scale);
         parts.push(ovalHead(ctx, tenorCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale, fill: 'none', stroke: '#000', strokeWidth: sideSW }));
         const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
         parts.push(`<line x1="${tenorCx - sideX}" y1="${cy - halfH}" x2="${tenorCx - sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}" stroke-linecap="round"/>`);
@@ -401,21 +389,14 @@ export function drawPlica(ctx, cx, cy, direction = 'down') {
 }
 
 export function drawPlicaBarline(ctx, cx, cy, direction = 'down', onLine = false) {
-    const ax = cx + ss(ctx, METRICS.plicaBarlineAnchorX);
-    const topY = cy - ss(ctx, METRICS.plicaBarlineTopY);
-    const bottomY = cy + ss(ctx, METRICS.plicaBarlineBottomY);
-    const x1 = ax;
-    const x2 = ax;
-    let y1 = direction === 'down' ? topY : bottomY;
-    let y2 = direction === 'down' ? bottomY : topY;
-    if (!onLine) {
-        // Shift the barline plica up so its center aligns with the staff line.
-        y1 -= ctx.staffSpace * 0.5;
-        y2 -= ctx.staffSpace * 0.5;
-    }
-    const bulge = ss(ctx, METRICS.plicaBarlineBulge);
-    const sw = stroke(ctx, METRICS.plicaBarlineStroke, METRICS.plicaBarlineStrokeMinPx);
-    return `<path d="M ${x1} ${y1} C ${x1 + bulge} ${y1} ${x2 + bulge} ${y2} ${x2} ${y2}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+    // Bravura U+E9C3 chantStrophicusLiquescens3rd — a distinct liquescent hook,
+    // so the '~' plica barline no longer looks like a note's plica tail.
+    const scale = ctx.staffSpace / BRAVURA_UNITS_PER_SS * 0.7;
+    // Align the glyph center on the staff line nearest the last note.
+    const targetY = onLine ? cy : cy - ctx.staffSpace * 0.5;
+    const tx = cx - BRAVURA_CHANT_STROPHICUS.cx * scale;
+    const ty = targetY + BRAVURA_CHANT_STROPHICUS.cy * scale;
+    return `<path d="${BRAVURA_CHANT_STROPHICUS.path}" fill="#000" transform="translate(${tx}, ${ty}) scale(${scale}, ${-scale})"/>`;
 }
 
 function noteheadEdgeOffset(ctx, scale = 1) {
@@ -576,16 +557,13 @@ export function drawClef(ctx, clef, x, staffBottomY) {
         return { svg, advance, minY: lineY + (6390 - 6968) * k, maxY: lineY + (8297 - 6968) * k };
     }
     if (letter === 'c') {
-        // Square C-clef (bracket-style "C" centered on its line).
-        const h = ss(ctx, METRICS.clefCHeight);
-        const w = ss(ctx, METRICS.clefCWidth);
-        const sw = stroke(ctx, METRICS.clefCStroke, METRICS.clefCStrokeMinPx);
+        // Plainchant C-clef — Bravura U+E906 chantCclef, centered on its line.
+        const scale = ctx.staffSpace / BRAVURA_UNITS_PER_SS;
         const left = x + ss(ctx, METRICS.clefCLeftPadding);
-        const top = lineY - h / 2;
-        const bottom = lineY + h / 2;
-        const right = left + w;
-        const svg = `<path d="M ${right} ${top} L ${left} ${top} L ${left} ${bottom} L ${right} ${bottom}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
-        return { svg, advance: w + ss(ctx, METRICS.clefCRightPadding), minY: top - sw / 2, maxY: bottom + sw / 2 };
+        // Font origin: glyph is vertically centered at y=0 (font units), y-up.
+        const svg = `<path d="${BRAVURA_CHANT_C_CLEF.path}" fill="#000" transform="translate(${left}, ${lineY}) scale(${scale}, ${-scale})"/>`;
+        const halfH = BRAVURA_CHANT_C_CLEF.halfHeight * scale;
+        return { svg, advance: chantCclefAdvance(ctx), minY: lineY - halfH, maxY: lineY + halfH };
     }
     return { svg: '', advance: 0, minY: Infinity, maxY: -Infinity };
 }
@@ -598,6 +576,31 @@ const BRAVURA_BREATH_MARK_COMMA = {
     path: 'M72 251C29 251 1 223 1 188C1 154 24 132 57 132C82 132 85 111 85 111C86 107 87 104 87 100C87 86 80 73 71 61C54 39 28 24 26 22C22 20 18 18 18 12L19 11C20 4 23 2 26 2C59 2 110 46 126 71C146 102 152 137 152 166V173C152 220 118 251 72 251Z',
     advance: 153,
 };
+
+// U+E906 chantCclef — Plainchant C clef. bbox x[0,134] y[-221,221]: the glyph
+// is vertically centered on its line (font y-up), so it drops straight onto lineY.
+const BRAVURA_CHANT_C_CLEF = {
+    path: 'M69 61c-33 0 -61 -24 -61 -61s28 -61 61 -61s57 24 57 24c3 2 5 3 6 3c2 0 2 -3 2 -3v-128c0 -15 -9 -53 -58 -56h-5c-66 0 -71 79 -71 113v216c0 34 5 113 70 113h6c49 -3 58 -41 58 -56v-128s0 -3 -2 -3c-1 0 -3 1 -6 3c0 0 -24 24 -57 24z',
+    advance: 134,
+    halfHeight: 221,
+};
+
+// U+E9C3 chantStrophicusLiquescens3rd — used for the '~' plica barline so it
+// reads as a distinct liquescent hook rather than a note's plica tail.
+// bbox x[0,163] y[-39,333]: center (cx, cy) used to align the glyph on a point.
+const BRAVURA_CHANT_STROPHICUS = {
+    path: 'M0 -2v4c0 2 3 5 5 7l31 31s4 0 4 -1c13 -21 31 -29 31 -29c5 -2 10 -4 11 -4c27 29 50 69 50 110c0 42 -30 79 -59 106c-10 11 -23 18 -36 26c-1 1 -2 3 -2 5c0 1 0 3 1 4c7 10 22 29 22 29l32 44c2 2 5 3 7 3s4 -1 6 -3c38 -44 60 -103 60 -161c0 -52 -13 -101 -42 -144c-12 -16 -40 -55 -58 -62c-3 -1 -6 -2 -9 -2c-8 0 -19 7 -27 12c-8 8 -24 13 -27 25z',
+    cx: 81.5,
+    cy: 147,
+};
+
+// Bravura glyphs are drawn at 250 font units = 1 staff space (1 em = 1000 = 4 SS).
+const BRAVURA_UNITS_PER_SS = 250;
+
+export function chantCclefAdvance(ctx) {
+    const scale = ctx.staffSpace / BRAVURA_UNITS_PER_SS;
+    return BRAVURA_CHANT_C_CLEF.advance * scale + ss(ctx, METRICS.clefCRightPadding);
+}
 
 const BRAVURA_ACCIDENTALS = {
     // U+E4B6 articStressAbove — advance 235

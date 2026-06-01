@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { METRICS } from './glyphs.js';
+import { METRICS, chantCclefAdvance } from './glyphs.js';
 import { ss } from './units.js';
 
 // Mirrors the advance returned by drawClef in glyphs.js. We need it during
@@ -17,7 +17,7 @@ export function clefAdvance(ctx, clef) {
         return (2889 - 1239) * k + ss(ctx, METRICS.clefPostGap);
     }
     if (letter === 'c') {
-        return ss(ctx, METRICS.clefCWidth) + ss(ctx, METRICS.clefCRightPadding);
+        return chantCclefAdvance(ctx);
     }
     return 0;
 }

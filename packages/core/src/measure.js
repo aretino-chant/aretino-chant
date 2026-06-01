@@ -162,7 +162,7 @@ export function measureItem(ctx, item) {
         return ss(ctx, METRICS.accidentalAdvanceFlat); // fallback
     }
     if (item.kind === 'keysig') {
-        return keySigAdvance(ctx, item.accidentals);
+        return keySigAdvance(ctx, item.accidentals) + (item.accidentals?.length ? ss(ctx, METRICS.keySigInlinePostGap) : 0);
     }
     if (item.kind === 'barline') {
         return measureBarline(ctx, item.value) + (item.barlineExtra || 0) + (item.barlinePostExtra || 0);

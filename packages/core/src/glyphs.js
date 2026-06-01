@@ -107,6 +107,7 @@ export const METRICS = {
     clefCRightPadding: 0.6,            // gap after C-clef body
     clefPostGap: 1,                  // gap after start-of-system clef
     clefInlinePostGap: 0.25,           // gap after mid-system clef change
+    keySigInlinePostGap: 0.5,          // gap after mid-system key signature change
 
     // --- Accidentals (flat / natural / sharp) -----------------------------
     accidentalSize: 0.9,

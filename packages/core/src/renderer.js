@@ -771,6 +771,7 @@ export function renderAretino(source, options = {}) {
                     }
                     if (pieces.length) {
                         parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
+                        cursorX += ss(ctx, METRICS.keySigInlinePostGap);
                     } else {
                         // Empty (K:) — clears signature; nothing to draw.
                         cursorX = startX;

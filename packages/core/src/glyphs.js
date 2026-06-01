@@ -286,7 +286,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
             : ss(ctx, METRICS.virgaStemLength);
         const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
         const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
-        parts.push(`<line x1="${stemX}" y1="${cy}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}"/>`);
+        parts.push(`<line x1="${stemX}" y1="${cy}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`);
     }
     return parts.join('');
 }

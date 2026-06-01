@@ -12,4 +12,7 @@ export default defineConfig({
             '@aretino-chant/core': resolve(__dirname, '../core/src/index.js'),
         },
     },
+    test: {
+        root: __dirname,
+    },
 });

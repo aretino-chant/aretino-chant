@@ -78,7 +78,7 @@ export const METRICS = {
     episemaStrokeMinPx: 0.8,
 
     // --- Ictus (vertical mark above note) --------------------------------
-    ictusHeight: 0.5,
+    ictusHeight: 0.25,
     ictusStroke: 0.12,
     ictusStrokeMinPx: 0.8,
 
@@ -333,9 +333,10 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
         } else if (mod === 'ictus') {
             const below = note.modifiers.includes('episema');
             const h = ss(ctx, METRICS.ictusHeight);
-            const topY = below
-                ? cy + ctx.staffSpace * (onLine ? 1.25 : 0.75)
-                : cy - (onLine ? ctx.staffSpace * 1.75 : ctx.staffSpace * 1.25);
+            const center = below
+                ? cy + ctx.staffSpace * (onLine ? 1.5 : 1.0)
+                : cy - ctx.staffSpace * (onLine ? 1.5 : 1.0);
+            const topY = center - h / 2;
             minY = Math.min(minY, topY);
             maxY = Math.max(maxY, topY + h);
         } else if (mod === 'plica') {
@@ -362,9 +363,10 @@ export function drawEpisemaSpan(ctx, x1, x2, cy, onLine = false) {
 
 export function drawIctus(ctx, cx, cy, onLine = false, below = false) {
     const h = ss(ctx, METRICS.ictusHeight);
-    const topY = below
-        ? cy + ctx.staffSpace * (onLine ? 1.25 : 0.75)
-        : cy - (onLine ? ctx.staffSpace * 1.75 : ctx.staffSpace * 1.25);
+    const center = below
+        ? cy + ctx.staffSpace * (onLine ? 1.5 : 1.0)
+        : cy - ctx.staffSpace * (onLine ? 1.5 : 1.0);
+    const topY = center - h / 2;
     const sw = stroke(ctx, METRICS.ictusStroke, METRICS.ictusStrokeMinPx);
     return `<line x1="${cx}" y1="${topY}" x2="${cx}" y2="${topY + h}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
 }

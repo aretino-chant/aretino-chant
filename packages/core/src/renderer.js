@@ -239,11 +239,32 @@ export function renderAretino(source, options = {}) {
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
     ctx.textFont = textFont;
+    // Escaped once: textFont is constant for the whole render but feeds the
+    // font-family attribute of every <text> element emitted below.
+    const escapedTextFont = escapeAttr(textFont);
     // Lyric font size in typographic points (default 12pt), converted to
     // logical units via dpi. Set independently of staff space and layout width.
     const lyricPt = Math.max(1, options.lyricSize ?? DEFAULT_LYRIC_SIZE_PT);
     ctx.lyricSize = lyricPt * dpi / 72;
-    ctx.measureText = options.measureText ?? measureTextWidth;
+    // Memoise text measurement. The same syllable/label is measured several
+    // times per render (the syllable-extra reserve pass, the first-syllable
+    // row pass, and again when syllables are actually placed), and the
+    // underlying canvas measurement re-parses the font shorthand on every call.
+    // A per-render cache collapses those repeats; it is keyed on the variable
+    // parts only (fontFamily is constant for the render). Cleared each render
+    // so it never goes stale or grows unbounded.
+    const rawMeasure = options.measureText ?? measureTextWidth;
+    const measureCache = new Map();
+    ctx.measureText = (text, fontSize, fontFamily, bold, italic) => {
+        if (text === '') return 0;
+        const key = text + '\0' + fontSize + (bold ? 'b' : '') + (italic ? 'i' : '');
+        let w = measureCache.get(key);
+        if (w === undefined) {
+            w = rawMeasure(text, fontSize, fontFamily, bold, italic);
+            measureCache.set(key, w);
+        }
+        return w;
+    };
     const lyricLineHeight = ctx.lyricSize * 1.2;
 
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
@@ -290,7 +311,7 @@ export function renderAretino(source, options = {}) {
             y += titleFontSize;
             for (let li = 0; li < lines.length; li++) {
                 if (li > 0) y += titleLineHeight;
-                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${titleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapedTextFont}" font-size="${titleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }
         }
         if (subtitle) {
@@ -303,7 +324,7 @@ export function renderAretino(source, options = {}) {
             if (!title) y += subTitleFontSize;
             for (let li = 0; li < lines.length; li++) {
                 if (li > 0) y += subTitleLineHeight;
-                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
+                parts.push(`<text x="${width / 2}" y="${y}" font-family="${escapedTextFont}" font-size="${subTitleFontSize}" font-weight="bold" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(lines[li]))}</text>`);
             }            
         }
         if (title || subtitle) y += titleLineHeight * 1.2;
@@ -323,10 +344,10 @@ export function renderAretino(source, options = {}) {
                 const ri = li - rubricTop;
                 const ci = li - captionTop;
                 if (ri >= 0) {
-                    parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubricLines[ri]))}</text>`);
+                    parts.push(`<text x="${ctx.leftMargin}" y="${y - 1.4 * ctx.staffSpace}" font-family="${escapedTextFont}" font-size="${fontSize}" font-variant="small-caps" text-anchor="start" fill="#000">${renderSegments(parseFormattingToSegments(rubricLines[ri]))}</text>`);
                 }
                 if (ci >= 0) {
-                    parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapeAttr(textFont)}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(captionLines[ci]))}</text>`);
+                    parts.push(`<text x="${width - ctx.rightMargin}" y="${y}" font-family="${escapedTextFont}" font-size="${fontSize}" font-style="italic" text-anchor="end" fill="#000">${renderSegments(parseFormattingToSegments(captionLines[ci]))}</text>`);
                 }
             }
             y += fontSize * 0.4;
@@ -334,6 +355,25 @@ export function renderAretino(source, options = {}) {
     }
 
     const staffRightX = width - ctx.rightMargin;
+
+    // Advances/offsets that depend only on staffSpace + METRICS (not on any
+    // section/row/item state) are materialised once here instead of re-running
+    // ss() on every item in the row loop below.
+    const clefPostGapPx = ss(ctx, METRICS.clefPostGap);
+    const clefInlinePostGapPx = ss(ctx, METRICS.clefInlinePostGap);
+    const keySigInlinePostGapPx = ss(ctx, METRICS.keySigInlinePostGap);
+    const barlineOffsetXPx = ss(ctx, METRICS.barlineOffsetX);
+    const barlineAdvancePx = ss(ctx, METRICS.barlineAdvance);
+    const barlinePostGapPx = ss(ctx, METRICS.barlinePostGap);
+    const barlineDoubleCenterOffsetPx = ss(ctx, (METRICS.barlineOffsetX + METRICS.barlineDoubleSecondOffsetX) / 2);
+    const parenWidthPx = ss(ctx, METRICS.parenthesisWidth);
+    const parenInnerGapPx = ss(ctx, METRICS.parenthesisInnerGap);
+    const parenVPadPx = ss(ctx, METRICS.parenthesisVPadding);
+    const spacerAdvancePx = ss(ctx, METRICS.spacerAdvance);
+    const halfNoteWPx = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+    const accAdvFlatPx = ss(ctx, METRICS.accidentalAdvanceFlat);
+    const accAdvNaturalPx = ss(ctx, METRICS.accidentalAdvanceNatural);
+    const accAdvSharpPx = ss(ctx, METRICS.accidentalAdvanceSharp);
 
     for (const sec of sections) {
         const items = flattenItems(sec.tokens);
@@ -388,7 +428,7 @@ export function renderAretino(source, options = {}) {
             // lyric layout actually renders (a real space character), so the
             // note spacing follows the widened word break.
             const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
-            const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+            const halfNoteW = halfNoteWPx;
             const ligInfo = [];
             let li = 0;
             for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
@@ -460,7 +500,6 @@ export function renderAretino(source, options = {}) {
                         ? Math.max(0, next.maxSylW / 2 + next.maxPrefixW - halfNoteW)
                         : next.maxPrefixW;
                     if (nextIntrusion > 0) {
-                        const barlinePostGapPx = ss(ctx, METRICS.barlinePostGap);
                         // Subtract the existing post-gap but require at least minGap
                         // clearance so the syllable stays minGap away from any barline
                         // text/label whose right half already sits inside that post-gap.
@@ -621,7 +660,7 @@ export function renderAretino(source, options = {}) {
                 const blockFirstY = staffBottomY - ctx.staffHeight / 2 + indentFontSize * 0.35
                     - (indentLines.length - 1) * indentLineHeight / 2;
                 for (let li = 0; li < indentLines.length; li++) {
-                    parts.push(`<text x="${tx}" y="${blockFirstY + li * indentLineHeight}" font-family="${escapeAttr(textFont)}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentLines[li]))}</text>`);
+                    parts.push(`<text x="${tx}" y="${blockFirstY + li * indentLineHeight}" font-family="${escapedTextFont}" font-size="${indentFontSize}" text-anchor="middle" fill="#000">${renderSegments(parseFormattingToSegments(indentLines[li]))}</text>`);
                 }
             }
 
@@ -638,7 +677,7 @@ export function renderAretino(source, options = {}) {
                 if (c.minY < rowTopY) rowTopY = c.minY;
                 if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                 parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
-                cursorX += c.advance - ss(ctx, METRICS.clefPostGap) + ss(ctx, METRICS.clefInlinePostGap);
+                cursorX += c.advance - clefPostGapPx + clefInlinePostGapPx;
             }
 
             const startKeySig = row.startKeySig ?? [];
@@ -651,9 +690,9 @@ export function renderAretino(source, options = {}) {
             // Add proper spacing after clef/key sig and before notes
             if (row.drawStartClef || startKeySig.length > 0) {
                 if (startKeySig.length === 0) {
-                    cursorX += ss(ctx, METRICS.clefPostGap);
+                    cursorX += clefPostGapPx;
                 } else {
-                    cursorX += ss(ctx, 1);
+                    cursorX += ctx.staffSpace;
                 }
             } else {
                 // No clef and no key sig: still add one staff space of emptiness
@@ -665,7 +704,7 @@ export function renderAretino(source, options = {}) {
             if (alignSyllables) {
                 const firstLigItem = row.items.find(it => it.kind === 'ligature');
                 if (firstLigItem) {
-                    const halfNoteW = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+                    const halfNoteW = halfNoteWPx;
                     const isCenteredFirst = firstLigItem.groups.reduce((s, g) => s + g.length, 0) === 1
                         && !firstLigItem.groups.some(g => g.some(n => n.shape === 'tenor'));
                     let maxAlignW = 0;
@@ -726,9 +765,9 @@ export function renderAretino(source, options = {}) {
             if (parenState) {
                 const placeIdx = parts.length;
                 parts.push('');
-                cursorX += ss(ctx, METRICS.parenthesisWidth);
+                cursorX += parenWidthPx;
                 const hingeX = cursorX;
-                cursorX += ss(ctx, METRICS.parenthesisInnerGap);
+                cursorX += parenInnerGapPx;
                 parenState = { placeIdx, hingeX, closeHingeX: hingeX, minY: Infinity, maxY: -Infinity };
             }
 
@@ -752,14 +791,14 @@ export function renderAretino(source, options = {}) {
                     if (c.minY < rowTopY) rowTopY = c.minY;
                     if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                     parts.push(wrapSrc(it, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
-                    cursorX += c.advance + ss(ctx, METRICS.clefInlinePostGap);
+                    cursorX += c.advance + clefInlinePostGapPx;
                 } else if (it.kind === 'accidental') {
                     const a = drawAccidental(ctx, it.pitch, it.symbol, cursorX, staffBottomY);
                     parts.push(wrapSrc(it, a.svg, 'aretino-token aretino-accidental', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
                     let adv = a.advance;
-                    if (it.symbol === 'x') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceFlat));
-                    else if (it.symbol === 'y') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceNatural));
-                    else if (it.symbol === '#') adv = Math.max(adv, ss(ctx, METRICS.accidentalAdvanceSharp));
+                    if (it.symbol === 'x') adv = Math.max(adv, accAdvFlatPx);
+                    else if (it.symbol === 'y') adv = Math.max(adv, accAdvNaturalPx);
+                    else if (it.symbol === '#') adv = Math.max(adv, accAdvSharpPx);
                     cursorX += adv;
                 } else if (it.kind === 'keysig') {
                     const startX = cursorX;
@@ -771,7 +810,7 @@ export function renderAretino(source, options = {}) {
                     }
                     if (pieces.length) {
                         parts.push(wrapSrc(it, pieces.join(''), 'aretino-token aretino-keysig', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
-                        cursorX += ss(ctx, METRICS.keySigInlinePostGap);
+                        cursorX += keySigInlinePostGapPx;
                     } else {
                         // Empty (K:) — clears signature; nothing to draw.
                         cursorX = startX;
@@ -786,43 +825,41 @@ export function renderAretino(source, options = {}) {
                     if (it.value === '~') {
                         const cy = lastNote ? pitchY(ctx, lastNote, staffBottomY) : staffBottomY - 2 * ctx.staffSpace;
                         const onLine = lastNote ? pitchToPos(lastNote) % 2 === 0 : true;
-                        barlineSvg = drawPlicaBarline(ctx, cursorX + ss(ctx, METRICS.barlineOffsetX), cy, 'down', onLine);
-                        barlineAdvance = ss(ctx, METRICS.barlineAdvance);
+                        barlineSvg = drawPlicaBarline(ctx, cursorX + barlineOffsetXPx, cy, 'down', onLine);
+                        barlineAdvance = barlineAdvancePx;
                     } else {
                         const b = drawBarline(ctx, it.value, cursorX, staffBottomY);
                         barlineSvg = b.svg;
                         barlineAdvance = b.advance;
                     }
                     parts.push(wrapSrc(it, barlineSvg, 'aretino-token aretino-barline', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
-                    const offsetX = (it.value === '||' || it.value === ':|' || it.value === '|:' || it.value === ':|:' || it.value === '|||')
-                        ? (METRICS.barlineOffsetX + METRICS.barlineDoubleSecondOffsetX) / 2
-                        : METRICS.barlineOffsetX;
-                    rowBarlines.push({ centerX: cursorX + ss(ctx, offsetX), value: it.value, globalIdx: globalBarlineIdx });
+                    const offsetXPx = (it.value === '||' || it.value === ':|' || it.value === '|:' || it.value === ':|:' || it.value === '|||')
+                        ? barlineDoubleCenterOffsetPx
+                        : barlineOffsetXPx;
+                    rowBarlines.push({ centerX: cursorX + offsetXPx, value: it.value, globalIdx: globalBarlineIdx });
                     globalBarlineIdx++;
-                    cursorX += barlineAdvance + ss(ctx, METRICS.barlinePostGap) + extra / 2 + postExtra;
+                    cursorX += barlineAdvance + barlinePostGapPx + extra / 2 + postExtra;
                 } else if (it.kind === 'spacer') {
-                    cursorX += ss(ctx, METRICS.spacerAdvance) * it.multiplier;
+                    cursorX += spacerAdvancePx * it.multiplier;
                 } else if (it.kind === 'paren-open') {
                     const placeIdx = parts.length;
                     parts.push('');
-                    cursorX += ss(ctx, METRICS.parenthesisWidth);
+                    cursorX += parenWidthPx;
                     const hingeX = cursorX;
-                    cursorX += ss(ctx, METRICS.parenthesisInnerGap);
+                    cursorX += parenInnerGapPx;
                     parenState = { placeIdx, hingeX, closeHingeX: hingeX, minY: Infinity, maxY: -Infinity };
                 } else if (it.kind === 'paren-close') {
                     if (parenState) {
-                        const vPad = ss(ctx, METRICS.parenthesisVPadding);
+                        const vPad = parenVPadPx;
                         const spanTop = parenState.minY - vPad;
                         if (parenState.minY < Infinity && spanTop < rowTopY) rowTopY = spanTop;
                         const spanBot = parenState.maxY + vPad;
                         if (parenState.maxY > -Infinity && spanBot > rowBottomY) rowBottomY = spanBot;
-                        const parenWidth = ss(ctx, METRICS.parenthesisWidth);
-                        const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
                         parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
-                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - innerGap - parenWidth, spanTop, spanBot, 'right'));
+                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - parenInnerGapPx - parenWidthPx, spanTop, spanBot, 'right'));
                         parenState = null;
                     }
-                    cursorX += ss(ctx, METRICS.parenthesisInnerGap) + ss(ctx, METRICS.parenthesisWidth);
+                    cursorX += parenInnerGapPx + parenWidthPx;
                 } else if (it.kind === 'brace-open') {
                     if (completedBraceOpens.has(it)) {
                         const placeIdx = parts.length;
@@ -907,15 +944,13 @@ export function renderAretino(source, options = {}) {
             // sits on a later row, close the arcs visually here and carry the open
             // state to the next row.
             if (parenState) {
-                const vPad = ss(ctx, METRICS.parenthesisVPadding);
+                const vPad = parenVPadPx;
                 const spanTop = parenState.minY < Infinity ? parenState.minY - vPad : staffBottomY - 4 * ctx.staffSpace - vPad;
                 if (spanTop < rowTopY) rowTopY = spanTop;
                 const spanBot = parenState.maxY > -Infinity ? parenState.maxY + vPad : staffBottomY + vPad;
                 if (spanBot > rowBottomY) rowBottomY = spanBot;
-                const parenWidth = ss(ctx, METRICS.parenthesisWidth);
-                const innerGap = ss(ctx, METRICS.parenthesisInnerGap);
                 parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
-                parts.push(drawParenthesis(ctx, parenState.closeHingeX - innerGap - parenWidth, spanTop, spanBot, 'right'));
+                parts.push(drawParenthesis(ctx, parenState.closeHingeX - parenInnerGapPx - parenWidthPx, spanTop, spanBot, 'right'));
                 // Signal the next row to re-open the group (parenState truthy = continuation).
                 parenState = { continuation: true };
             }
@@ -977,7 +1012,7 @@ export function renderAretino(source, options = {}) {
                 prevRowBottom = lastLyricBottom;
             } else if (isLastRow && verseCount > 0) {
                 for (const lyric of sec.lyrics) {
-                    const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapeAttr(ctx.textFont)}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
+                    const lyricSvg = `<text xml:space="preserve" x="${staffLeftX}" y="${lyricY}" font-family="${escapedTextFont}" font-size="${ctx.lyricSize}" fill="#000">${formatLyricLine(lyric)}</text>`;
                     parts.push(wrapSrc(lyric, lyricSvg, 'aretino-lyric aretino-lyric-line', undefined, undefined, undefined, undefined, sourceMap));
                     lyricY += lyricLineHeight;
                 }

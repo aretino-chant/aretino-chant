@@ -343,6 +343,16 @@ export function renderAretino(source, options = {}) {
         }
         const drawClefForRows = hasSeenClef;
 
+        // Barline-label targets are expressed in the user's lyric stream.
+        // Record the source music counts before tenor recitations are expanded
+        // into synthetic per-word layout pieces.
+        let _labelLc = 0;
+        const barlineLigsBeforeLabels = [];
+        for (const it of items) {
+            if (it.kind === 'ligature') { _labelLc++; }
+            else if (it.kind === 'barline') { barlineLigsBeforeLabels.push(_labelLc); }
+        }
+
         const verseSyllables = sec.lyrics.map(parseSyllables);
         const verseNotes = verseSyllables.map(arr => expandSyllablesForLigatures(arr.filter(s => s.kind === 'note')));
         // Expand any tenor recitation (single tenor note + multi-word syllable)
@@ -355,24 +365,14 @@ export function renderAretino(source, options = {}) {
         const alignSyllables = totalLigatures > 0 && verseCount > 0;
         const hasBarlineLabels = verseBarlines.some(arr => arr.length > 0);
 
-        // For each barline item in the music sequence, record how many ligatures
-        // precede it. Used to match lyric barline labels (which carry notesBefore)
-        // to the correct actual barline rather than by parallel index.
-        let _lc = 0;
-        const barlineLigsBefore = [];
-        for (const it of items) {
-            if (it.kind === 'ligature') { _lc++; }
-            else if (it.kind === 'barline') { barlineLigsBefore.push(_lc); }
-        }
-
         // Build per-verse maps: globalBarlineIdx → label.
         // A label with notesBefore=K targets the first barline where ligsBefore >= K.
         const verseBarlineMaps = verseBarlines.map(lbls => {
             const m = new Map();
             for (const lbl of lbls) {
                 const K = lbl.notesBefore ?? 0;
-                for (let bi = 0; bi < barlineLigsBefore.length; bi++) {
-                    if (barlineLigsBefore[bi] >= K && !m.has(bi)) {
+                for (let bi = 0; bi < barlineLigsBeforeLabels.length; bi++) {
+                    if (barlineLigsBeforeLabels[bi] >= K && !m.has(bi)) {
                         m.set(bi, lbl);
                         break;
                     }

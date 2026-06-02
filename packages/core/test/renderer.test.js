@@ -665,22 +665,36 @@ describe('renderAretino', () => {
   });
 
   describe('barline labels', () => {
+    function barlineLabelPositions(svg) {
+      const barlineXs = [...svg.matchAll(/class="[^"]*aretino-barline[^"]*"[^>]*>\s*<[^>]+x1="([^"]+)"/g)]
+        .map(m => parseFloat(m[1]));
+      const labelXs = [...svg.matchAll(/class="[^"]*aretino-barline-label[^"]*"[^>]*>[\s\S]*?<text[^>]*x="([^"]+)"/g)]
+        .map(m => parseFloat(m[1]));
+      return { barlineXs, labelXs };
+    }
+
     it('places a barline label after a multi-neume syllable under the correct barline', () => {
       // "cae--" spans 2 ligatures; "(V)" should land under || (3rd barline), not the 2nd comma
       const source = 'c d , f , g ||\nw: in cae--lis. (V)';
       const svg = renderAretino(source, { width: 800 });
 
-      // Collect all barline center X values from the rendered SVG
-      const barlineXs = [...svg.matchAll(/class="[^"]*aretino-barline[^"]*"[^>]*>\s*<[^>]+x1="([^"]+)"/g)]
-        .map(m => parseFloat(m[1]));
-
-      // Extract the barline-label X position
-      const labelMatch = svg.match(/class="[^"]*aretino-barline-label[^"]*"[^>]*>[\s\S]*?<text[^>]*x="([^"]+)"/);
-      const labelX = labelMatch ? parseFloat(labelMatch[1]) : null;
+      const { barlineXs, labelXs } = barlineLabelPositions(svg);
+      const labelX = labelXs[0] ?? null;
 
       // The label must appear and its X must equal the last (||) barline's center X
       expect(labelX).not.toBeNull();
       expect(labelX).toBeGreaterThan(barlineXs[1]);
+    });
+
+    it('does not let tenor-recitation word expansion shift a following barline label earlier', () => {
+      const source = '(g2) C | Ct g  | f a C g |  C | C\nw: 1 2~3 4 5 6 7 8 LAST (*) c';
+      const svg = renderAretino(source, { width: 800 });
+
+      const { barlineXs, labelXs } = barlineLabelPositions(svg);
+
+      expect(labelXs).toHaveLength(1);
+      expect(labelXs[0]).toBeCloseTo(barlineXs[3], 5);
+      expect(labelXs[0]).not.toBeCloseTo(barlineXs[2], 5);
     });
   });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseAretino } from '../src/parser.js';
 import { groupSections, flattenItems } from '../src/items.js';
-import { createTransposeState, applyTranspose } from '../src/transpose.js';
+import { createTransposeState, applyTranspose, transposeSource } from '../src/transpose.js';
 import { renderAretino } from '../src/index.js';
 
 // Parse a body source, flatten each section, and transpose it the way the
@@ -148,6 +148,70 @@ describe('applyTranspose', () => {
     expect(before).toEqual([
       ['c', null], ['d', null], ['e', null], ['f', null], ['g', null],
     ]);
+  });
+});
+
+// Flatten a plain (already-transposed) source the way the renderer would,
+// without applying any further transposition.
+function flatten(src) {
+  const ast = parseAretino(src);
+  const all = [];
+  for (const sec of groupSections(ast.lines)) all.push(...flattenItems(sec.tokens));
+  return all;
+}
+
+describe('transposeSource', () => {
+  it('is a no-op for amount 0 and for empty input', () => {
+    expect(transposeSource('(g2) c d e', 0)).toBe('(g2) c d e');
+    expect(transposeSource('', 2)).toBe('');
+  });
+
+  it('shifts pitch letters up a whole tone and injects a 2-sharp signature', () => {
+    expect(transposeSource('(g2) c d e f g', 2)).toBe('(g2) (K##) d e f g a');
+  });
+
+  it('introduces a 5-flat signature transposing up a semitone', () => {
+    // c → Db major (5 flats); c itself becomes Db, which is in key.
+    expect(transposeSource('c', 1)).toBe('(Kbbbbb) d');
+  });
+
+  it('keeps a needed inline accidental inside a neume', () => {
+    // c(g#)g up a whole tone → d a#, the a# stays since it is outside D major
+    // (a 2-sharp signature is introduced since the source had none).
+    expect(transposeSource('c(g#)g', 2)).toBe('(K##) d(a#)a');
+  });
+
+  it('drops an inline accidental the new key signature now covers', () => {
+    // (en)e up a whole tone → f#, provided by the injected D-major signature.
+    expect(transposeSource('(en)e', 2)).toBe('(K##) f');
+  });
+
+  it('transposes an existing key signature and inserts accidentals where needed', () => {
+    // (f#) is a standalone accidental covering the bar; up a tone it becomes g#,
+    // restated after the barline. The injected 2-sharp signature lands before
+    // the first note (after the leading accidental), as in the render path.
+    expect(transposeSource('(f#)f f , (f#)f f', 2)).toBe('(g#)(K##) g g , (g#)g g');
+  });
+
+  it('rewrites an existing key-signature directive', () => {
+    expect(transposeSource('(Kb) c d', 2)).toBe('(K#) d e');
+  });
+
+  it('shifts octaves with ^/v markers and preserves modifiers', () => {
+    // G (top of staff) up a whole tone is A above it: a with a +1 octave marker.
+    expect(transposeSource("G'", 2)).toBe("(K##) ^a'");
+  });
+
+  it('produces source that re-parses to the render-time transposition', () => {
+    for (const src of ['(g2) c d e f g', '(Kb) c d e', 'c(g#)g', '(en)e', "G' a b"]) {
+      for (const n of [1, 2, -1, -3, 5, 12]) {
+        const baked = flatten(transposeSource(src, n));
+        const direct = transpose(src, n);
+        expect(notes(baked)).toEqual(notes(direct));
+        expect(firstKeySig(baked)).toEqual(firstKeySig(direct));
+        expect(standaloneAccidentals(baked)).toEqual(standaloneAccidentals(direct));
+      }
+    }
   });
 });
 

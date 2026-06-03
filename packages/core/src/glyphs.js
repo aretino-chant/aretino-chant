@@ -166,7 +166,7 @@ export const METRICS = {
     lyricDistance: 0.1
 };
 
-const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
+export const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
 
 function stroke(ctx, ssFraction, minPx) {
     return Math.max(minPx, ssFraction * ctx.staffSpace);

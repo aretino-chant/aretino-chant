@@ -79,6 +79,7 @@ w: O Lord, hear my hum-ble call to you!
 | `title` | Bold centered heading above the score |
 | `caption` | Italic heading, right-aligned |
 | `indent` | Mode/incipit label drawn in the first-line indent |
+| `transpose` | — | Transpose the rendered score by a signed number of semitones |
 | `option` | — | Renderer option, one per line; repeatable |
 
 `option` headers set renderer options from the source. Write one option per
@@ -98,6 +99,23 @@ Numbers are parsed as JavaScript numbers; booleans accept `true`/`false`,
 accepted by `renderAretino(source, options)`. If the same renderer option is set
 more than once in headers, the later header wins; explicit API options passed to
 `renderAretino` override source headers.
+
+`transpose` shifts the **rendered** music by a signed whole number of semitones
+(`%transpose: 1` up a semitone, `%transpose: -2` down a whole tone) — the source
+text is left unchanged. Notes move to the matching staff positions, the key
+signature is transposed (and one is added when the source had none), and inline
+accidentals are added where the new key needs them — once per bar — while
+accidentals the new key now covers are dropped. The target key is the
+enharmonically simplest one (fewest sharps/flats; ties prefer flats). Note: the
+staff spans only the A–G–G range; a transposition that pushes a note past either
+end is clamped to the staff edge.
+
+```aretino
+%transpose: 2
+%%
+(g2) c d e f g          % rendered a whole tone higher, in D major
+w:   trans-posed up
+```
 
 Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it

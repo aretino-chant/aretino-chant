@@ -43,6 +43,7 @@ import { ss } from './units.js';
 import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
+import { createTransposeState, applyTranspose } from './transpose.js';
 import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY } from './measure.js';
 import { emitLigature } from './ligature.js';
 
@@ -281,6 +282,9 @@ export function renderAretino(source, options = {}) {
 
     const sections = groupSections(ast.lines);
 
+    const transposeAmount = parseInt(ast.header?.['transpose'] ?? '', 10) || 0;
+    const transposeState = transposeAmount ? createTransposeState(transposeAmount) : null;
+
     const parts = [];
     let currentClef = { letter: 'g', line: 2 };
     let currentKeySig = [];
@@ -377,6 +381,7 @@ export function renderAretino(source, options = {}) {
 
     for (const sec of sections) {
         const items = flattenItems(sec.tokens);
+        if (transposeState) applyTranspose(items, transposeState);
         const sectionHasClef = items.some(it => it.kind === 'clef');
         if (sectionHasClef) {
             hasSeenClef = true;

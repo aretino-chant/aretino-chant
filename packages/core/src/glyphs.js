@@ -176,8 +176,13 @@ function ss(ctx, n) {
     return n * ctx.staffSpace;
 }
 
+// Each diatonic octave spans 7 staff positions. Octave-shift markers (`^`/`v`
+// in source) push a note one octave (7 positions) out per mark, extending the
+// ladder past its A–G letter range for the rare notes above G / below A.
+export const OCTAVE_STEPS = 7;
+
 export function pitchToPos(note) {
-    return PITCH_BASE[note.pitch] ?? 0;
+    return (PITCH_BASE[note.pitch] ?? 0) + OCTAVE_STEPS * (note.octaveShift || 0);
 }
 
 export function pitchY(ctx, note, staffBottomY) {

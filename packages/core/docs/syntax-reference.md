@@ -106,9 +106,10 @@ text is left unchanged. Notes move to the matching staff positions, the key
 signature is transposed (and one is added when the source had none), and inline
 accidentals are added where the new key needs them — once per bar — while
 accidentals the new key now covers are dropped. The target key is the
-enharmonically simplest one (fewest sharps/flats; ties prefer flats). Note: the
-staff spans only the A–G–G range; a transposition that pushes a note past either
-end is clamped to the staff edge.
+enharmonically simplest one (fewest sharps/flats; ties prefer flats). A
+transposition that pushes a note past the `A`–`G` letter range renders it with
+ledger lines using the [octave-shift markers](#octave-shift-markers-notes-above-g--below-a)
+(`^`/`v`) rather than clamping it to the staff edge.
 
 ```aretino
 %transpose: 2
@@ -187,6 +188,35 @@ w:   A B c d e f g a b C D E F G
 | Suffix | Name | Effect |
 |---|---|---|
 | `'` | virga | Apostrophe after a note draws it as a virga |
+
+### Octave-shift markers (notes above G / below A)
+
+The 14 letters run out at `A` (lowest) and `G` (highest). For the rare extreme
+notes beyond either end, **prefix** the pitch letter with an octave-shift
+marker: `^` raises the note one octave (7 staff positions), `v` lowers it one.
+Markers stack, so `^^c` is two octaves above middle `c`. Ledger lines are drawn
+automatically.
+
+The scale simply continues past each end, so the natural minimal spelling is:
+
+| Region | Spelling | Notes |
+|---|---|---|
+| above `G` | `^a ^b ^C ^D ^E ^F ^G` | the step above `G` is `^a`, then `^b`, then the high letters one octave up |
+| below `A` | `vg vf ve vd vc vB vA` | the step below `A` is `vg` (an octave below middle `g`), then `vf`, … |
+
+```aretino
+(g2) g a b C D E F G ^a ^b ^C
+w:   up and over the top
+```
+
+```aretino
+(g2) A vg vf ve vd
+w:   down below the bottom
+```
+
+A marker only counts when it directly precedes a pitch letter (it may be glued
+inside a ligature, e.g. `g^a^bg`); a stray `^` or `v` with no note after it is
+ignored.
 
 ```aretino
 (g2) e f g a b

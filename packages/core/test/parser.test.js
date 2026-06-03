@@ -102,6 +102,38 @@ describe('inline comments and preprocessor directives', () => {
     expect(ast.lines[1].type).toBe('music');
   });
 
+  it('parses ^ / v octave-shift markers into note.octaveShift', () => {
+    const ast = parseAretino('(g2) ^a vg ^^c g');
+    const notes = ast.lines[0].tokens
+      .filter(t => t.type === 'ligature')
+      .map(t => t.groups[0][0]);
+    expect(notes.map(n => [n.pitch, n.octaveShift])).toEqual([
+      ['a', 1],   // ^a  — one octave up
+      ['g', -1],  // vg  — one octave down
+      ['c', 2],   // ^^c — two octaves up
+      ['g', undefined], // plain note carries no octaveShift field
+    ]);
+  });
+
+  it('keeps shifted notes inside the same ligature and spans the markers', () => {
+    const src = '(g2) g^a^bg';
+    const ast = parseAretino(src);
+    const lig = ast.lines[0].tokens.find(t => t.type === 'ligature');
+    expect(lig.groups[0].map(n => [n.pitch, n.octaveShift ?? 0]))
+      .toEqual([['g', 0], ['a', 1], ['b', 1], ['g', 0]]);
+    // The token span starts at the first note and the ^a note span covers its marker.
+    expect(lig.srcStart).toBe(src.indexOf('g^a'));
+    expect(lig.groups[0][1].srcStart).toBe(src.indexOf('^a'));
+  });
+
+  it('skips a stray ^ / v not followed by a pitch letter', () => {
+    const ast = parseAretino('(g2) ^ v g');
+    const ligs = ast.lines[0].tokens.filter(t => t.type === 'ligature');
+    expect(ligs).toHaveLength(1);
+    expect(ligs[0].groups[0][0]).toMatchObject({ pitch: 'g' });
+    expect(ligs[0].groups[0][0].octaveShift).toBeUndefined();
+  });
+
   it('strips inline block comment %[ ... %] from a music line', () => {
     const ast = parseAretino('fga %[ a comment %] gab');
     expect(ast.lines[0].type).toBe('music');

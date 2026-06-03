@@ -49,6 +49,22 @@ function positionToLetter(pos) {
     return POS_TO_LETTER[clamped];
 }
 
+// Write a (possibly out-of-range) staff position back onto a note, decomposing
+// positions past G / below A into a base letter plus an octaveShift (the `^`/`v`
+// markers) rather than clamping to the staff edge.
+function setNotePosition(note, pos) {
+    let p = pos;
+    let shift = 0;
+    while (p > MAX_POS) { p -= 7; shift += 1; }
+    while (p < MIN_POS) { p += 7; shift -= 1; }
+    note.pitch = POS_TO_LETTER[p];
+    if (shift) {
+        note.octaveShift = shift;
+    } else {
+        delete note.octaveShift;
+    }
+}
+
 function symbolToAlteration(symbol) {
     if (symbol === 'x') return -1; // flat
     if (symbol === '#') return 1;  // sharp
@@ -190,7 +206,7 @@ export function applyTranspose(items, state) {
         if (it.kind === 'ligature') {
             for (const group of it.groups) {
                 for (const note of group) {
-                    const oldPos = PITCH_BASE[note.pitch] ?? 0;
+                    const oldPos = (PITCH_BASE[note.pitch] ?? 0) + 7 * (note.octaveShift || 0);
                     const accPos = note.accidental
                         ? (PITCH_BASE[note.accidental.pitch] ?? oldPos)
                         : oldPos;
@@ -222,7 +238,7 @@ export function applyTranspose(items, state) {
                             barActive.set(newAccPos, reqAccAlt);
                         }
                         // The note itself carries no own alteration here; just shift it.
-                        note.pitch = positionToLetter(oldPos + d);
+                        setNotePosition(note, oldPos + d);
                         continue;
                     }
 
@@ -243,7 +259,7 @@ export function applyTranspose(items, state) {
                     const targetAbs = naturalAbs(oldPos) + srcAlt + N;
                     const newPos = oldPos + d;
                     const reqAlt = clampAlt(targetAbs - naturalAbs(newPos));
-                    note.pitch = positionToLetter(newPos);
+                    setNotePosition(note, newPos);
 
                     // What is already sounding at this position: a bar-active
                     // accidental wins, otherwise the new key signature.

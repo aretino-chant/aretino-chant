@@ -32,6 +32,7 @@
 // Note shape:
 //   {
 //       pitch: one of 'A','B','c','d','e','f','g','a','b','C','D','E','F','G',
+//       octaveShift?: number,            — leading ^ (each +1 octave) / v (each -1) markers; out-of-range notes above G / below A
 //       virga: boolean,                  — uppercase letter
 //       noVirga: boolean,                — backtick ` suppresses auto-virga
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
@@ -258,6 +259,24 @@ function isPitchLetter(c) {
     return /[a-gA-G]/.test(c);
 }
 
+// A note may be preceded by octave-shift markers: `^` raises it one octave,
+// `v` lowers it one, stackable (`^^c`). Looks at line[i..]; if it is zero or
+// more markers immediately followed by a pitch letter, returns
+// { shift, end } where `shift` is the signed octave count and `end` is the
+// index of the pitch letter. Returns null when no pitch letter follows.
+function octaveShiftAt(line, i, limit) {
+    let j = i;
+    let shift = 0;
+    while (j < limit && (line[j] === '^' || line[j] === 'v')) {
+        shift += line[j] === '^' ? 1 : -1;
+        j++;
+    }
+    if (j < limit && isPitchLetter(line[j])) {
+        return { shift, end: j };
+    }
+    return null;
+}
+
 // Maps each accepted accidental token to the internal symbol used downstream
 // ('x' flat, 'y' natural, '#' sharp): b = flat, n = natural, # = sharp.
 const ACCIDENTAL_TOKENS = { b: 'x', n: 'y', '#': '#' };
@@ -305,7 +324,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
     while (true) {
         const group = [];
         let pendingAcc = null;
-        while (i < limit && (isPitchLetter(line[i]) || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
+        while (i < limit && (octaveShiftAt(line, i, limit) !== null || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
             if (line[i] === '(') {
                 const accStart = i;
                 pendingAcc = peekInlineAccidental(line, i);
@@ -315,10 +334,13 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 continue;
             }
             const noteStart = i;
+            const shiftInfo = octaveShiftAt(line, i, limit);
+            i = shiftInfo.end;
             const pitchChar = line[i];
             i++;
             const note = {
                 pitch: pitchChar,
+                ...(shiftInfo.shift ? { octaveShift: shiftInfo.shift } : {}),
                 virga: false,
                 noVirga: false,
                 shape: 'punctum',
@@ -360,7 +382,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             let k = j;
             while (k < limit && line[k] === '/') { slashCount++; k++; }
             while (k < limit && (line[k] === ' ' || line[k] === '\t')) k++;
-            if (k < limit && (isPitchLetter(line[k]) || (line[k] === '(' && peekInlineAccidental(line, k) !== null))) {
+            if (k < limit && (octaveShiftAt(line, k, limit) !== null || (line[k] === '(' && peekInlineAccidental(line, k) !== null))) {
                 i = k;
                 gaps.push(slashCount);
                 continue;
@@ -527,7 +549,7 @@ function tokenizeMusicLine(line, lineStart = 0) {
             i = endI;
             continue;
         }
-        if (isPitchLetter(ch)) {
+        if (octaveShiftAt(line, i, len) !== null) {
             const r = parseNoteGroupSequence(line, i, lineStart, len);
             i = r.newI;
             if (r.groups.length) {

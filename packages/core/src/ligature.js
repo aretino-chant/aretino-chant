@@ -212,8 +212,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                     }
                     glyph = drawMora(ctx, drawCx, moraCy, onLine);
                 } else if (mod === 'ictus') {
-                    const onLine = pitchToPos(p.note) % 2 === 0;
+                    const pos = pitchToPos(p.note);
                     const below = p.note.modifiers.includes('episema');
+                    const onLine = pos % 2 === 0 && (below || pos < (METRICS.staffLineCount - 1) * 2);
                     glyph = drawIctus(ctx, p.cx, p.cy, onLine, below);
                 } else if (mod === 'plica') {
                     glyph = drawPlica(ctx, p.cx, p.cy, 'down');

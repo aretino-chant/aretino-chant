@@ -336,10 +336,12 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
             maxY = Math.max(maxY, dotY + r);
         } else if (mod === 'ictus') {
             const below = note.modifiers.includes('episema');
+            const topLinePos = (METRICS.staffLineCount - 1) * 2;
+            const ictusOnLine = onLine && (below || pitchToPos(note) < topLinePos);
             const h = ss(ctx, METRICS.ictusHeight);
             const center = below
-                ? cy + ctx.staffSpace * (onLine ? 1.5 : 1.0)
-                : cy - ctx.staffSpace * (onLine ? 1.5 : 1.0);
+                ? cy + ctx.staffSpace * (ictusOnLine ? 1.5 : 1.0)
+                : cy - ctx.staffSpace * (ictusOnLine ? 1.5 : 1.0);
             const topY = center - h / 2;
             minY = Math.min(minY, topY);
             maxY = Math.max(maxY, topY + h);

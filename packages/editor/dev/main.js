@@ -3,9 +3,10 @@ import { AretinoEditor } from '../src/index.js';
 // Suppress the unused-import warning — the import registers <aretino-editor>.
 void AretinoEditor;
 
-const DEMO_SOURCE =`%title: Alleluia | Second line
+const DEMO_SOURCE =`%option: dpi=500
+%title: Alleluia | Second line
 %subtitle: Graduale Romanum
-(g2) g a b g. , ab a g e_d_ , g {ab ag} g. ||
+(g2) fab  b g. , ab a g e_d_ , g {ab ag} g. ||
 w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 `;
 

@@ -26,21 +26,21 @@
 
 export const METRICS = {
     // --- Notehead (rotated filled oval) -----------------------------------
-    noteheadRx: 0.57,                  // pre-rotation horizontal radius
-    noteheadRy: 0.45,                  // pre-rotation vertical radius
+    noteheadRx: 0.61,                  // pre-rotation horizontal radius
+    noteheadRy: 0.47,                  // pre-rotation vertical radius
     noteheadRotationDeg: -25,
-    noteBoxWidth: 0.9,                 // layout/bounding-box width
+    noteBoxWidth: 1.175,                // layout/bounding-box width  2*sqrt((rx*cos θ)²+(ry*sin θ)²)
     noteBoxHeight: 1.0,                // layout/bounding-box height
 
     // --- Horizontal advances ----------------------------------------------
     singleNoteAdvance: 1.75,           // base spacing per glyph (× noteSpacing)
-    ligatureStepAdvance: 1.05,         // added per extra note in a ligature
+    ligatureStepAdvance: 1.175,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.525,           // extra space per '/' between neume groups
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,
-    staffLineStroke: 0.09,
+    staffLineStroke: 0.13,
     staffLineStrokeMinPx: 0.6,
 
     // --- Ledger lines -----------------------------------------------------
@@ -50,15 +50,13 @@ export const METRICS = {
     ledgerStrokeMinPx: 0.6,
 
     // --- Stems (virga & tenor side strokes) -------------------------------
-    stemStroke: 0.11,
+    stemStroke: 0.12,
     stemStrokeMinPx: 0.8,
     virgaStemLength: 2.25,              // default descent of virga stem
     virgaStemDescentBelowPrev: 1.75,    // descent past a lower preceding note
     virgaMaxBelowBottom: 1.75,           // stem tip never exceeds this many spatia below bottom staff line
 
     // --- Tenor notehead (open oval with two side strokes) -----------------
-    tenorOutlineStroke: 0.15,
-    tenorOutlineStrokeMinPx: 0.8,
     tenorSideStrokeOffset: 0.15,      // gap between head edge and side stroke
     tenorSideStrokeHalfHeight: 0.75,
     tenorSideStroke: 0.15,             // thickness of the two vertical bars
@@ -91,7 +89,7 @@ export const METRICS = {
     plicaStrokeMinPx: 0.7,
 
     // --- Ligature connectors ----------------------------------------------
-    ligatureConnectorStroke: 0.11,
+    ligatureConnectorStroke: 0.1,
     ligatureConnectorStrokeMinPx: 0.7,
 
     // --- Quilisma (saw-tooth notehead) ------------------------------------
@@ -285,13 +283,14 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         // Stem going down from the left edge of the head.
         const sw = stroke(ctx, METRICS.stemStroke, METRICS.stemStrokeMinPx);
         const scaledNoteW = noteW * scale;
-        const stemX = headCx - scaledNoteW / 2 - sw / 2 + METRICS.stemStroke + 0.066;
+        const stemX = headCx - scaledNoteW / 2 * Math.cos(METRICS.noteheadRotationDeg * Math.PI / 180);
         const stemLength = prevCy !== null && prevCy > cy
             ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
             : ss(ctx, METRICS.virgaStemLength);
         const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
         const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
-        parts.push(`<line x1="${stemX}" y1="${cy}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`);
+        const verticalOffset = ss(ctx, 0.13); // nudge the stem slightly away to the main axis center of the notehead
+        parts.push(`<line x1="${stemX}" y1="${cy + verticalOffset}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`);
     }
     return parts.join('');
 }
@@ -408,16 +407,11 @@ export function drawPlicaBarline(ctx, cx, cy, direction = 'down', onLine = false
 }
 
 function noteheadEdgeOffset(ctx, scale = 1) {
-    // Geometric horizontal extent of the rotated notehead ellipse — used to
-    // attach ligature connectors at the true left/right tip of each oval.
+    // Endpoints of the major axis in the ellipse's own coordinate frame,
+    // mapped to global coords: right tip at (cx + rx·cosθ, cy + rx·sinθ).
     const rx = ss(ctx, METRICS.noteheadRx) * scale;
-    const ry = ss(ctx, METRICS.noteheadRy) * scale;
     const θ = METRICS.noteheadRotationDeg * Math.PI / 180;
-    const cosθ = Math.cos(θ);
-    const sinθ = Math.sin(θ);
-    const d = Math.sqrt(rx * rx * cosθ * cosθ + ry * ry * sinθ * sinθ);
-    const yShift = sinθ * cosθ * (rx * rx - ry * ry) / d;
-    return { dx: d, dy: yShift };
+    return { dx: rx * Math.cos(θ), dy: rx * Math.sin(θ) };
 }
 
 export function noteheadRightPoint(ctx, cx, cy, scale = 1) {
@@ -433,7 +427,7 @@ export function noteheadLeftPoint(ctx, cx, cy, scale = 1) {
 export function drawLigatureConnector(ctx, fromX, fromY, toX, toY, kind) {
     const sw = stroke(ctx, METRICS.ligatureConnectorStroke, METRICS.ligatureConnectorStrokeMinPx);
     if (kind === 'up') {
-        return `<line x1="${fromX}" y1="${fromY}" x2="${toX}" y2="${toY}" stroke="#000" stroke-width="${sw}"/>`;
+        return `<line x1="${fromX}" y1="${fromY}" x2="${toX}" y2="${toY}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
     }
     if (kind === 'down') {
         return `<line x1="${fromX}" y1="${fromY}" x2="${toX}" y2="${toY}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;

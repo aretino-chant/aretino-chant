@@ -88,7 +88,8 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             }
         }
 
-        // Draw ligature connectors first (under the heads).
+        // Collect ligature connectors to draw on top of everything else.
+        const connectorParts = [];
         for (let i = 1; i < positions.length; i++) {
             const prev = positions[i - 1];
             const cur = positions[i];
@@ -110,7 +111,12 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             const from = noteheadRightPoint(ctx, prev.cx, prev.cy, prevScale);
             const to = noteheadLeftPoint(ctx, cur.cx, cur.cy, curScale);
             const kind = curPos > prevPos ? 'up' : 'down';
-            parts.push(drawLigatureConnector(ctx, from.x - halfSW, from.y, to.x + halfSW, to.y, kind));
+            if (kind === 'up') {
+                connectorParts.push(drawLigatureConnector(ctx, from.x - halfSW + ss(ctx, 0.034), from.y + ss(ctx, 0.2), to.x + halfSW - ss(ctx, 0.034), to.y - ss(ctx, 0.2), kind));
+            } else {
+                connectorParts.push(drawLigatureConnector(ctx, from.x - halfSW + ss(ctx, 0.03), from.y + ss(ctx, 0.1), to.x + halfSW - ss(ctx, 0.04), to.y - ss(ctx, 0.1), kind));
+            }
+            
         }
 
         // Detect runs of consecutive notes that all carry an episema.
@@ -217,6 +223,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             }
             parts.push(wrapSrc(p.note, noteParts.join(''), 'aretino-note', staffBottomY, ctx.staffHeight, p.cx - ss(ctx, METRICS.noteBoxWidth) * 0.5, ss(ctx, METRICS.noteBoxWidth), ctx.sourceMap));
         }
+
+        // Draw connectors on top of noteheads.
+        for (const c of connectorParts) parts.push(c);
 
         if (g < groups.length - 1) {
             const gapType = gaps[g] ?? 1;

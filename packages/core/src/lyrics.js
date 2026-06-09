@@ -452,14 +452,16 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             const prevSyl = workSyllables[i - 1];
             const needsHyphen = prevSyl.hyphenAfter;
             if (needsHyphen) {
-                if (left - prevRight < hyphenSpaceW && prevSyl.hyphenMandatory) {
-                    // Mandatory ("=") hyphen with too little room: open a hyphen-wide
-                    // gap so the forced hyphen sits between the syllables instead of
-                    // overprinting them. (A normal "-" collapses here instead.)
+                if (left - prevRight >= hyphenSpaceW) {
+                    hyphenX = (left + prevRight) / 2;
+                } else if (prevSyl.hyphenMandatory || left - prevRight > hyphenSpaceW * 0.6) {
+                    // Open a hyphen-wide gap so the hyphen sits between the
+                    // syllables instead of overprinting them. This happens for a
+                    // mandatory ("=") hyphen, or when collapsing a normal "-"
+                    // would pull the syllable left by more than half a hyphen's
+                    // width — too far a jump, so we make room instead.
                     left = prevRight + hyphenSpaceW;
                     center = left + prefixW + alignW / 2;
-                    hyphenX = (left + prevRight) / 2;
-                } else if (left - prevRight >= hyphenSpaceW) {
                     hyphenX = (left + prevRight) / 2;
                 } else {
                     // Hyphen collapsed: apply Hungarian double-consonant rule if applicable.

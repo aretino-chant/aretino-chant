@@ -6,7 +6,7 @@ void AretinoEditor;
 const DEMO_SOURCE =`%option: dpi=500
 %title: Alleluia | Second line
 %subtitle: Graduale Romanum
-(g2) fab  b g. , ab a g e_d_ , g {ab ag} g. ||
+(g2) abb  b g. , ab a g e_d_ , g {ab ag} g. ||
 w:Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 `;
 

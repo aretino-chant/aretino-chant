@@ -27,14 +27,14 @@
 export const METRICS = {
     // --- Notehead (rotated filled oval) -----------------------------------
     noteheadRx: 0.61,                  // pre-rotation horizontal radius
-    noteheadRy: 0.47,                  // pre-rotation vertical radius
+    noteheadRy: 0.47271,                  // pre-rotation vertical radius
     noteheadRotationDeg: -25,
-    noteBoxWidth: 1.175,                // layout/bounding-box width  2*sqrt((rx*cos θ)²+(ry*sin θ)²)
+    noteBoxWidth: 1.1749,                // layout/bounding-box width  2*sqrt((rx*cos θ)²+(ry*sin θ)²)
     noteBoxHeight: 1.0,                // layout/bounding-box height
 
     // --- Horizontal advances ----------------------------------------------
     singleNoteAdvance: 1.75,           // base spacing per glyph (× noteSpacing)
-    ligatureStepAdvance: 1.175,         // added per extra note in a ligature
+    ligatureStepAdvance: 1.1749,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.525,           // extra space per '/' between neume groups
 
@@ -89,8 +89,8 @@ export const METRICS = {
     plicaStrokeMinPx: 0.7,
 
     // --- Ligature connectors ----------------------------------------------
-    ligatureConnectorStroke: 0.1,
-    ligatureConnectorStrokeMinPx: 0.7,
+    ligatureConnectorStroke: 0.11,
+    ligatureConnectorStrokeMinPx: 0.1,
 
     // --- Quilisma (saw-tooth notehead) ------------------------------------
     quilismaTeeth: 4,

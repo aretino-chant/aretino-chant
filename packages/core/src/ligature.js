@@ -111,8 +111,11 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             const from = noteheadRightPoint(ctx, prev.cx, prev.cy, prevScale);
             const to = noteheadLeftPoint(ctx, cur.cx, cur.cy, curScale);
             const kind = curPos > prevPos ? 'up' : 'down';
+            if (kind === 'up' && curPos - prevPos <= 0) {
+                continue;
+            }
             if (kind === 'up') {
-                connectorParts.push(drawLigatureConnector(ctx, from.x - halfSW + ss(ctx, 0.034), from.y + ss(ctx, 0.2), to.x + halfSW - ss(ctx, 0.034), to.y - ss(ctx, 0.2), kind));
+                connectorParts.push(drawLigatureConnector(ctx, from.x - halfSW / 4, from.y + ss(ctx, 0.2), to.x + halfSW / 4, to.y - ss(ctx, 0.2), kind));
             } else {
                 connectorParts.push(drawLigatureConnector(ctx, from.x - halfSW + ss(ctx, 0.03), from.y + ss(ctx, 0.1), to.x + halfSW - ss(ctx, 0.04), to.y - ss(ctx, 0.1), kind));
             }

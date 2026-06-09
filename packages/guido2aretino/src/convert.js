@@ -114,12 +114,26 @@ export function guidoToAretino(input) {
             continue;
         }
 
-        if (ch === 'ô') {
-            appendToken(afterClef ? '(K#)' : '(F#)');
+        if (ch === 'ô' || ch === 'þ' || ch === 'Ð') {
+            if (afterClef) {
+                const SHARP_KEY_NOTE = { 'ô': 'F#', 'þ': 'C#', 'Ð': 'G#' };
+                const sharps = [];
+                while (i < input.length && SHARP_KEY_NOTE[input[i]] !== undefined) {
+                    sharps.push(SHARP_KEY_NOTE[input[i]]);
+                    i++;
+                }
+                appendToken(`(K:${sharps.join(' ')})`);
+            } else {
+                const INLINE_MAP = { 'ô': '(F#)', 'þ': '(C#)', 'Ð': '(g#)' };
+                appendToken(INLINE_MAP[ch]);
+                i++;
+            }
             afterClef = false;
-            i++;
             continue;
         }
+
+
+        
 
         if (ch === 'B') {
             appendToken('(Eb)');

@@ -41,6 +41,12 @@ describe('guidoToAretino', () => {
     it('converts key signature characters', () => {
         expect(guidoToAretino('<X')).toBe('(g2)(Kb)');
         expect(guidoToAretino('0X')).toBe('c(b)');
+        expect(guidoToAretino('<ô')).toBe('(g2)(K:F#)');
+        expect(guidoToAretino('<ôþ')).toBe('(g2)(K:F# C#)');
+        expect(guidoToAretino('<ôþÐ')).toBe('(g2)(K:F# C# G#)');
+        expect(guidoToAretino('0ô')).toBe('c(F#)');
+        expect(guidoToAretino('0þ')).toBe('c(C#)');
+        expect(guidoToAretino('0Ð')).toBe('c(g#)');
     });
 
     it('converts quilisma characters', () => {

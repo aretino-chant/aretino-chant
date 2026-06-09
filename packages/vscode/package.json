@@ -1,7 +1,7 @@
 {
   "name": "aretino-chant-tools",
   "displayName": "Aretino Chant Tools",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Language support and live SVG preview for Aretino chant notation (.aretino files).",
   "publisher": "aretino-chant",
   "license": "MPL-2.0",

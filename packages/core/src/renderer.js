@@ -433,6 +433,9 @@ export function renderAretino(source, options = {}) {
             // lyric layout actually renders (a real space character), so the
             // note spacing follows the widened word break.
             const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
+            // Width reserved for a forced ("=") hyphen between two syllables; must
+            // match the gap emitAlignedSyllables opens for a mandatory hyphen.
+            const hyphenReserve = ctx.measureText('.', ctx.lyricSize, ctx.textFont);
             const halfNoteW = halfNoteWPx;
             const ligInfo = [];
             let li = 0;
@@ -525,6 +528,10 @@ export function renderAretino(source, options = {}) {
                 // naturally wider than the syllables. Separate words ("Ki rá lyok")
                 // still need a minimum gap between them.
                 let pairConnected = false;
+                // A mandatory ("=") hyphen is always drawn, so unlike an ordinary
+                // hyphen the pair cannot butt together: room for the hyphen must be
+                // reserved in the note advance.
+                let pairMandatory = false;
                 if (i + 1 < ligInfo.length && !hasBarlineBetween) {
                     let pairExists = false;
                     let allHyphenated = true;
@@ -543,11 +550,12 @@ export function renderAretino(source, options = {}) {
                                 allHyphenated = false;
                                 break;
                             }
+                            if (ni.hyphenAfter && ni.hyphenMandatory) pairMandatory = true;
                         }
                     }
                     pairConnected = pairExists && allHyphenated;
                 }
-                const gap = pairConnected ? 0 : minGap;
+                const gap = pairConnected ? (pairMandatory ? hyphenReserve : 0) : minGap;
                 item.syllableExtra = Math.max(0, currRight + nextLeftIntrusion + gap - baseAdv);
             }
         }

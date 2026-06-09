@@ -376,6 +376,21 @@ describe('renderAretino', () => {
         expect(renderedHyphenCount(svg)).toBe(2);
       });
 
+      it('= forced hyphen reserves room so it does not overlap the syllables', () => {
+        const svg = renderAretino('c d\nw: rülsz=e', { width: 400, noteSpacing: 0.3 });
+        const fs = 13.333333333333334;
+        const w = t => measureTextWidth(t, fs, 'serif');
+        const lyr = lyricTextEntries(svg);
+        const left = lyr.find(l => l.text === 'rülsz');
+        const right = lyr.find(l => l.text === 'e');
+        const hyphenX = [...svg.matchAll(/<text x="([^"]+)" y="[^"]+"[^>]*>-<\/text>/g)].map(m => +m[1])[0];
+        const leftRight = left.x + w('rülsz') / 2;
+        const rightLeft = right.x - w('e') / 2;
+        // The hyphen's box must sit between the two syllables, touching neither's ink.
+        expect(hyphenX - w('-') / 2).toBeGreaterThanOrEqual(leftRight - 1e-6);
+        expect(hyphenX + w('-') / 2).toBeLessThanOrEqual(rightLeft + 1e-6);
+      });
+
       it('= does not apply the Hungarian digraph transform even when tight', () => {
         const svg = renderAretino('c d\nw: osz=szad', { width: 400, noteSpacing: 0.3 });
         const texts = lyricTextEntries(svg).map(l => l.text);

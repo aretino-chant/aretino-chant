@@ -33,10 +33,10 @@ export const METRICS = {
     noteBoxHeight: 1.0,                // layout/bounding-box height
 
     // --- Horizontal advances ----------------------------------------------
-    singleNoteAdvance: 1.75,           // base spacing per glyph (× noteSpacing)
+    singleNoteAdvance: 1.9,           // use the golden ratio (the spaces between noteheads vs the noteheads)
     ligatureStepAdvance: 1.1749,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
-    neumeGapAdvance: 0.525,           // extra space per '/' between neume groups
+    neumeGapAdvance: 0.71/2,           // extra space per '/' between neume groups
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,

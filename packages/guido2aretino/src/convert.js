@@ -114,6 +114,13 @@ export function guidoToAretino(input) {
             continue;
         }
 
+        if (ch === 'ô') {
+            appendToken(afterClef ? '(K#)' : '(F#)');
+            afterClef = false;
+            i++;
+            continue;
+        }
+
         if (ch === 'B') {
             appendToken('(Eb)');
             afterClef = false;

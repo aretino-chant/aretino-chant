@@ -429,15 +429,16 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         // Offset from the left edge of fullW to the left edge of alignText portion.
         // Subtract suffixW because trailing punctuation sits after the centered core.
         let prefixW = fullW - alignW - suffixW;
+        const curLig = i < ligatures.length ? ligatures[i] : null;
+        const alignLeft = !!(curLig && curLig.shouldAlignLeft);
         let center;
-        if (i < ligatures.length) {
-            const lig = ligatures[i];
-            if (lig.shouldAlignLeft) {
+        if (curLig) {
+            if (alignLeft) {
                 // Align left edge: multi-note neume or tenor note.
-                center = lig.leftX + alignW / 2 - ctx.staffSpace * 0.1;
+                center = curLig.leftX + alignW / 2 - ctx.staffSpace * 0.1;
             } else {
                 // Center syllable on the notehead width only (mora excluded).
-                center = lig.centerX;
+                center = curLig.centerX;
             }
         } else {
             // More syllables than ligatures: lay them out after the last one
@@ -451,15 +452,32 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         if (i > 0) {
             const prevSyl = workSyllables[i - 1];
             const needsHyphen = prevSyl.hyphenAfter;
+            // A left-aligned syllable sits pinned at its neume's left edge, but the
+            // neume is wider than the text, so the syllable can slide right under it.
+            // That slack lets a hyphen fit where the pinned position has no room:
+            // the furthest right the syllable can go while its core text still ends
+            // within the neume's right edge.
+            const slideMaxLeft = alignLeft && curLig
+                ? (curLig.rightX ?? curLig.centerX) - alignW - prefixW
+                : -Infinity;
             if (needsHyphen) {
-                if (left - prevRight < hyphenSpaceW && prevSyl.hyphenMandatory) {
+                if (left - prevRight >= hyphenSpaceW) {
+                    hyphenX = (left + prevRight) / 2;
+                } else if (prevSyl.hyphenMandatory) {
                     // Mandatory ("=") hyphen with too little room: open a hyphen-wide
                     // gap so the forced hyphen sits between the syllables instead of
                     // overprinting them. (A normal "-" collapses here instead.)
                     left = prevRight + hyphenSpaceW;
                     center = left + prefixW + alignW / 2;
                     hyphenX = (left + prevRight) / 2;
-                } else if (left - prevRight >= hyphenSpaceW) {
+                } else if (prevRight + hyphenSpaceW <= slideMaxLeft) {
+                    // Left-aligned syllable with no room at its pinned position: slide
+                    // it right under its (wider) neume just far enough to fit the
+                    // hyphen, rather than collapsing. Centered syllables have no such
+                    // slack (slideMaxLeft is -Infinity), so they fall through to the
+                    // collapse branch below — which is correct for them.
+                    left = prevRight + hyphenSpaceW;
+                    center = left + prefixW + alignW / 2;
                     hyphenX = (left + prevRight) / 2;
                 } else {
                     // Hyphen collapsed: apply Hungarian double-consonant rule if applicable.

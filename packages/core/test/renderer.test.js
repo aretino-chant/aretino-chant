@@ -277,6 +277,22 @@ describe('renderAretino', () => {
       expect(gyamLeft).toBeGreaterThanOrEqual(firstLigature.right - 0.01);
     });
 
+    it('shows a hyphen before a left-aligned syllable by sliding it right under its wide neume', () => {
+      // "gyam" sits under a 6-note neume (left-aligned), so although its pinned
+      // left edge leaves no room for the hyphen, the neume is wide enough for the
+      // syllable to slide right and open a hyphen gap instead of collapsing.
+      const svg = renderAretino('c fgabag\nw: i-gyam', { width: 600 });
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['i', 'gyam']);
+      expect(renderedHyphenCount(svg)).toBe(1);
+    });
+
+    it('collapses the hyphen before a centered syllable that has no room to slide', () => {
+      // Same lyrics, but "gyam" is now centered under a single note with no slack,
+      // so the hyphen correctly collapses (the syllable cannot move to make room).
+      const svg = renderAretino('c c\nw: i-gyam', { width: 600 });
+      expect(renderedHyphenCount(svg)).toBe(0);
+    });
+
     it('preserves small and large formatting in aligned lyric syllables', () => {
       const svg = renderAretino('c d e\nw: First \\small{Second} \\large{Third}', { width: 600 });
 

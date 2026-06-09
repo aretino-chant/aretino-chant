@@ -62,6 +62,11 @@ export const METRICS = {
     tenorSideStroke: 0.15,             // thickness of the two vertical bars
     tenorSideStrokeMinPx: 1.4,
     tenorAdvanceExtra: 1.5,            // extra advance vs. a normal note (wider glyph)
+    tenorCalligraphyWidthScale: 1.1,  // tenor open oval is wider than a normal notehead
+    tenorCalligraphyInnerScaleX: 0.55, // inner (hole) ellipse rx as a fraction of the outer rx; controls the thickness of the short ends (keep < ~0.8 so the hole stays inside the outline)
+    tenorCalligraphyInnerScaleY: 0.55, // inner (hole) ellipse ry as a fraction of the outer ry; controls the thickness of the long sides (keep < ~0.8 so the hole stays inside the outline)
+    tenorCalligraphyOuterRotationDeg: 25, // tilt of the outer (silhouette) ellipse relative to the normal notehead rotation; rotates the whole open oval
+    tenorCalligraphyInnerRotationDeg: 40, // tilt of the inner (hole) ellipse relative to the outer; offsets the swell toward one diagonal end for a hand-traced look
 
     // --- Small notehead (optional psalm-tone notes) ----------------------
     smallNoteScale: 0.7,               // scale factor for small noteheads
@@ -201,6 +206,43 @@ function ovalHead(ctx, cx, cy, opts = {}) {
     return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${strokeColor}" stroke-width="${sw}" transform="rotate(${METRICS.noteheadRotationDeg}, ${cx}, ${cy})"/>`;
 }
 
+// Open oval drawn as if traced with a broad-nib pen, giving a calligraphic
+// stroke whose weight swells along the long axis and tapers toward the ends.
+// Implemented as the filled region between two concentric ellipses: an outer
+// ellipse (the silhouette) wound CCW, and a strictly smaller inner ellipse
+// (the hole) wound CW so the non-zero fill rule opens the centre. Both share
+// the centre (cx,cy); because the outer is wider than it is tall (rx > ry),
+// the constant-ratio gap is larger on the long sides than at the short ends,
+// producing the calligraphic thick-sides/thin-ends swell while the hole stays
+// centred inside the silhouette.
+function calligraphicOval(ctx, cx, cy, opts = {}) {
+    const rx = opts.rx ?? ss(ctx, METRICS.noteheadRx);
+    const ry = opts.ry ?? ss(ctx, METRICS.noteheadRy);
+    const fill = opts.fill ?? '#000';
+    // Outer (silhouette) ellipse: normal notehead tilt plus an optional tenor-specific offset.
+    const θ = (METRICS.noteheadRotationDeg + METRICS.tenorCalligraphyOuterRotationDeg) * Math.PI / 180;
+    const N = 64;
+    const ringPath = (dir, sx, sy, φ) => {
+        const cosφ = Math.cos(φ), sinφ = Math.sin(φ);
+        let d = '';
+        for (let k = 0; k <= N; k++) {
+            const t = dir * (k / N) * 2 * Math.PI;
+            const ex = rx * sx * Math.cos(t), ey = ry * sy * Math.sin(t);
+            const px = cx + ex * cosφ - ey * sinφ;
+            const py = cy + ex * sinφ + ey * cosφ;
+            d += `${k === 0 ? 'M' : 'L'}${px.toFixed(3)} ${py.toFixed(3)}`;
+        }
+        return d + 'Z';
+    };
+    const innerX = METRICS.tenorCalligraphyInnerScaleX;
+    const innerY = METRICS.tenorCalligraphyInnerScaleY;
+    // Tilt the inner ellipse a touch off the outer's axis so the calligraphic
+    // swell is asymmetric — thicker toward one diagonal end, like a real nib.
+    const innerθ = θ + METRICS.tenorCalligraphyInnerRotationDeg * Math.PI / 180;
+    const path = ringPath(1, 1, 1, θ) + ringPath(-1, innerX, innerY, innerθ);
+    return `<path d="${path}" fill="${fill}"/>`;
+}
+
 function ledgerLines(ctx, cx, cy, staffBottomY) {
     // Draw ledger lines above/below the staff for notes outside line 1..line 5.
     const top = staffBottomY - (METRICS.staffLineCount - 1) * ctx.staffSpace;
@@ -271,7 +313,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         const { dx: edgeDx } = noteheadEdgeOffset(ctx);
         // Shift the whole glyph right so its left outer stroke edge aligns with the normal notehead's left edge.
         const tenorCx = cx + (sideX + sideSW - edgeDx * scale);
-        parts.push(ovalHead(ctx, tenorCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale, fill: 'none', stroke: '#000', strokeWidth: sideSW }));
+        parts.push(calligraphicOval(ctx, tenorCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * METRICS.tenorCalligraphyWidthScale * scale, ry: ss(ctx, METRICS.noteheadRy) * scale }));
         const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
         parts.push(`<line x1="${tenorCx - sideX}" y1="${cy - halfH}" x2="${tenorCx - sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}" stroke-linecap="round"/>`);
         parts.push(`<line x1="${tenorCx + sideX}" y1="${cy - halfH}" x2="${tenorCx + sideX}" y2="${cy + halfH}" stroke="#000" stroke-width="${sideSW}" stroke-linecap="round"/>`);

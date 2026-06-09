@@ -58,7 +58,7 @@ export const METRICS = {
 
     // --- Tenor notehead (open oval with two side strokes) -----------------
     tenorSideStrokeOffset: 0.15,      // gap between head edge and side stroke
-    tenorSideStrokeHalfHeight: 0.75,
+    tenorSideStrokeHalfHeight: 0.55,
     tenorSideStroke: 0.15,             // thickness of the two vertical bars
     tenorSideStrokeMinPx: 1.4,
     tenorAdvanceExtra: 1.5,            // extra advance vs. a normal note (wider glyph)

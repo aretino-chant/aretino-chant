@@ -12,6 +12,7 @@
 %     cli           = node /path/to/aretino.js,   % full command string, shell-trusted
 %     width-mm      = 160,
 %     staff-space-mm= 1.75,
+%     per-line      = false,                       % per-line is on by default; disable globally here
 %   }
 %
 %   \aretinofile{mypiece.aretino}
@@ -26,7 +27,7 @@
 %   ...
 %   \end{aretino}
 %
-%   \begin{aretino}[per-line]
+%   \begin{aretino}[per-line=false]   % per-line is the default; disable per environment
 %   ...
 %   \end{aretino}
 %
@@ -58,7 +59,7 @@
 \def\aretino@fontbold{}
 \def\aretino@fontboldit{}
 \def\aretino@hiderepeatclef{}
-\def\aretino@perline{}
+\def\aretino@perline{true}
 
 % ---- Package options ----
 

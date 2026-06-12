@@ -601,6 +601,53 @@ describe('renderAretino', () => {
       const plain = renderAretino('at b |\nw: orosz-lán', { width: 600 });
       expect(gapBetween(recited, 'orosz', 'lán')).toBeCloseTo(gapBetween(plain, 'orosz', 'lán'), 1);
     });
+
+    it('keeps a ~~ prefix glued to the first recited word', () => {
+      // The prefix is display-only: it must not become a recited word of its
+      // own, and the alignment text still left-aligns to the tenor note.
+      const alignLeftRel = (svg, prefixText) => {
+        const first = lyricTextEntries(svg)[0];
+        const fullW = measureTextWidth(first.text, first.fontSize, first.fontFamily);
+        const prefixW = prefixText ? measureTextWidth(prefixText, first.fontSize, first.fontFamily) : 0;
+        return first.x - fullW / 2 + prefixW - ligatureBoxes(svg)[0].x;
+      };
+      const withPrefix = renderAretino('at\nw: Priest:~~alpha~beta~gamma~delta', { width: 600 });
+      expect(lyricTextEntries(withPrefix).map(l => l.text))
+        .toEqual(['Priest: alpha', 'beta', 'gamma', 'delta']);
+      const plain = renderAretino('at\nw: alpha~beta~gamma~delta', { width: 600 });
+      expect(alignLeftRel(withPrefix, 'Priest: ')).toBeCloseTo(alignLeftRel(plain, ''), 1);
+    });
+
+    it('does not expand a tenor syllable whose alignment text is a single word', () => {
+      // "Priest: solo" contains a space, but only the ~~ alignment text counts
+      // when deciding whether the phrase can wrap word-by-word.
+      const svg = renderAretino('at\nw: Priest:~~solo', { width: 600 });
+      expect(tenorGlyphCount(svg)).toBe(1);
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['Priest: solo']);
+    });
+  });
+
+  describe('first-syllable clearance under a descending clef', () => {
+    const clefRightX = svg => {
+      // The start clef is the first translate+scale group in the row.
+      const k = renderedStaffSpace(svg) / 591;
+      const tm = svg.match(/<g transform="translate\((-?[\d.]+),-?[\d.]+\) scale\([\d.]+\)">/);
+      return parseFloat(tm[1]) + 2621 * k;
+    };
+    const firstTextLeft = svg => {
+      const first = lyricTextEntries(svg)[0];
+      return first.x - measureTextWidth(first.text, first.fontSize, first.fontFamily) / 2;
+    };
+
+    it('keeps first-syllable text right of a treble clef tail that dips into the lyric line', () => {
+      const svg = renderAretino('(g2) g g g g g\nw: Priest:~~Be-ne-di-ca-mus');
+      expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(clefRightX(svg));
+    });
+
+    it('still lets the prefix tuck under the clef when low notes push the lyrics below it', () => {
+      const svg = renderAretino('(g2) c d e f g\nw: Priest:~~Be-ne-di-ca-mus');
+      expect(firstTextLeft(svg)).toBeLessThan(clefRightX(svg));
+    });
   });
 
   describe('source-mapped caret elements', () => {

@@ -56,17 +56,25 @@ let recitationChainCounter = 0;
 // null when the syllable is a single word (nothing to wrap).
 function splitRecitationWords(syl) {
     const text = syl.text || '';
-    if (!/\s/.test(text.trim())) return null;
+    // A ~~ prefix (display-only text before the alignment text) is not part of
+    // the recited phrase: only the alignment text splits into words, and the
+    // prefix stays glued to the first word so it hangs left of the tenor note.
+    const alignText = syl.alignText ?? text;
+    const prefixLen = Math.max(0, text.length - alignText.length);
+    if (!/\s/.test(alignText.trim())) return null;
     const segments = syl.segments || [];
     const words = [];
     const re = /\S+/g;
     let m;
-    while ((m = re.exec(text)) !== null) {
-        const start = m.index;
+    while ((m = re.exec(alignText)) !== null) {
+        const start = prefixLen + m.index;
         const wordSegs = trimSegmentsEnd(sliceSegments(segments, start), m[0].length);
+        const withPrefix = words.length === 0 && prefixLen > 0;
         words.push({
-            text: m[0], alignText: m[0],
-            segments: wordSegs, alignSegments: wordSegs, suffixSegments: [],
+            text: withPrefix ? text.slice(0, start + m[0].length) : m[0],
+            alignText: m[0],
+            segments: withPrefix ? trimSegmentsEnd(segments, start + m[0].length) : wordSegs,
+            alignSegments: wordSegs, suffixSegments: [],
             hyphenAfter: false, hyphenMandatory: false, kind: 'note',
         });
     }
@@ -685,11 +693,18 @@ export function renderAretino(source, options = {}) {
             // giving the "repeat the note at each line start" behaviour.
             const recitationGlyphDrawn = new Set();
 
+            // Bottom and visual right edge of the row's start clef — used below to
+            // keep first-syllable lyric text from running under a clef whose tail
+            // dips into the lyric band (treble clef, bottom-line C clef).
+            let rowClefBottomY = -Infinity;
+            let rowClefRightX = -Infinity;
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
                 if (c.minY < rowTopY) rowTopY = c.minY;
                 if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                 parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
+                rowClefBottomY = c.maxY;
+                rowClefRightX = cursorX + c.advance - clefPostGapPx;
                 cursorX += c.advance - clefPostGapPx + clefInlinePostGapPx;
             }
 
@@ -713,7 +728,8 @@ export function renderAretino(source, options = {}) {
             }
 
             // For the first syllable of a row, ensure prefix text (before ~~) doesn't
-            // extend past the staff's left edge.
+            // extend past the staff's left edge, and that no first-syllable text runs
+            // under a start clef whose tail dips into the first lyric line.
             if (alignSyllables) {
                 const firstLigItem = row.items.find(it => it.kind === 'ligature');
                 if (firstLigItem) {
@@ -734,11 +750,20 @@ export function renderAretino(source, options = {}) {
                             if (pW > maxPrefixW) maxPrefixW = pW;
                         }
                     }
-                    if (maxPrefixW > 0) {
+                    let leftLimit = maxPrefixW > 0 ? staffLeftX : -Infinity;
+                    if ((maxAlignW > 0 || maxPrefixW > 0) && rowClefBottomY > -Infinity) {
+                        const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
+                        const lyricTopY = (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance;
+                        if (rowClefBottomY > lyricTopY) {
+                            const sideGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
+                            leftLimit = Math.max(leftLimit, rowClefRightX + sideGap);
+                        }
+                    }
+                    if (leftLimit > -Infinity) {
                         const textLeft = isCenteredFirst
                             ? cursorX + halfNoteW - maxAlignW / 2 - maxPrefixW
                             : cursorX - maxPrefixW;
-                        const preGap = Math.max(0, staffLeftX - textLeft);
+                        const preGap = Math.max(0, leftLimit - textLeft);
                         cursorX += preGap;
                     }
                 }

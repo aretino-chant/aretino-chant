@@ -856,11 +856,38 @@ export function renderAretino(source, options = {}) {
                 // their "floor" is prose text width, not notehead spacing, and
                 // would skew the target on short lines.
                 const targetFloors = [];
+                // Whitespace a boundary already provides. Leveling raises the
+                // total visible gap toward L, so padding built into an item's
+                // advance must count as floor rather than have L added on top.
+                const gapFloor = (it, next) => {
+                    let f = 0;
+                    if (it.kind === 'ligature') f += it.syllableExtra || 0;
+                    else if (it.kind === 'barline') f += barlinePostGapPx + (it.barlineExtra || 0) / 2 + (it.barlinePostExtra || 0);
+                    else if (it.kind === 'clef') f += clefInlinePostGapPx;
+                    else if (it.kind === 'keysig' && it.accidentals.length) f += keySigInlinePostGapPx;
+                    // A labelled barline pads before its glyph too.
+                    if (next.kind === 'barline') f += (next.barlineExtra || 0) / 2;
+                    return f;
+                };
                 for (let i = 0; i < row.items.length - 1; i++) {
                     const it = row.items[i];
                     const next = row.items[i + 1];
                     if (it.kind === 'accidental' && next.kind === 'ligature') {
                         continue; // glued pair — not a gap
+                    }
+                    // Zero-advance markers (brace/slur ends) and fixed spacers are
+                    // transparent: the boundary before them is the one real gap;
+                    // counting the boundary after them too would insert the leveled
+                    // space twice across a single visual break. A spacer thus rides
+                    // on top of a normally leveled gap, keeping its fixed width.
+                    if (it.kind === 'brace-open' || it.kind === 'brace-close' || it.kind === 'spacer') {
+                        continue;
+                    }
+                    // Paren arcs hug their group the way an accidental hugs its
+                    // note: no leveled gap between an opening arc and the first
+                    // neume, nor between the last neume and the closing arc.
+                    if (it.kind === 'paren-open' || next.kind === 'paren-close') {
+                        continue;
                     }
                     // Words of one tenor recitation phrase (~-joined) keep a fixed
                     // normal space between them; justification must not stretch that
@@ -869,7 +896,7 @@ export function renderAretino(source, options = {}) {
                         continue;
                     }
                     gapIdx.push(i);
-                    const floor = it.kind === 'ligature' ? (it.syllableExtra || 0) : 0;
+                    const floor = gapFloor(it, next);
                     floors.push(floor);
                     if (it.kind === 'ligature' && !it.recitationGlyphless) {
                         targetFloors.push(floor);

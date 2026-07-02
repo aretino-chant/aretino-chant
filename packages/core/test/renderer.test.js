@@ -824,6 +824,45 @@ describe('renderAretino', () => {
       expect(gaps[0]).toBeCloseTo(gaps[4], 1);
       expect(gaps[3]).toBeCloseTo(gaps[4], 1);
     });
+
+    it('does not add leveled space on top of a barline\'s built-in post-gap', () => {
+      // The barline's own post-gap already exceeds the ragged leveling target,
+      // so the gap after the barline must stay exactly barlinePostGap instead
+      // of gaining the leveled space on top.
+      const svg = renderAretino('g g | g g', { width: 600 });
+      const row = splitRowSVGs(svg)[0];
+      const ss = renderedStaffSpace(row);
+
+      const barX1 = Math.max(...barlineX1s(row));
+      const glyphRightEdge = barX1 - METRICS.barlineOffsetX * ss + METRICS.barlineAdvance * ss;
+      const nextNote = ligatureBoxes(row).find(b => b.x > barX1);
+      expect(nextNote.x - glyphRightEdge).toBeCloseTo(METRICS.barlinePostGap * ss, 1);
+    });
+
+    it('inserts a single leveled gap across slur markers', () => {
+      // brace-open/close markers have no advance; the boundaries on both
+      // sides of a marker must not each receive the leveled gap, or the
+      // spacing doubles wherever a slur starts or ends.
+      const svg = renderAretino('g \\slur{g g} g', { width: 600 });
+      const boxes = ligatureBoxes(splitRowSVGs(svg)[0]);
+      expect(boxes).toHaveLength(4);
+      const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+
+      expect(gaps[0]).toBeCloseTo(gaps[1], 1);
+      expect(gaps[2]).toBeCloseTo(gaps[1], 1);
+    });
+
+    it('keeps a spacer as fixed extra width on top of a leveled gap', () => {
+      const svg = renderAretino('g g (sp) g g', { width: 600 });
+      const row = splitRowSVGs(svg)[0];
+      const boxes = ligatureBoxes(row);
+      expect(boxes).toHaveLength(4);
+      const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+      const ss = renderedStaffSpace(row);
+
+      expect(gaps[1]).toBeCloseTo(gaps[0] + METRICS.spacerAdvance * ss, 1);
+      expect(gaps[2]).toBeCloseTo(gaps[0], 1);
+    });
   });
 
   describe('slur spans', () => {

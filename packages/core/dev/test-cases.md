@@ -218,7 +218,7 @@ Fixed-width spacers `(sp)` and `=`:
 ## Explicit Line Break `(z)` / `(Z)`
 
 ```aretino
-(g2) a a a g a j b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
+(g2) a a a g a C b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
 
@@ -232,7 +232,7 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 %indent: VII.
 %rubric: During procession
 %%
-(g2) a a a g a j b g h. ||
+(g2) a a a g a C b g a. ||
 w: O Lord, hear my hum-ble call to you!
 ```
 

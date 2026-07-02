@@ -49,6 +49,35 @@ import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
 
+// Distribute a budget of extra horizontal space across the row's inter-neume
+// gaps so the *visible* spacing between neumes becomes uniform, independent of
+// syllable width. Each gap has a floor (the lyric-driven minimum already baked
+// into it, so the syllable never overlaps the next neume); we raise the narrow
+// gaps toward the widest by "water-filling": pour the budget in from the bottom
+// until every gap reaches a common level L, i.e. the smallest L with
+// Σ max(0, L − floorᵢ) == budget. Gaps whose floor already exceeds L keep their
+// floor (an unavoidably wide syllable stays wide); all others rise to L. Returns
+// L; callers add max(0, L − floorᵢ) to each gap.
+function justificationWaterLevel(floors, budget) {
+    if (floors.length === 0 || budget <= 0) {
+        return floors.length ? Math.min(...floors) : 0;
+    }
+    const sorted = [...floors].sort((a, b) => a - b);
+    let level = sorted[0];
+    let remaining = budget;
+    for (let i = 1; i <= sorted.length; i++) {
+        const next = i < sorted.length ? sorted[i] : Infinity;
+        const count = i; // gaps at or below the current level
+        const cost = (next - level) * count;
+        if (!isFinite(cost) || cost >= remaining) {
+            return level + remaining / count;
+        }
+        remaining -= cost;
+        level = next;
+    }
+    return level;
+}
+
 let recitationChainCounter = 0;
 
 // Splits a recitation syllable's whitespace-separated words into one syllable
@@ -785,16 +814,43 @@ export function renderAretino(source, options = {}) {
             }
             const extra = Math.max(0, remaining - itemsWidth);
             const expanderCount = row.items.reduce((n, it) => n + (it.kind === 'expander' ? 1 : 0), 0);
-            // Accidental+ligature pairs are glued — don't count them as a gap.
-            const gluedPairs = row.items.reduce((n, it, i) => n + (it.kind === 'accidental' && i + 1 < row.items.length && row.items[i + 1].kind === 'ligature' ? 1 : 0), 0);
-            const gapCount = Math.max(0, row.items.length - 1 - gluedPairs);
             let extraPerExpander = 0;
-            let extraPerGap = 0;
-            if (row.justify && extra > 0) {
-                if (expanderCount > 0) {
+            // Per-gap justification space, indexed by the item the gap follows.
+            const gapExtras = new Array(row.items.length).fill(0);
+            if (extra > 0 && expanderCount > 0) {
+                // Expanders are explicit slack absorbers: they soak up all the
+                // leftover space (only when the row is justified).
+                if (row.justify) {
                     extraPerExpander = extra / expanderCount;
-                } else if (gapCount > 0) {
-                    extraPerGap = extra / gapCount;
+                }
+            } else if (extra > 0) {
+                // Even out the space between neumes. Collect the justification
+                // gaps (every inter-item boundary except an accidental glued to
+                // its following neume) and the lyric-driven floor already baked
+                // into each (a ligature's syllableExtra), then water-fill so the
+                // gaps are as uniform as the budget permits.
+                const gapIdx = [];
+                const floors = [];
+                for (let i = 0; i < row.items.length - 1; i++) {
+                    const it = row.items[i];
+                    if (it.kind === 'accidental' && row.items[i + 1].kind === 'ligature') {
+                        continue; // glued pair — not a gap
+                    }
+                    gapIdx.push(i);
+                    floors.push(it.kind === 'ligature' ? (it.syllableExtra || 0) : 0);
+                }
+                if (gapIdx.length > 0) {
+                    // A justified row consumes all slack to reach the right
+                    // margin; a ragged row consumes only enough to level the gaps
+                    // up to the widest lyric requirement, leaving the rest as
+                    // trailing whitespace.
+                    const maxFloor = Math.max(...floors);
+                    const neededToLevel = floors.reduce((s, f) => s + (maxFloor - f), 0);
+                    const budget = row.justify ? extra : Math.min(extra, neededToLevel);
+                    const level = justificationWaterLevel(floors, budget);
+                    for (let k = 0; k < gapIdx.length; k++) {
+                        gapExtras[gapIdx[k]] = Math.max(0, level - floors[k]);
+                    }
                 }
             }
 
@@ -969,12 +1025,9 @@ export function renderAretino(source, options = {}) {
                     }
                     cursorX += r.advance + (it.syllableExtra || 0);
                 }
-                if (idx < row.items.length - 1 && extraPerGap > 0) {
-                    // Don't insert justification gap between an accidental and its neume.
-                    const nextIt = row.items[idx + 1];
-                    if (!(it.kind === 'accidental' && nextIt.kind === 'ligature')) {
-                        cursorX += extraPerGap;
-                    }
+                if (idx < row.items.length - 1) {
+                    // gapExtras is already zero for glued accidental+neume pairs.
+                    cursorX += gapExtras[idx];
                 }
             }
 

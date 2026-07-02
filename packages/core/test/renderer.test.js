@@ -806,10 +806,11 @@ describe('renderAretino', () => {
       expect(barX(narrow)).toBeCloseTo(barX(wide), 1);
     });
 
-    it('levels every gap to the widest floor on an unjustified row', () => {
-      // First version of ragged-row leveling: all neume distances on a line
-      // are the same. The wide word forces a wide gap on both of its sides,
-      // and every other gap levels up to match it.
+    it('levels every gap to the widest non-outlier floor on an unjustified row', () => {
+      // All neume distances on a line are the same — except a gap whose
+      // lyric-forced floor exceeds gapOutlierThreshold. The wide word's floor
+      // is an outlier: the gaps on both of its sides keep that wide floor
+      // locally while every other gap levels to the widest ordinary floor.
       const svg = renderAretino('g g g g g g\nw: no no Extraordinarily no no no', { width: 800 });
       const rows = splitRowSVGs(svg);
       expect(rows).toHaveLength(1);
@@ -818,20 +819,36 @@ describe('renderAretino', () => {
       expect(boxes).toHaveLength(6);
       const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
 
-      for (const gap of gaps.slice(1)) {
-        expect(gap).toBeCloseTo(gaps[0], 1);
-      }
+      expect(gaps[3]).toBeCloseTo(gaps[0], 1);
+      expect(gaps[4]).toBeCloseTo(gaps[0], 1);
+      expect(gaps[1]).toBeGreaterThan(gaps[0] * 2);
+      expect(gaps[2]).toBeGreaterThan(gaps[0] * 2);
+    });
+
+    it('does not let an outlier syllable force an early wrap', () => {
+      // The line breaker reserves the leveling need for each candidate row.
+      // Since an outlier floor no longer drives the leveling target, the wide
+      // word costs only its own width: all ten notes pack onto one row, with
+      // uniform gaps everywhere except around the outlier.
+      const svg = renderAretino(
+        'g g g g g g g g g g\nw: no no Extraordinarily no no no no no no no',
+        { width: 600 },
+      );
+      const rows = splitRowSVGs(svg);
+      expect(rows).toHaveLength(1);
+      expect(ligatureBoxes(rows[0])).toHaveLength(10);
     });
 
     it('wraps early enough that a filling row never compresses its leveled gaps', () => {
       // The line breaker reserves the leveling need (raising every gap to the
-      // row's widest floor) on top of the items' own widths. Without the
-      // reserve all ten notes would pack onto one row and the gaps around the
-      // wide word would dwarf the collapsed plain gaps; instead the row wraps
-      // and every row keeps uniform neume distances.
+      // row's widest non-outlier floor) on top of the items' own widths.
+      // Without the reserve all ten notes would pack onto one row and the
+      // gaps around the moderately wide word would dwarf the collapsed plain
+      // gaps; instead the row wraps and every row keeps uniform neume
+      // distances.
       const svg = renderAretino(
-        'g g g g g g g g g g\nw: no no Extraordinarily no no no no no no no',
-        { width: 600 },
+        'g g g g g g g g g g\nw: no no noon no no no no no no no',
+        { width: 250 },
       );
       const rows = splitRowSVGs(svg);
       expect(rows.length).toBeGreaterThan(1);

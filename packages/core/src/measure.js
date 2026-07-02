@@ -183,8 +183,21 @@ export function gapFloor(ctx, it, next) {
     return f;
 }
 
+// The level ragged rows raise their gaps to: the widest gap floor, ignoring
+// outliers. A floor wider than gapOutlierThreshold (e.g. one long syllable
+// like "szent") keeps its own lyric-forced width instead of pulling every
+// other gap on the line out to match it. If every floor is an outlier there
+// is nothing sensible to level toward, so the smallest floor wins (no extra
+// space is spent).
+export function levelingTarget(ctx, floors) {
+    if (floors.length === 0) return 0;
+    const threshold = ss(ctx, METRICS.gapOutlierThreshold);
+    const below = floors.filter(f => f <= threshold);
+    return below.length ? Math.max(...below) : Math.min(...floors);
+}
+
 // Extra width, beyond the items' own advances, needed to raise every leveled
-// gap between the given row items to the widest gap floor — the space an
+// gap between the given row items to the leveling target — the space an
 // unjustified row consumes to make all neume distances come out the same.
 export function levelingNeed(ctx, rowItems) {
     const floors = [];
@@ -194,8 +207,8 @@ export function levelingNeed(ctx, rowItems) {
         }
     }
     if (floors.length === 0) return 0;
-    const top = Math.max(...floors);
-    return floors.reduce((s, f) => s + (top - f), 0);
+    const top = levelingTarget(ctx, floors);
+    return floors.reduce((s, f) => s + Math.max(0, top - f), 0);
 }
 
 export function measureItem(ctx, item) {

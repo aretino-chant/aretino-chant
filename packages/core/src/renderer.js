@@ -44,7 +44,7 @@ import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
-import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, gapFloor } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, gapFloor, levelingTarget } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -855,14 +855,17 @@ export function renderAretino(source, options = {}) {
                 }
                 if (gapIdx.length > 0) {
                     // A justified row consumes all slack to reach the right
-                    // margin. A ragged row levels every gap to the widest floor,
-                    // so all neume distances on the line come out the same.
+                    // margin. A ragged row levels every gap to the widest
+                    // non-outlier floor (levelingTarget), so all neume
+                    // distances on the line come out the same — except that a
+                    // floor past gapOutlierThreshold keeps its own lyric-forced
+                    // width instead of widening the whole line.
                     let budget;
                     if (row.justify) {
                         budget = extra;
                     } else {
-                        const top = Math.max(...floors);
-                        const neededToLevel = floors.reduce((s, f) => s + (top - f), 0);
+                        const top = levelingTarget(ctx, floors);
+                        const neededToLevel = floors.reduce((s, f) => s + Math.max(0, top - f), 0);
                         budget = Math.min(extra, neededToLevel);
                     }
                     const level = justificationWaterLevel(floors, budget);

@@ -216,6 +216,20 @@ Fixed-width spacers `(sp)` and `=`:
 
 ---
 
+## Gap Leveling and Outlier Syllables
+
+Neume gaps on a line level to the widest lyric-forced gap — except outliers.
+A gap whose floor exceeds `gapOutlierThreshold` (in staff-spaces) keeps its
+own width locally instead of widening every other gap on the line. Here the
+gaps around "Extraordinarily" stay wide while all other gaps stay uniform:
+
+```aretino
+(g2) g g g g g g
+w: no no Extraordinarily no no no
+```
+
+---
+
 ## Explicit Line Break `(z)` / `(Z)`
 
 ```aretino

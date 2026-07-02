@@ -37,6 +37,7 @@ export const METRICS = {
     ligatureStepAdvance: 1.1749,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.71/2,           // extra space per '/' between neume groups
+    gapOutlierThreshold: 2.0,          // gap floors wider than this are outliers: they keep their own width instead of driving the unified neume gap
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,

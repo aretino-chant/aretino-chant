@@ -842,8 +842,15 @@ export function renderAretino(source, options = {}) {
                 const floors = [];
                 for (let i = 0; i < row.items.length - 1; i++) {
                     const it = row.items[i];
-                    if (it.kind === 'accidental' && row.items[i + 1].kind === 'ligature') {
+                    const next = row.items[i + 1];
+                    if (it.kind === 'accidental' && next.kind === 'ligature') {
                         continue; // glued pair — not a gap
+                    }
+                    // Words of one tenor recitation phrase (~-joined) keep a fixed
+                    // normal space between them; justification must not stretch that
+                    // inter-word gap, nor let the word's prose width drive leveling.
+                    if (it.recitationChainId != null && next.recitationChainId === it.recitationChainId) {
+                        continue;
                     }
                     gapIdx.push(i);
                     floors.push(it.kind === 'ligature' ? (it.syllableExtra || 0) : 0);

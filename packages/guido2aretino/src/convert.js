@@ -224,6 +224,13 @@ export function guidoToAretino(input) {
             continue;
         }
 
+        if (ch === '¨') {
+            appendToken('/');
+            afterClef = false;
+            i++;
+            continue;
+        }
+
         // Ignore unrecognised characters (whitespace, newlines, f, etc.)
         i++;
     }

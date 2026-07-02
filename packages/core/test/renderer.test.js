@@ -852,6 +852,21 @@ describe('renderAretino', () => {
       expect(gaps[2]).toBeCloseTo(gaps[1], 1);
     });
 
+    it('stretches word gaps before hyphen-joined syllable gaps when justifying', () => {
+      // "Ky-ri-e" is one word, "no" a separate word. On a justified row the
+      // two intra-word gaps must stay tighter than the word gap (by the
+      // hyphen stretch penalty) instead of all leveling to equal spacing.
+      const svg = renderAretino('g g g g (z) g\nw: Ky-ri-e no x', { width: 600 });
+      const boxes = ligatureBoxes(splitRowSVGs(svg)[0]);
+      expect(boxes).toHaveLength(4);
+      const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+
+      // The intra-word gaps stay uniform...
+      expect(gaps[0]).toBeCloseTo(gaps[1], 1);
+      // ...and the word gap ends wider than both.
+      expect(gaps[2]).toBeGreaterThan(gaps[0] + 1);
+    });
+
     it('keeps a spacer as fixed extra width on top of a leveled gap', () => {
       const svg = renderAretino('g g (sp) g g', { width: 600 });
       const row = splitRowSVGs(svg)[0];

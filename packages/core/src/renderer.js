@@ -435,6 +435,11 @@ export function renderAretino(source, options = {}) {
     const accAdvFlatPx = ss(ctx, METRICS.accidentalAdvanceFlat);
     const accAdvNaturalPx = ss(ctx, METRICS.accidentalAdvanceNatural);
     const accAdvSharpPx = ss(ctx, METRICS.accidentalAdvanceSharp);
+    // Stretch resistance of intra-word (hyphen-joined / extender-run) gaps:
+    // word gaps absorb justification space first, and at full stretch stay
+    // this much wider, so words keep reading as units.
+    const lyricSpacePx = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
+    const hyphenGapPenaltyPx = METRICS.hyphenGapPenalty * lyricSpacePx;
 
     for (const sec of sections) {
         const items = flattenItems(sec.tokens);
@@ -614,6 +619,8 @@ export function renderAretino(source, options = {}) {
                 }
                 const gap = pairConnected ? (pairMandatory ? hyphenReserve : 0) : minGap;
                 item.syllableExtra = Math.max(0, currRight + nextLeftIntrusion + gap - baseAdv);
+                // Justification treats intra-word gaps as stretch-resistant.
+                item.lyricConnectedNext = pairConnected;
             }
         }
 
@@ -896,7 +903,14 @@ export function renderAretino(source, options = {}) {
                         continue;
                     }
                     gapIdx.push(i);
-                    const floor = gapFloor(it, next);
+                    // Hyphen-joined (intra-word) boundaries carry a stretch
+                    // penalty on top of their floor: they only start receiving
+                    // space once the level clears floor + penalty, so word gaps
+                    // stretch first and end a word space wider at full stretch.
+                    let floor = gapFloor(it, next);
+                    if (it.kind === 'ligature' && it.lyricConnectedNext) {
+                        floor += hyphenGapPenaltyPx;
+                    }
                     floors.push(floor);
                     if (it.kind === 'ligature' && !it.recitationGlyphless) {
                         targetFloors.push(floor);

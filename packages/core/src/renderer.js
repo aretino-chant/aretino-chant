@@ -78,6 +78,16 @@ function justificationWaterLevel(floors, budget) {
     return level;
 }
 
+// Median of the lyric-driven gap floors — the leveling target for unjustified
+// rows. The median (unlike the max) is robust to outliers, so one long syllable
+// stays a local exception instead of loosening the whole line.
+function medianFloor(values) {
+    if (values.length === 0) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = sorted.length >> 1;
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 let recitationChainCounter = 0;
 
 // Splits a recitation syllable's whitespace-separated words into one syllable
@@ -420,6 +430,7 @@ export function renderAretino(source, options = {}) {
         return pstate.firstLeftX - closingInkGap;
     };
     const spacerAdvancePx = ss(ctx, METRICS.spacerAdvance);
+    const raggedGapLevelMinPx = ss(ctx, METRICS.raggedGapLevelMin);
     const halfNoteWPx = ss(ctx, METRICS.noteBoxWidth) * 0.5;
     const accAdvFlatPx = ss(ctx, METRICS.accidentalAdvanceFlat);
     const accAdvNaturalPx = ss(ctx, METRICS.accidentalAdvanceNatural);
@@ -840,6 +851,11 @@ export function renderAretino(source, options = {}) {
                 // gaps are as uniform as the budget permits.
                 const gapIdx = [];
                 const floors = [];
+                // Floors eligible to drive the ragged-row leveling target: real
+                // neume gaps only. Glyphless recitation words are excluded —
+                // their "floor" is prose text width, not notehead spacing, and
+                // would skew the target on short lines.
+                const targetFloors = [];
                 for (let i = 0; i < row.items.length - 1; i++) {
                     const it = row.items[i];
                     const next = row.items[i + 1];
@@ -853,16 +869,27 @@ export function renderAretino(source, options = {}) {
                         continue;
                     }
                     gapIdx.push(i);
-                    floors.push(it.kind === 'ligature' ? (it.syllableExtra || 0) : 0);
+                    const floor = it.kind === 'ligature' ? (it.syllableExtra || 0) : 0;
+                    floors.push(floor);
+                    if (it.kind === 'ligature' && !it.recitationGlyphless) {
+                        targetFloors.push(floor);
+                    }
                 }
                 if (gapIdx.length > 0) {
                     // A justified row consumes all slack to reach the right
-                    // margin; a ragged row consumes only enough to level the gaps
-                    // up to the widest lyric requirement, leaving the rest as
-                    // trailing whitespace.
-                    const maxFloor = Math.max(...floors);
-                    const neededToLevel = floors.reduce((s, f) => s + (maxFloor - f), 0);
-                    const budget = row.justify ? extra : Math.min(extra, neededToLevel);
+                    // margin. A ragged row levels the gaps only up to a *typical*
+                    // lyric requirement — the median floor, clamped from below by
+                    // a fixed comfortable gap — so a single long syllable stays a
+                    // local exception (its gap keeps the lyric-forced floor)
+                    // instead of pulling the whole line wider.
+                    let budget;
+                    if (row.justify) {
+                        budget = extra;
+                    } else {
+                        const target = Math.max(raggedGapLevelMinPx, medianFloor(targetFloors));
+                        const neededToLevel = floors.reduce((s, f) => s + Math.max(0, target - f), 0);
+                        budget = Math.min(extra, neededToLevel);
+                    }
                     const level = justificationWaterLevel(floors, budget);
                     for (let k = 0; k < gapIdx.length; k++) {
                         gapExtras[gapIdx[k]] = Math.max(0, level - floors[k]);

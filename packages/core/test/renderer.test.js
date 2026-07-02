@@ -805,6 +805,25 @@ describe('renderAretino', () => {
       const barX = svg => Math.max(...barlineX1s(splitRowSVGs(svg)[0]));
       expect(barX(narrow)).toBeCloseTo(barX(wide), 1);
     });
+
+    it('keeps one long syllable a local exception on an unjustified row', () => {
+      // On a ragged row, gaps level to the *median* lyric floor: the gaps
+      // around the wide word stay lyric-forced wide, but the other gaps must
+      // not stretch to match them (they used to level up to the widest floor).
+      const svg = renderAretino('g g g g g g\nw: no no Extraordinarily no no no', { width: 800 });
+      const rows = splitRowSVGs(svg);
+      expect(rows).toHaveLength(1);
+
+      const boxes = ligatureBoxes(rows[0]);
+      expect(boxes).toHaveLength(6);
+      const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+
+      // The gap after the wide word is forced by its text width...
+      expect(gaps[2]).toBeGreaterThan(2 * gaps[4]);
+      // ...while the narrow gaps stay uniform and compact.
+      expect(gaps[0]).toBeCloseTo(gaps[4], 1);
+      expect(gaps[3]).toBeCloseTo(gaps[4], 1);
+    });
   });
 
   describe('slur spans', () => {

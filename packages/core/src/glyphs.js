@@ -37,6 +37,7 @@ export const METRICS = {
     ligatureStepAdvance: 1.1749,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.71/2,           // extra space per '/' between neume groups
+    raggedGapLevelMin: 0.25,           // unjustified rows: minimum leveling target for inter-neume gaps
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,

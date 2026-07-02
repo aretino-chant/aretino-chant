@@ -806,10 +806,10 @@ describe('renderAretino', () => {
       expect(barX(narrow)).toBeCloseTo(barX(wide), 1);
     });
 
-    it('keeps one long syllable a local exception on an unjustified row', () => {
-      // On a ragged row, gaps level to the *median* lyric floor: the gaps
-      // around the wide word stay lyric-forced wide, but the other gaps must
-      // not stretch to match them (they used to level up to the widest floor).
+    it('levels every gap to the widest floor on an unjustified row', () => {
+      // First version of ragged-row leveling: all neume distances on a line
+      // are the same. The wide word forces a wide gap on both of its sides,
+      // and every other gap levels up to match it.
       const svg = renderAretino('g g g g g g\nw: no no Extraordinarily no no no', { width: 800 });
       const rows = splitRowSVGs(svg);
       expect(rows).toHaveLength(1);
@@ -818,17 +818,40 @@ describe('renderAretino', () => {
       expect(boxes).toHaveLength(6);
       const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
 
-      // The gap after the wide word is forced by its text width...
-      expect(gaps[2]).toBeGreaterThan(2 * gaps[4]);
-      // ...while the narrow gaps stay uniform and compact.
-      expect(gaps[0]).toBeCloseTo(gaps[4], 1);
-      expect(gaps[3]).toBeCloseTo(gaps[4], 1);
+      for (const gap of gaps.slice(1)) {
+        expect(gap).toBeCloseTo(gaps[0], 1);
+      }
+    });
+
+    it('wraps early enough that a filling row never compresses its leveled gaps', () => {
+      // The line breaker reserves the leveling need (raising every gap to the
+      // row's widest floor) on top of the items' own widths. Without the
+      // reserve all ten notes would pack onto one row and the gaps around the
+      // wide word would dwarf the collapsed plain gaps; instead the row wraps
+      // and every row keeps uniform neume distances.
+      const svg = renderAretino(
+        'g g g g g g g g g g\nw: no no Extraordinarily no no no no no no no',
+        { width: 600 },
+      );
+      const rows = splitRowSVGs(svg);
+      expect(rows.length).toBeGreaterThan(1);
+
+      let notesSeen = 0;
+      for (const row of rows) {
+        const boxes = ligatureBoxes(row);
+        notesSeen += boxes.length;
+        const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+        for (const gap of gaps.slice(1)) {
+          expect(gap).toBeCloseTo(gaps[0], 1);
+        }
+      }
+      expect(notesSeen).toBe(10);
     });
 
     it('does not add leveled space on top of a barline\'s built-in post-gap', () => {
-      // The barline's own post-gap already exceeds the ragged leveling target,
-      // so the gap after the barline must stay exactly barlinePostGap instead
-      // of gaining the leveled space on top.
+      // The barline's built-in post-gap counts as the gap's floor, so leveling
+      // must not add the leveled space on top of it: the gap after the barline
+      // stays exactly barlinePostGap while plain gaps level up to it.
       const svg = renderAretino('g g | g g', { width: 600 });
       const row = splitRowSVGs(svg)[0];
       const ss = renderedStaffSpace(row);
@@ -852,19 +875,16 @@ describe('renderAretino', () => {
       expect(gaps[2]).toBeCloseTo(gaps[1], 1);
     });
 
-    it('stretches word gaps before hyphen-joined syllable gaps when justifying', () => {
-      // "Ky-ri-e" is one word, "no" a separate word. On a justified row the
-      // two intra-word gaps must stay tighter than the word gap (by the
-      // hyphen stretch penalty) instead of all leveling to equal spacing.
+    it('levels hyphen-joined and word gaps alike when justifying', () => {
+      // First version of gap leveling: every gap on the line is the same,
+      // whether the boundary is intra-word ("Ky-ri-e") or between words.
       const svg = renderAretino('g g g g (z) g\nw: Ky-ri-e no x', { width: 600 });
       const boxes = ligatureBoxes(splitRowSVGs(svg)[0]);
       expect(boxes).toHaveLength(4);
       const gaps = boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
 
-      // The intra-word gaps stay uniform...
-      expect(gaps[0]).toBeCloseTo(gaps[1], 1);
-      // ...and the word gap ends wider than both.
-      expect(gaps[2]).toBeGreaterThan(gaps[0] + 1);
+      expect(gaps[1]).toBeCloseTo(gaps[0], 1);
+      expect(gaps[2]).toBeCloseTo(gaps[0], 1);
     });
 
     it('keeps a spacer as fixed extra width on top of a leveled gap', () => {

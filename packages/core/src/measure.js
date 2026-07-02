@@ -151,6 +151,53 @@ export function measureBarline(ctx, kind) {
     return base + ss(ctx, METRICS.barlinePostGap);
 }
 
+// Whether the boundary between two adjacent row items receives leveled
+// inter-neume space. Skipped boundaries:
+//  - an accidental glued to its following neume (one atomic unit);
+//  - zero-advance markers (brace/slur ends) and fixed spacers are transparent:
+//    the boundary before them is the one real gap; counting the boundary after
+//    them too would insert the leveled space twice across a single visual
+//    break (a spacer thus rides on top of a normally leveled gap);
+//  - paren arcs hug their group the way an accidental hugs its note;
+//  - words of one tenor recitation phrase (~-joined) keep a fixed normal
+//    space between them.
+export function isLeveledGap(it, next) {
+    if (it.kind === 'accidental' && next.kind === 'ligature') return false;
+    if (it.kind === 'brace-open' || it.kind === 'brace-close' || it.kind === 'spacer') return false;
+    if (it.kind === 'paren-open' || next.kind === 'paren-close') return false;
+    if (it.recitationChainId != null && next.recitationChainId === it.recitationChainId) return false;
+    return true;
+}
+
+// Whitespace a boundary already provides (baked into the items' advances).
+// Leveling raises the total visible gap toward the water level, so built-in
+// padding must count as floor rather than have the level added on top.
+export function gapFloor(ctx, it, next) {
+    let f = 0;
+    if (it.kind === 'ligature') f += it.syllableExtra || 0;
+    else if (it.kind === 'barline') f += ss(ctx, METRICS.barlinePostGap) + (it.barlineExtra || 0) / 2 + (it.barlinePostExtra || 0);
+    else if (it.kind === 'clef') f += ss(ctx, METRICS.clefInlinePostGap);
+    else if (it.kind === 'keysig' && it.accidentals.length) f += ss(ctx, METRICS.keySigInlinePostGap);
+    // A labelled barline pads before its glyph too.
+    if (next.kind === 'barline') f += (next.barlineExtra || 0) / 2;
+    return f;
+}
+
+// Extra width, beyond the items' own advances, needed to raise every leveled
+// gap between the given row items to the widest gap floor — the space an
+// unjustified row consumes to make all neume distances come out the same.
+export function levelingNeed(ctx, rowItems) {
+    const floors = [];
+    for (let i = 0; i < rowItems.length - 1; i++) {
+        if (isLeveledGap(rowItems[i], rowItems[i + 1])) {
+            floors.push(gapFloor(ctx, rowItems[i], rowItems[i + 1]));
+        }
+    }
+    if (floors.length === 0) return 0;
+    const top = Math.max(...floors);
+    return floors.reduce((s, f) => s + (top - f), 0);
+}
+
 export function measureItem(ctx, item) {
     if (item.kind === 'clef') {
         return clefAdvance(ctx, item.clef) + ss(ctx, METRICS.clefInlinePostGap);

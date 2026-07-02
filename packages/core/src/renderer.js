@@ -44,7 +44,7 @@ import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
-import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, gapFloor } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -76,16 +76,6 @@ function justificationWaterLevel(floors, budget) {
         level = next;
     }
     return level;
-}
-
-// Median of the lyric-driven gap floors — the leveling target for unjustified
-// rows. The median (unlike the max) is robust to outliers, so one long syllable
-// stays a local exception instead of loosening the whole line.
-function medianFloor(values) {
-    if (values.length === 0) return 0;
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = sorted.length >> 1;
-    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 let recitationChainCounter = 0;
@@ -430,16 +420,10 @@ export function renderAretino(source, options = {}) {
         return pstate.firstLeftX - closingInkGap;
     };
     const spacerAdvancePx = ss(ctx, METRICS.spacerAdvance);
-    const raggedGapLevelMinPx = ss(ctx, METRICS.raggedGapLevelMin);
     const halfNoteWPx = ss(ctx, METRICS.noteBoxWidth) * 0.5;
     const accAdvFlatPx = ss(ctx, METRICS.accidentalAdvanceFlat);
     const accAdvNaturalPx = ss(ctx, METRICS.accidentalAdvanceNatural);
     const accAdvSharpPx = ss(ctx, METRICS.accidentalAdvanceSharp);
-    // Stretch resistance of intra-word (hyphen-joined / extender-run) gaps:
-    // word gaps absorb justification space first, and at full stretch stay
-    // this much wider, so words keep reading as units.
-    const lyricSpacePx = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
-    const hyphenGapPenaltyPx = METRICS.hyphenGapPenalty * lyricSpacePx;
 
     for (const sec of sections) {
         const items = flattenItems(sec.tokens);
@@ -619,8 +603,6 @@ export function renderAretino(source, options = {}) {
                 }
                 const gap = pairConnected ? (pairMandatory ? hyphenReserve : 0) : minGap;
                 item.syllableExtra = Math.max(0, currRight + nextLeftIntrusion + gap - baseAdv);
-                // Justification treats intra-word gaps as stretch-resistant.
-                item.lyricConnectedNext = pairConnected;
             }
         }
 
@@ -856,79 +838,31 @@ export function renderAretino(source, options = {}) {
                 // its following neume) and the lyric-driven floor already baked
                 // into each (a ligature's syllableExtra), then water-fill so the
                 // gaps are as uniform as the budget permits.
+                // Which boundaries count as gaps and how much whitespace each
+                // already provides is shared with the line breaker (see
+                // isLeveledGap/gapFloor in measure.js), which reserves the
+                // leveling need when deciding where rows wrap.
                 const gapIdx = [];
                 const floors = [];
-                // Floors eligible to drive the ragged-row leveling target: real
-                // neume gaps only. Glyphless recitation words are excluded —
-                // their "floor" is prose text width, not notehead spacing, and
-                // would skew the target on short lines.
-                const targetFloors = [];
-                // Whitespace a boundary already provides. Leveling raises the
-                // total visible gap toward L, so padding built into an item's
-                // advance must count as floor rather than have L added on top.
-                const gapFloor = (it, next) => {
-                    let f = 0;
-                    if (it.kind === 'ligature') f += it.syllableExtra || 0;
-                    else if (it.kind === 'barline') f += barlinePostGapPx + (it.barlineExtra || 0) / 2 + (it.barlinePostExtra || 0);
-                    else if (it.kind === 'clef') f += clefInlinePostGapPx;
-                    else if (it.kind === 'keysig' && it.accidentals.length) f += keySigInlinePostGapPx;
-                    // A labelled barline pads before its glyph too.
-                    if (next.kind === 'barline') f += (next.barlineExtra || 0) / 2;
-                    return f;
-                };
                 for (let i = 0; i < row.items.length - 1; i++) {
                     const it = row.items[i];
                     const next = row.items[i + 1];
-                    if (it.kind === 'accidental' && next.kind === 'ligature') {
-                        continue; // glued pair — not a gap
-                    }
-                    // Zero-advance markers (brace/slur ends) and fixed spacers are
-                    // transparent: the boundary before them is the one real gap;
-                    // counting the boundary after them too would insert the leveled
-                    // space twice across a single visual break. A spacer thus rides
-                    // on top of a normally leveled gap, keeping its fixed width.
-                    if (it.kind === 'brace-open' || it.kind === 'brace-close' || it.kind === 'spacer') {
-                        continue;
-                    }
-                    // Paren arcs hug their group the way an accidental hugs its
-                    // note: no leveled gap between an opening arc and the first
-                    // neume, nor between the last neume and the closing arc.
-                    if (it.kind === 'paren-open' || next.kind === 'paren-close') {
-                        continue;
-                    }
-                    // Words of one tenor recitation phrase (~-joined) keep a fixed
-                    // normal space between them; justification must not stretch that
-                    // inter-word gap, nor let the word's prose width drive leveling.
-                    if (it.recitationChainId != null && next.recitationChainId === it.recitationChainId) {
+                    if (!isLeveledGap(it, next)) {
                         continue;
                     }
                     gapIdx.push(i);
-                    // Hyphen-joined (intra-word) boundaries carry a stretch
-                    // penalty on top of their floor: they only start receiving
-                    // space once the level clears floor + penalty, so word gaps
-                    // stretch first and end a word space wider at full stretch.
-                    let floor = gapFloor(it, next);
-                    if (it.kind === 'ligature' && it.lyricConnectedNext) {
-                        floor += hyphenGapPenaltyPx;
-                    }
-                    floors.push(floor);
-                    if (it.kind === 'ligature' && !it.recitationGlyphless) {
-                        targetFloors.push(floor);
-                    }
+                    floors.push(gapFloor(ctx, it, next));
                 }
                 if (gapIdx.length > 0) {
                     // A justified row consumes all slack to reach the right
-                    // margin. A ragged row levels the gaps only up to a *typical*
-                    // lyric requirement — the median floor, clamped from below by
-                    // a fixed comfortable gap — so a single long syllable stays a
-                    // local exception (its gap keeps the lyric-forced floor)
-                    // instead of pulling the whole line wider.
+                    // margin. A ragged row levels every gap to the widest floor,
+                    // so all neume distances on the line come out the same.
                     let budget;
                     if (row.justify) {
                         budget = extra;
                     } else {
-                        const target = Math.max(raggedGapLevelMinPx, medianFloor(targetFloors));
-                        const neededToLevel = floors.reduce((s, f) => s + Math.max(0, target - f), 0);
+                        const top = Math.max(...floors);
+                        const neededToLevel = floors.reduce((s, f) => s + (top - f), 0);
                         budget = Math.min(extra, neededToLevel);
                     }
                     const level = justificationWaterLevel(floors, budget);

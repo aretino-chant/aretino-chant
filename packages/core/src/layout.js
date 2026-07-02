@@ -10,7 +10,7 @@ import {
     annotateCourtesyAccidentals,
 } from './accidentals.js';
 import { clefAdvance } from './clef.js';
-import { measureItem } from './measure.js';
+import { measureItem, levelingNeed } from './measure.js';
 
 // Run the greedy line-fit repeatedly until the set of courtesy accidentals
 // stabilises. Courtesy accidentals depend on where rows break (an accidental
@@ -130,10 +130,14 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
             }
         }
         // Accidentals are glued to the following neume — measure them as a
-        // single atomic unit for line-breaking purposes.
+        // single atomic unit for line-breaking purposes. `unit` collects the
+        // atomically placed items so the overflow check can account for the
+        // gap boundaries they introduce.
         let w = measureItem(ctx, item);
+        let unit = [item];
         if (item.kind === 'accidental' && ii + 1 < items.length && items[ii + 1].kind === 'ligature') {
             w += measureItem(ctx, items[ii + 1]);
+            unit = [item, items[ii + 1]];
         }
         // Parenthesised groups are atomic: measure open+contents+close together
         // so the opening bracket never gets stranded at the end of a line with
@@ -141,18 +145,30 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
         // single row; if it is wider than a full row we let items wrap normally.
         if (item.kind === 'paren-open') {
             let groupW = w;
+            const group = [item];
             for (let j = ii + 1; j < items.length; j++) {
                 groupW += measureItem(ctx, items[j]);
+                group.push(items[j]);
                 if (items[j].kind === 'paren-close') break;
             }
             if (groupW <= rowItemsAvailable()) {
                 w = groupW;
+                unit = group;
             }
         }
         // If the previous item was an accidental glued to this item, skip the
         // overflow check (it was already accounted for).
         const gluedToPrev = ii > 0 && items[ii - 1].kind === 'accidental' && item.kind === 'ligature';
-        if (!gluedToPrev && cur.length > 0 && curWidth + w > rowItemsAvailable()) {
+        // Besides the items' own widths, reserve the space leveling needs to
+        // raise every inter-neume gap on the row to the widest gap floor.
+        // Without this reserve a nearly-full row leaves no slack for leveling
+        // and its gaps collapse to their floors — very uneven spacing right
+        // before a wrap. Wrapping earlier instead guarantees each finalized
+        // row can afford its uniform gap. (The reserve is monotone: if the
+        // row plus this unit can afford it, every prefix could too, so items
+        // already placed never retroactively overflow.)
+        if (!gluedToPrev && cur.length > 0
+            && curWidth + w + levelingNeed(ctx, [...cur, ...unit]) > rowItemsAvailable()) {
             if (item.kind === 'barline') {
                 // Barlines must not start a row — carry the preceding note/neume
                 // unit (optionally with its leading accidental) to the new row.

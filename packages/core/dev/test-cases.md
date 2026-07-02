@@ -39,7 +39,7 @@ Punctum, virga (uppercase), quilisma (`w` suffix), tenor note (`t` suffix):
 
 ```aretino
 (g2) d d' dw dt ds
-w:   punctum virga quilisma tenor small
+w:   punctum virga quilisma tenor~text~for~multiple~syllables small
 ```
 
 ---
@@ -281,12 +281,12 @@ w: <italic> {bold} [underlined] {<[nested]>} \{escaped\} (\red{{bold red}}) \col
 w: normal \small{small text} normal \large{large text} normal
 ```
 
-```
+```aretino
 at b |
-w: This~is~a~very~very~long~text~sung~on~the~same~note~so~probably~won't~fit~on~one~line
+w: This~is~a~very~very~long~text~sung~on~the~same~note~so~probably~won't~fit~on~one~line~unless~it~does~so~I~need~really~long text
 ```
 
-```
+```aretino
 (c4) gfgfg gfgfg g g
 w: a__ b ro_.`;
 ```

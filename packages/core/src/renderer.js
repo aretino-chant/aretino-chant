@@ -410,6 +410,15 @@ export function renderAretino(source, options = {}) {
     const parenWidthPx = ss(ctx, METRICS.parenthesisWidth);
     const parenInnerGapPx = ss(ctx, METRICS.parenthesisInnerGap);
     const parenVPadPx = ss(ctx, METRICS.parenthesisVPadding);
+    // The closing arc is drawn tight to the last note's ink (its spine lands just
+    // past rightX because the note's trailing advance is absorbed). Mirror that same
+    // ink gap onto the opening arc so the two hug the group symmetrically, rather than
+    // leaving the opening at the full reserved inner gap (which reads as too far away).
+    const parenLeftSpine = (pstate, rightSpine) => {
+        if (pstate.firstLeftX == null || pstate.lastRightX == null) return pstate.hingeX;
+        const closingInkGap = rightSpine - pstate.lastRightX;
+        return pstate.firstLeftX - closingInkGap;
+    };
     const spacerAdvancePx = ss(ctx, METRICS.spacerAdvance);
     const halfNoteWPx = ss(ctx, METRICS.noteBoxWidth) * 0.5;
     const accAdvFlatPx = ss(ctx, METRICS.accidentalAdvanceFlat);
@@ -949,8 +958,9 @@ export function renderAretino(source, options = {}) {
                         if (parenState.minY < Infinity && spanTop < rowTopY) rowTopY = spanTop;
                         const spanBot = parenState.maxY + vPad;
                         if (parenState.maxY > -Infinity && spanBot > rowBottomY) rowBottomY = spanBot;
-                        parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
-                        parts.push(drawParenthesis(ctx, parenState.closeHingeX - parenInnerGapPx - parenWidthPx, spanTop, spanBot, 'right'));
+                        const rightSpine = parenState.closeHingeX - parenInnerGapPx - parenWidthPx;
+                        parts[parenState.placeIdx] = drawParenthesis(ctx, parenLeftSpine(parenState, rightSpine), spanTop, spanBot, 'left');
+                        parts.push(drawParenthesis(ctx, rightSpine, spanTop, spanBot, 'right'));
                         parenState = null;
                     }
                     cursorX += parenInnerGapPx + parenWidthPx;
@@ -1009,6 +1019,8 @@ export function renderAretino(source, options = {}) {
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
                         if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;
+                        if (parenState.firstLeftX == null) parenState.firstLeftX = r.leftX;
+                        parenState.lastRightX = r.rightX;
                         parenState.closeHingeX = cursorX + r.advance;
                     }
                     if (braceState) {
@@ -1040,8 +1052,9 @@ export function renderAretino(source, options = {}) {
                 if (spanTop < rowTopY) rowTopY = spanTop;
                 const spanBot = parenState.maxY > -Infinity ? parenState.maxY + vPad : staffBottomY + vPad;
                 if (spanBot > rowBottomY) rowBottomY = spanBot;
-                parts[parenState.placeIdx] = drawParenthesis(ctx, parenState.hingeX, spanTop, spanBot, 'left');
-                parts.push(drawParenthesis(ctx, parenState.closeHingeX - parenInnerGapPx - parenWidthPx, spanTop, spanBot, 'right'));
+                const overflowRightSpine = parenState.closeHingeX - parenInnerGapPx - parenWidthPx;
+                parts[parenState.placeIdx] = drawParenthesis(ctx, parenLeftSpine(parenState, overflowRightSpine), spanTop, spanBot, 'left');
+                parts.push(drawParenthesis(ctx, overflowRightSpine, spanTop, spanBot, 'right'));
                 // Signal the next row to re-open the group (parenState truthy = continuation).
                 parenState = { continuation: true };
             }

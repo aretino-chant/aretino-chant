@@ -287,7 +287,10 @@ export function measureItem(ctx, item) {
 // Lowest (largest-y) point reached by any notehead in a row, used to push the
 // lyric baseline below notes that dip beneath the staff.
 export function rowLowestNoteY(ctx, row, staffBottomY) {
-    let maxY = staffBottomY;
+    // Track the raw center of the lowest note; the notehead half-height is added
+    // once at the end. (Adding it inside the loop would inflate the running
+    // maximum so a genuinely lower note one step down couldn't overtake it.)
+    let maxCenterY = staffBottomY;
     const halfNoteH = ss(ctx, METRICS.noteBoxHeight) * 0.5;
     for (const it of row.items) {
         if (it.kind !== 'ligature') {
@@ -296,11 +299,11 @@ export function rowLowestNoteY(ctx, row, staffBottomY) {
         for (const group of it.groups) {
             for (const note of group) {
                 const cy = pitchY(ctx, note, staffBottomY);
-                if (cy > maxY) {
-                    maxY = cy + halfNoteH;
+                if (cy > maxCenterY) {
+                    maxCenterY = cy;
                 }
             }
         }
     }
-    return maxY;
+    return maxCenterY > staffBottomY ? maxCenterY + halfNoteH : staffBottomY;
 }

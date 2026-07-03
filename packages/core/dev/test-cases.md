@@ -10,7 +10,7 @@ Use this block to experiment freely:
 
 ```aretino
 (g2) c c e f g a g f g g. | a C b g a g f g g. | g a g e_ f gf d c. c. ||
-w: Ma-gasz-tal-juk az U-rat mind-nyá-jan, és di-csé-rjük e-gyütt szent ne-vét, mert jó az Úr az Őt fé-lők-höz!
+w: Ma-gasz-tal-juk az U-rat mind-nyá-jan, és di-csér-jük e-gyütt szent ne-vét, mert jó az Úr az Őt fé-lők-höz!
 ```
 
 ---

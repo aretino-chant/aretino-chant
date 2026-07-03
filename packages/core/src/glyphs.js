@@ -171,7 +171,7 @@ export const METRICS = {
     // Lyrics normally sit `lyricDistance` below the lowest note. This floor keeps
     // the lyric line at least `lyricMinStaffDistance` (SS) below the bottom staff
     // line even when the notes sit high in (or above) the staff.
-    lyricMinStaffDistance: 1
+    lyricMinStaffDistance: 0.75
 };
 
 export const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };

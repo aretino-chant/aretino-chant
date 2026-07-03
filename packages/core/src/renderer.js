@@ -279,6 +279,7 @@ export function renderAretino(source, options = {}) {
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
+    ctx.lyricMinStaffDistance = ss(ctx, options.lyricMinStaffDistance ?? METRICS.lyricMinStaffDistance);
     // Virga stem geometry (in spatia); read by drawNote/noteInkBounds via ss().
     ctx.virgaStemLength = options.virgaStemLength ?? METRICS.virgaStemLength;
     ctx.virgaStemDescentBelowPrev = options.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev;
@@ -798,7 +799,9 @@ export function renderAretino(source, options = {}) {
                     let leftLimit = maxPrefixW > 0 ? staffLeftX : -Infinity;
                     if ((maxAlignW > 0 || maxPrefixW > 0) && rowClefBottomY > -Infinity) {
                         const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
-                        const lyricTopY = (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance;
+                        const lyricTopY = Math.max(
+                            (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance,
+                            staffBottomY + ctx.lyricMinStaffDistance);
                         if (rowClefBottomY > lyricTopY) {
                             const sideGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
                             leftLimit = Math.max(leftLimit, rowClefRightX + sideGap);
@@ -1094,9 +1097,9 @@ export function renderAretino(source, options = {}) {
             const isLastRow = rowIdx === rows.length - 1;
             const rowLigCount = rowLigatures.length;
             const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
-            const lyricTopY = lowestNoteY > staffBottomY
-                ? lowestNoteY + ctx.lyricDistance
-                : staffBottomY + ctx.lyricDistance;
+            const lyricTopY = Math.max(
+                (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance,
+                staffBottomY + ctx.lyricMinStaffDistance);
             let lyricY = lyricTopY + ctx.lyricSize;
 
             if (alignSyllables) {

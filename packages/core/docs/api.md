@@ -83,7 +83,8 @@ All options are optional. Defaults in **bold**.
 | `noteSpacing` | number | **1** | Multiplier on horizontal advance between glyphs. Min `0.5`. |
 | `gapOutlierThreshold` | number (staff-spaces) | **2** | Lyric-driven gap floor above which a gap is treated as an outlier and does not widen every other gap on the row. Use a larger value to level wider syllables with the row. |
 | `staffGap` | number (staff-spaces) | **2.5** | Vertical gap between successive staff systems. |
-| `lyricDistance` | number (staff-spaces) | **0.1** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |
+| `lyricDistance` | number (staff-spaces) | **0.5** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |
+| `lyricMinStaffDistance` | number (staff-spaces) | **0.75** | Lower bound on how far below the bottom staff line the lyric line sits. Keeps lyrics from crowding the staff when notes are high; notes that descend below the staff still push lyrics further down. |
 | `virgaStemLength` | number (staff-spaces) | **2.25** | Default descent of a virga stem below the notehead. |
 | `virgaStemDescentBelowPrev` | number (staff-spaces) | **1.75** | How far a virga stem descends past a lower preceding note (when the stem is drawn down to that note). |
 | `virgaMaxBelowBottom` | number (staff-spaces) | **1.75** | Hard cap on how far a virga stem tip may extend below the bottom staff line. |

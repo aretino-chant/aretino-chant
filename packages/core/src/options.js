@@ -14,6 +14,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     gapOutlierThreshold: 'number',
     staffGap: 'number',
     lyricDistance: 'number',
+    lyricMinStaffDistance: 'number',
     virgaStemLength: 'number',
     virgaStemDescentBelowPrev: 'number',
     virgaMaxBelowBottom: 'number',

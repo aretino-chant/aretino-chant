@@ -81,6 +81,7 @@ All options are optional. Defaults in **bold**.
 | `lyricSize` | number (pt) | **10** | Lyric font size in typographic points (converted via `dpi`). Independent of staff space. Min `1`. |
 | `textFont` | string | **`'Palatino Linotype', 'Book Antiqua', Palatino, serif`** | CSS `font-family` for rendered text. |
 | `noteSpacing` | number | **1** | Multiplier on horizontal advance between glyphs. Min `0.5`. |
+| `gapOutlierThreshold` | number (staff-spaces) | **2** | Lyric-driven gap floor above which a gap is treated as an outlier and does not widen every other gap on the row. Use a larger value to level wider syllables with the row. |
 | `staffGap` | number (staff-spaces) | **2.5** | Vertical gap between successive staff systems. |
 | `lyricDistance` | number (staff-spaces) | **0.1** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |
 | `hideRepeatClef` | boolean | **false** | When true, draws the clef only on the first system; subsequent wrapped lines omit the repeated clef. |

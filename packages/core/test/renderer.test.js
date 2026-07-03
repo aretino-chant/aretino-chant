@@ -845,10 +845,12 @@ describe('renderAretino', () => {
       // Without the reserve all ten notes would pack onto one row and the
       // gaps around the moderately wide word would dwarf the collapsed plain
       // gaps; instead the row wraps and every row keeps uniform neume
-      // distances.
+      // distances. Pin the outlier cutoff above this fixture so the test
+      // exercises the non-outlier reserve path explicitly; the outlier case is
+      // covered separately above.
       const svg = renderAretino(
         'g g g g g g g g g g\nw: no no noon no no no no no no no',
-        { width: 250 },
+        { width: 250, gapOutlierThreshold: 100 },
       );
       const rows = splitRowSVGs(svg);
       expect(rows.length).toBeGreaterThan(1);

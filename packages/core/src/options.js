@@ -11,6 +11,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     lyricSize: 'number',
     textFont: 'string',
     noteSpacing: 'number',
+    gapOutlierThreshold: 'number',
     staffGap: 'number',
     lyricDistance: 'number',
     hideRepeatClef: 'boolean',

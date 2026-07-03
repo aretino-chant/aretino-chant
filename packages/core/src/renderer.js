@@ -272,6 +272,9 @@ export function renderAretino(source, options = {}) {
     ctx.ligatureStepAdvance = ss(ctx, METRICS.ligatureStepAdvance);
     ctx.expanderWidth = ss(ctx, METRICS.expanderWidth);
     ctx.neumeGapAdvance = ss(ctx, METRICS.neumeGapAdvance);
+    ctx.gapOutlierThreshold = Number.isFinite(options.gapOutlierThreshold)
+        ? Math.max(0, options.gapOutlierThreshold)
+        : METRICS.gapOutlierThreshold;
     ctx.leftMargin = ss(ctx, METRICS.leftMargin);
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);

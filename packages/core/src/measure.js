@@ -191,7 +191,7 @@ export function gapFloor(ctx, it, next) {
 // space is spent).
 export function levelingTarget(ctx, floors) {
     if (floors.length === 0) return 0;
-    const threshold = ss(ctx, METRICS.gapOutlierThreshold);
+    const threshold = ss(ctx, ctx.gapOutlierThreshold ?? METRICS.gapOutlierThreshold);
     const below = floors.filter(f => f <= threshold);
     return below.length ? Math.max(...below) : Math.min(...floors);
 }

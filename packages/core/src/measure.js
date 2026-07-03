@@ -214,17 +214,31 @@ export function gapFloor(ctx, it, next) {
     return f;
 }
 
-// The level ragged rows raise their gaps to: the widest gap floor, ignoring
-// outliers. A floor wider than gapOutlierThreshold (e.g. one long syllable
-// like "szent") keeps its own lyric-forced width instead of pulling every
-// other gap on the line out to match it. If every floor is an outlier there
-// is nothing sensible to level toward, so the smallest floor wins (no extra
-// space is spent).
-export function levelingTarget(ctx, floors) {
-    if (floors.length === 0) return 0;
+// A leveled gap that may set the water level. Gaps touching a barline are
+// excluded: a barline carries its own post-gap plus any centred-syllable
+// clearance (barlinePostExtra), a local reserve that has nothing to do with
+// the line's neume-to-neume rhythm. If such a gap were allowed to set the
+// level, the width of whichever syllable happens to follow a barline would
+// silently drive the spacing of every neume on the line — so the same syllable
+// spreads the row when it sits after a barline but does nothing elsewhere.
+// Only plain neume-to-neume gaps set the rhythm; barline-adjacent gaps keep
+// their own (barline-inflated) width without pulling the rest of the line out.
+export function isLevelingTargetGap(it, next) {
+    return isLeveledGap(it, next) && it.kind !== 'barline' && next.kind !== 'barline';
+}
+
+// The level ragged rows raise their gaps to: the widest gap floor among the
+// neume-to-neume gaps (`targetFloors`, gathered via isLevelingTargetGap),
+// ignoring outliers. A floor wider than gapOutlierThreshold (e.g. one long
+// syllable like "szent") keeps its own lyric-forced width instead of pulling
+// every other gap on the line out to match it. If every candidate floor is an
+// outlier there is nothing sensible to level toward, so the smallest wins (no
+// extra space is spent); an empty candidate set levels to nothing.
+export function levelingTarget(ctx, targetFloors) {
+    if (targetFloors.length === 0) return 0;
     const threshold = ss(ctx, ctx.gapOutlierThreshold ?? METRICS.gapOutlierThreshold);
-    const below = floors.filter(f => f <= threshold);
-    return below.length ? Math.max(...below) : Math.min(...floors);
+    const below = targetFloors.filter(f => f <= threshold);
+    return below.length ? Math.max(...below) : Math.min(...targetFloors);
 }
 
 // Extra width, beyond the items' own advances, needed to raise every leveled
@@ -232,13 +246,17 @@ export function levelingTarget(ctx, floors) {
 // unjustified row consumes to make all neume distances come out the same.
 export function levelingNeed(ctx, rowItems) {
     const floors = [];
+    const targetFloors = [];
     for (let i = 0; i < rowItems.length - 1; i++) {
-        if (isLeveledGap(rowItems[i], rowItems[i + 1])) {
-            floors.push(gapFloor(ctx, rowItems[i], rowItems[i + 1]));
-        }
+        const it = rowItems[i];
+        const next = rowItems[i + 1];
+        if (!isLeveledGap(it, next)) continue;
+        const f = gapFloor(ctx, it, next);
+        floors.push(f);
+        if (isLevelingTargetGap(it, next)) targetFloors.push(f);
     }
     if (floors.length === 0) return 0;
-    const top = levelingTarget(ctx, floors);
+    const top = levelingTarget(ctx, targetFloors);
     return floors.reduce((s, f) => s + Math.max(0, top - f), 0);
 }
 

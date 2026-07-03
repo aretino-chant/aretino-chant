@@ -899,9 +899,9 @@ describe('renderAretino', () => {
     });
 
     it('does not add leveled space on top of a barline\'s built-in post-gap', () => {
-      // The barline's built-in post-gap counts as the gap's floor, so leveling
-      // must not add the leveled space on top of it: the gap after the barline
-      // stays exactly barlinePostGap while plain gaps level up to it.
+      // The barline's built-in post-gap sits in the gap's own advance, so
+      // leveling must not add extra on top of it: the gap after the barline
+      // stays exactly barlinePostGap.
       const svg = renderAretino('g g | g g', { width: 600 });
       const row = splitRowSVGs(svg)[0];
       const ss = renderedStaffSpace(row);
@@ -910,6 +910,34 @@ describe('renderAretino', () => {
       const glyphRightEdge = barX1 - METRICS.barlineOffsetX * ss + METRICS.barlineAdvance * ss;
       const nextNote = ligatureBoxes(row).find(b => b.x > barX1);
       expect(nextNote.x - glyphRightEdge).toBeCloseTo(METRICS.barlinePostGap * ss, 1);
+    });
+
+    it('a wide syllable after a barline does not spread the neume gaps before it', () => {
+      // A barline carries its own post-gap plus clearance for the syllable that
+      // follows it (barlinePostExtra) — a local reserve, not the line's
+      // neume-to-neume rhythm. Widening a syllable after a barline (whose own
+      // gap-after does not grow, because the next neume is a left-aligned
+      // ligature) must not set the leveling target and pull the neumes on the
+      // far side of the barline out to match it. A proportional metric where
+      // 'M' is wider than 'A' surfaces the difference (the headless fallback
+      // measures by character count, so "Al" and "Ml" would tie).
+      const metric = (text, fontSize) => {
+        const w = { M: 0.9, A: 0.68, l: 0.28, e: 0.53, u: 0.56, i: 0.24, a: 0.55, '-': 0.33, ',': 0.28, '.': 0.28, ' ': 0.28 };
+        let sum = 0;
+        for (const ch of text) sum += (w[ch] ?? 0.55) * fontSize;
+        return sum;
+      };
+      const phrase1X = (thirdSyllable) => {
+        const svg = renderAretino(
+          `(g2) g a b g. ab a g e_d_ , g ab ag g. ||\nw: Al-le-lu-ia, al-le-lu-ia, ${thirdSyllable}-le-lu-ia.`,
+          { width: 100000, measureText: metric },
+        );
+        // The eight neumes before the single barline are the first two phrases.
+        return ligatureBoxes(splitRowSVGs(svg)[0]).slice(0, 8).map(b => b.x);
+      };
+      const base = phrase1X('Al');
+      const widened = phrase1X('Ml');
+      base.forEach((x, i) => expect(widened[i]).toBeCloseTo(x, 1));
     });
 
     it('inserts a single leveled gap across slur markers', () => {

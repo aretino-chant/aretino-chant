@@ -44,7 +44,7 @@ import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
-import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, gapFloor, levelingTarget } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -857,6 +857,7 @@ export function renderAretino(source, options = {}) {
                 // leveling need when deciding where rows wrap.
                 const gapIdx = [];
                 const floors = [];
+                const targetFloors = [];
                 for (let i = 0; i < row.items.length - 1; i++) {
                     const it = row.items[i];
                     const next = row.items[i + 1];
@@ -864,7 +865,12 @@ export function renderAretino(source, options = {}) {
                         continue;
                     }
                     gapIdx.push(i);
-                    floors.push(gapFloor(ctx, it, next));
+                    const f = gapFloor(ctx, it, next);
+                    floors.push(f);
+                    // Only plain neume-to-neume gaps set the water level; a
+                    // barline-adjacent gap keeps its own width but must not drag
+                    // the rest of the line out to match it.
+                    if (isLevelingTargetGap(it, next)) targetFloors.push(f);
                 }
                 if (gapIdx.length > 0) {
                     // A justified row consumes all slack to reach the right
@@ -877,7 +883,7 @@ export function renderAretino(source, options = {}) {
                     if (row.justify) {
                         budget = extra;
                     } else {
-                        const top = levelingTarget(ctx, floors);
+                        const top = levelingTarget(ctx, targetFloors);
                         const neededToLevel = floors.reduce((s, f) => s + Math.max(0, top - f), 0);
                         budget = Math.min(extra, neededToLevel);
                     }

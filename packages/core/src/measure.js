@@ -49,6 +49,37 @@ export function splitGroupsAtInternalMora(groups, gaps = []) {
     return { groups: resultGroups, gaps: resultGaps };
 }
 
+// A plica on a non-final note within a group acts like an explicit '/' cut: the
+// note is liquescent and the neume breaks after it, so the remaining notes form
+// a new group separated by a normal neume gap. This makes a plica note behave
+// like a note followed by a separator for both spacing and line wrapping.
+// Applied when the ligature item is built (before layout) so the split is a real
+// group boundary that line-wrapping can break at.
+export function splitGroupsAtPlica(groups, gaps = []) {
+    const resultGroups = [];
+    const resultGaps = [];
+    for (let gi = 0; gi < groups.length; gi++) {
+        const group = groups[gi];
+        let current = [];
+        for (let i = 0; i < group.length; i++) {
+            current.push(group[i]);
+            const hasPlica = group[i].modifiers && group[i].modifiers.includes('plica');
+            if (i < group.length - 1 && hasPlica) {
+                resultGroups.push(current);
+                resultGaps.push(1);
+                current = [];
+            }
+        }
+        if (current.length > 0) {
+            resultGroups.push(current);
+            if (gi < groups.length - 1) {
+                resultGaps.push(gaps[gi] ?? 1);
+            }
+        }
+    }
+    return { groups: resultGroups, gaps: resultGaps };
+}
+
 // groups: Note[][] — each group is a run of notes; groups are separated by neumatic cuts ('/').
 // All groups except the last contribute a gap advance; the last group contributes singleNoteAdvance.
 // Gap types: N (number) = N × neumeGapAdvance; 'mora' = compact spacing just past the mora dot.

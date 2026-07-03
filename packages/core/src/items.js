@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { matchAccidental } from './parser.js';
+import { splitGroupsAtPlica } from './measure.js';
 
 // A section bundles music tokens and lyric lines separated from other sections
 // by a blank line (empty line). A new section starts only on a blank line —
@@ -130,7 +131,10 @@ export function flattenItems(tokens) {
             continue;
         }
         if (tok.type === 'ligature') {
-            items.push({ kind: 'ligature', groups: tok.groups, gaps: tok.gaps ?? [], ...(tok.label != null ? { label: tok.label } : {}), ...src });
+            // A plica note breaks the neume like a '/' separator: split its group
+            // so the boundary is real for spacing, rendering and line wrapping.
+            const { groups, gaps } = splitGroupsAtPlica(tok.groups, tok.gaps ?? []);
+            items.push({ kind: 'ligature', groups, gaps, ...(tok.label != null ? { label: tok.label } : {}), ...src });
             continue;
         }
     }

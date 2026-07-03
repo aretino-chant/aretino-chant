@@ -47,7 +47,7 @@ w:   punctum virga quilisma tenor~text~for~multiple~syllables small
 
 ## Modifier Suffixes
 
-Mora (`.`), episema (`_`), ictus (`-`), liquescent (`~`):
+Mora (`.`), episema (`_`), ictus (`-`), plica (`~`):
 
 ```aretino
 (g2) d d. d_ d- d~

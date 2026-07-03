@@ -84,6 +84,9 @@ All options are optional. Defaults in **bold**.
 | `gapOutlierThreshold` | number (staff-spaces) | **2** | Lyric-driven gap floor above which a gap is treated as an outlier and does not widen every other gap on the row. Use a larger value to level wider syllables with the row. |
 | `staffGap` | number (staff-spaces) | **2.5** | Vertical gap between successive staff systems. |
 | `lyricDistance` | number (staff-spaces) | **0.1** | Gap between the bottom of the staff (or the lowest note, if it extends further) and the top of the lyric line. Negative values pull lyrics closer to or inside the staff. |
+| `virgaStemLength` | number (staff-spaces) | **2.25** | Default descent of a virga stem below the notehead. |
+| `virgaStemDescentBelowPrev` | number (staff-spaces) | **1.75** | How far a virga stem descends past a lower preceding note (when the stem is drawn down to that note). |
+| `virgaMaxBelowBottom` | number (staff-spaces) | **1.75** | Hard cap on how far a virga stem tip may extend below the bottom staff line. |
 | `hideRepeatClef` | boolean | **false** | When true, draws the clef only on the first system; subsequent wrapped lines omit the repeated clef. |
 | `canvasHeight` | number (px) | — | Forces total SVG height (logical units). When unset, height is computed from content. |
 

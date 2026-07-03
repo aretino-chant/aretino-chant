@@ -41,7 +41,7 @@ export const METRICS = {
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,
-    staffLineStroke: 0.13,
+    staffLineStroke: 0.11,
     staffLineStrokeMinPx: 0.6,
 
     // --- Ledger lines -----------------------------------------------------
@@ -51,17 +51,17 @@ export const METRICS = {
     ledgerStrokeMinPx: 0.6,
 
     // --- Stems (virga & tenor side strokes) -------------------------------
-    stemStroke: 0.12,
+    stemStroke: 0.14,
     stemStrokeMinPx: 0.8,
-    virgaStemLength: 2.25,              // default descent of virga stem
-    virgaStemDescentBelowPrev: 1.75,    // descent past a lower preceding note
+    virgaStemLength: 2.75,              // default descent of virga stem
+    virgaStemDescentBelowPrev: 2.25,    // descent past a lower preceding note
     virgaMaxBelowBottom: 1.75,           // stem tip never exceeds this many spatia below bottom staff line
 
     // --- Tenor notehead (open oval with two side strokes) -----------------
-    tenorSideStrokeOffset: 0.15,      // gap between head edge and side stroke
+    tenorSideStrokeOffset: 0.14,      // gap between head edge and side stroke
     tenorSideStrokeHalfHeight: 0.55,
-    tenorSideStroke: 0.15,             // thickness of the two vertical bars
-    tenorSideStrokeMinPx: 1.4,
+    tenorSideStroke: 0.14,             // thickness of the two vertical bars
+    tenorSideStrokeMinPx: 0.7,
     tenorAdvanceExtra: 1.5,            // extra advance vs. a normal note (wider glyph)
     tenorCalligraphyWidthScale: 1.1,  // tenor open oval is wider than a normal notehead
     tenorCalligraphyInnerScaleX: 0.55, // inner (hole) ellipse rx as a fraction of the outer rx; controls the thickness of the short ends (keep < ~0.8 so the hole stays inside the outline)
@@ -120,16 +120,16 @@ export const METRICS = {
     accidentalAdvanceSharp: 1.18,   // for sharp
 
     // --- Barlines ---------------------------------------------------------
-    barlineStroke: 0.12,
+    barlineStroke: 0.18,
     barlineStrokeMinPx: 0.8,
     barlineOffsetX: 0.3,               // gap before line
     barlineAdvance: 0.8,
     barlinePostGap: 0.5,                 // gap after barline (one staff space)
-    barlineDoubleSecondOffsetX: 1.0,   // second line offset for '||'
+    barlineDoubleSecondOffsetX: 0.9,   // second line offset for '||'
     barlineDoubleAdvance: 1.5,
     barlineRepeatAdvance: 2.4,           // advance for repeat signs (wider than double)
-    barlineRepeatDotRadius: 0.25,       // dot radius for ':|'
-    barlineRepeatDotGap: 0.8,           // gap between dots for ':|'
+    barlineRepeatDotRadius: 0.15,       // dot radius for ':|'
+    barlineRepeatDotGap: 0.5,           // gap between dots for ':|'
     barlineFinalThickStroke: 0.4,       // thick stroke for '|||'
 
     // --- Spacer -----------------------------------------------------------
@@ -167,7 +167,7 @@ export const METRICS = {
     rightMargin: 1,
     staffGap: 2.5,
     titleTopPadding: 2,
-    lyricDistance: 0.1
+    lyricDistance: 0.5
 };
 
 export const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
@@ -328,9 +328,9 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         const scaledNoteW = noteW * scale;
         const stemX = headCx - scaledNoteW / 2 * Math.cos(METRICS.noteheadRotationDeg * Math.PI / 180);
         const stemLength = prevCy !== null && prevCy > cy
-            ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
-            : ss(ctx, METRICS.virgaStemLength);
-        const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
+            ? (prevCy - cy) + ss(ctx, ctx.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev)
+            : ss(ctx, ctx.virgaStemLength ?? METRICS.virgaStemLength);
+        const maxBottom = staffBottomY + ss(ctx, ctx.virgaMaxBelowBottom ?? METRICS.virgaMaxBelowBottom);
         const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
         const verticalOffset = ss(ctx, 0.13); // nudge the stem slightly away to the main axis center of the notehead
         parts.push(`<line x1="${stemX}" y1="${cy + verticalOffset}" x2="${stemX}" y2="${cy + cappedLength}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`);
@@ -361,9 +361,9 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
 
     if (note.shape === 'virga' || note.virga) {
         const stemLength = prevCy !== null && prevCy > cy
-            ? (prevCy - cy) + ss(ctx, METRICS.virgaStemDescentBelowPrev)
-            : ss(ctx, METRICS.virgaStemLength);
-        const maxBottom = staffBottomY + ss(ctx, METRICS.virgaMaxBelowBottom);
+            ? (prevCy - cy) + ss(ctx, ctx.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev)
+            : ss(ctx, ctx.virgaStemLength ?? METRICS.virgaStemLength);
+        const maxBottom = staffBottomY + ss(ctx, ctx.virgaMaxBelowBottom ?? METRICS.virgaMaxBelowBottom);
         const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
         maxY = Math.max(maxY, cy + cappedLength);
     }

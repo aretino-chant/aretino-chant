@@ -53,6 +53,9 @@ const OPTION_VALUE_OPTIONS = [
     { label: 'noteSpacing',    detail: 'number — spacing between notes', section: SECTION.rendererOptions },
     { label: 'staffGap',       detail: 'number — gap between staves', section: SECTION.rendererOptions },
     { label: 'lyricDistance',  detail: 'number — distance from staff to lyrics', section: SECTION.rendererOptions },
+    { label: 'virgaStemLength', detail: 'number — virga stem descent (staff-spaces)', section: SECTION.rendererOptions },
+    { label: 'virgaStemDescentBelowPrev', detail: 'number — virga stem descent past a lower preceding note', section: SECTION.rendererOptions },
+    { label: 'virgaMaxBelowBottom', detail: 'number — max virga stem descent below bottom staff line', section: SECTION.rendererOptions },
     { label: 'hideRepeatClef', detail: 'boolean — hide repeated clef at line start', section: SECTION.rendererOptions },
     { label: 'canvasHeight',   detail: 'number — canvas height', section: SECTION.rendererOptions },
 ];

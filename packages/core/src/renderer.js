@@ -279,6 +279,10 @@ export function renderAretino(source, options = {}) {
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
+    // Virga stem geometry (in spatia); read by drawNote/noteInkBounds via ss().
+    ctx.virgaStemLength = options.virgaStemLength ?? METRICS.virgaStemLength;
+    ctx.virgaStemDescentBelowPrev = options.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev;
+    ctx.virgaMaxBelowBottom = options.virgaMaxBelowBottom ?? METRICS.virgaMaxBelowBottom;
     ctx.textFont = textFont;
     // Escaped once: textFont is constant for the whole render but feeds the
     // font-family attribute of every <text> element emitted below.

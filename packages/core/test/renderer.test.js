@@ -627,6 +627,37 @@ describe('renderAretino', () => {
     });
   });
 
+  describe('neume separator (/) wrapping', () => {
+    const ligCount = svg => (svg.match(/aretino-token aretino-ligature/g) || []).length;
+
+    it('wraps a long /-separated melisma across rows', () => {
+      const melisma = 'a/b/c/d/e/f/g/a/b/c/d/e/f/g/a/b/c/d/e/f/g';
+      const svg = renderAretino(`(c4) ${melisma}\nw: al`, { width: 200 });
+      expect(splitRowSVGs(svg).length).toBeGreaterThan(1);
+      // The single syllable is drawn exactly once (on the first row).
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['al']);
+    });
+
+    it('keeps a /-separated neume whole when it fits on one line', () => {
+      const svg = renderAretino('(c4) a/b/c\nw: al', { width: 600 });
+      expect(splitRowSVGs(svg).length).toBe(1);
+    });
+
+    it('keeps following syllables aligned after a wrapped melisma', () => {
+      const svg = renderAretino('(c4) a/b/c/d/e/f/g/a/b/c/d/e/f/g d e\nw: al le lu', { width: 200 });
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['al', 'le', 'lu']);
+    });
+
+    it('splits a neume wider than a full row across several rows', () => {
+      const melisma = Array.from({ length: 60 }, (_, i) => 'abcdefg'[i % 7]).join('/');
+      const svg = renderAretino(`(c4) ${melisma}\nw: al`, { width: 150 });
+      expect(splitRowSVGs(svg).length).toBeGreaterThan(2);
+      expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['al']);
+      // Every group notehead is still drawn (one ligature part per row).
+      expect(ligCount(svg)).toBe(splitRowSVGs(svg).length);
+    });
+  });
+
   describe('first-syllable clearance under a descending clef', () => {
     const clefRightX = svg => {
       // The start clef is the first translate+scale group in the row.

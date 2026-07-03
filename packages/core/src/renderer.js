@@ -777,7 +777,10 @@ export function renderAretino(source, options = {}) {
             // extend past the staff's left edge, and that no first-syllable text runs
             // under a start clef whose tail dips into the first lyric line.
             if (alignSyllables) {
-                const firstLigItem = row.items.find(it => it.kind === 'ligature');
+                const firstLig = row.items.find(it => it.kind === 'ligature');
+                // A neume continuation carries no syllable, so the row-start
+                // left-limit (prefix/clef-overlap) logic doesn't apply to it.
+                const firstLigItem = firstLig && !firstLig.neumeContinuation ? firstLig : null;
                 if (firstLigItem) {
                     const halfNoteW = halfNoteWPx;
                     const isCenteredFirst = firstLigItem.groups.reduce((s, g) => s + g.length, 0) === 1
@@ -1037,7 +1040,12 @@ export function renderAretino(source, options = {}) {
                         if (labelY - fontSize < rowTopY) rowTopY = labelY - fontSize;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
-                    rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft });
+                    // A neume continuation (the tail of a '/'-split neume wrapped
+                    // to this row) carries no syllable, so it must not consume a
+                    // syllable slot in the 1-ligature⇄1-syllable alignment.
+                    if (!it.neumeContinuation) {
+                        rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft });
+                    }
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
                         if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;

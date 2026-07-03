@@ -35,6 +35,38 @@ export function layoutRowsWithCourtesyAccidentals(items, ctx, initialClef, staff
     return rows;
 }
 
+// Split a multi-group ligature at a '/' separator for line wrapping. A '/'
+// between neume groups is a neumatic cut with no connecting stroke, so breaking
+// there is visually seamless. The head (first k groups) keeps the syllable,
+// label and leading courtesy accidentals; the tail (remaining groups) becomes a
+// syllable-less continuation that starts the next row.
+function ligatureHead(lig, k) {
+    return {
+        ...lig,
+        groups: lig.groups.slice(0, k),
+        gaps: (lig.gaps ?? []).slice(0, k - 1),
+        // The head is row-terminal: nothing follows it on this row, so it needs
+        // no trailing reserve for a following syllable.
+        syllableExtra: 0,
+    };
+}
+
+function ligatureTail(lig, k) {
+    const tail = {
+        ...lig,
+        groups: lig.groups.slice(k),
+        gaps: (lig.gaps ?? []).slice(k),
+        neumeContinuation: true,
+        syllableExtra: 0,
+    };
+    // The syllable, label and leading courtesy accidentals stay with the head;
+    // the continuation draws bare noteheads. (Row-start courtesy accidentals for
+    // the continuation are re-derived after layout by annotateCourtesyAccidentals.)
+    delete tail.label;
+    delete tail.leadingCourtesyAccidentals;
+    return tail;
+}
+
 // Greedy line-fit. Walks items, accumulating widths, breaking before any
 // item that would push the row past the right margin. Explicit (z)/(Z)
 // directives appear as `break` items and force a row finalization.
@@ -107,6 +139,57 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
         rowStartKeySigSource = null;
     }
 
+    // Place a ligature, wrapping at its '/' separators when it does not fit.
+    // As many leading groups as fit stay on the current row; the remainder is
+    // carried to the next row as a continuation, which may itself wrap again.
+    // A single-group neume (no '/') simply wraps as a whole, exactly as before.
+    function placeLigatureWithWrapping(lig) {
+        let remaining = lig;
+        while (true) {
+            const w = measureItem(ctx, remaining);
+            const avail = rowItemsAvailable();
+            if (curWidth + w + levelingNeed(ctx, [...cur, remaining]) <= avail) {
+                cur.push(remaining);
+                curWidth += w;
+                return;
+            }
+            // Doesn't fit. Find the largest group-prefix that fits on this row
+            // (0 if not even the first group fits at the current position).
+            const groups = remaining.groups;
+            let k = 0;
+            for (let n = 1; n < groups.length; n++) {
+                const head = ligatureHead(remaining, n);
+                if (curWidth + measureItem(ctx, head) + levelingNeed(ctx, [...cur, head]) <= avail) {
+                    k = n;
+                } else {
+                    break;
+                }
+            }
+            if (k === 0) {
+                if (cur.length > 0) {
+                    // Nothing of this neume fits after what's already on the row:
+                    // wrap the whole neume to a fresh row and retry there.
+                    finalize(true);
+                    continue;
+                }
+                // Row is empty and even the first group overflows a full row.
+                // Nothing can be done for a single group; otherwise place one
+                // group (unavoidable overflow) and carry the rest.
+                if (groups.length === 1) {
+                    cur.push(remaining);
+                    curWidth += w;
+                    return;
+                }
+                k = 1;
+            }
+            const head = ligatureHead(remaining, k);
+            cur.push(head);
+            curWidth += measureItem(ctx, head);
+            finalize(true);
+            remaining = ligatureTail(remaining, k);
+        }
+    }
+
     for (let ii = 0; ii < items.length; ii++) {
         const item = items[ii];
         if (item.kind === 'break') {
@@ -128,6 +211,15 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
                 rowStartKeySigSource = item;
                 continue;
             }
+        }
+        // A plain neume can wrap at its '/' separators. Accidental-led neumes
+        // are placed atomically with their accidental (handled below), and
+        // glyphless recitation pieces have their own orphan/widow wrapping.
+        if (item.kind === 'ligature'
+            && !item.recitationGlyphless
+            && !(ii > 0 && items[ii - 1].kind === 'accidental')) {
+            placeLigatureWithWrapping(item);
+            continue;
         }
         // Accidentals are glued to the following neume — measure them as a
         // single atomic unit for line-breaking purposes. `unit` collects the

@@ -2,9 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-// GABC letters a-m (index 0–12) map to Aretino pitches at the same index with
-// zero transposition.  Different clefs shift this mapping by a fixed offset.
-const ARETINO_NOTES = ['A', 'B', 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C', 'D', 'E', 'F'];
+// GABC letters a-m (index 0–12) map to Aretino staff positions at the same
+// index with zero transposition. Different clefs shift this mapping by a fixed
+// offset. Positions outside A–G use Aretino's stackable octave markers.
+const ARETINO_NOTES = ['A', 'B', 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C', 'D', 'E', 'F', 'G'];
 const GABC_LOWER   = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
 
 // Transposition (in scale steps) and optional key signature for each GABC clef.
@@ -20,11 +21,25 @@ const CLEF_SETTINGS = {
     cb4: { transpose: 0,  keySig: 'b' },
 };
 
+function positionToAretino(pos) {
+    let basePos = pos;
+    let octaveShift = 0;
+    while (basePos >= ARETINO_NOTES.length) {
+        basePos -= 7;
+        octaveShift++;
+    }
+    while (basePos < 0) {
+        basePos += 7;
+        octaveShift--;
+    }
+    const marker = octaveShift > 0 ? '^'.repeat(octaveShift) : 'v'.repeat(-octaveShift);
+    return marker + ARETINO_NOTES[basePos];
+}
+
 function buildNoteMap(transpose) {
     const map = {};
     for (let i = 0; i < GABC_LOWER.length; i++) {
-        const pos = i + transpose;
-        if (pos >= 0 && pos < ARETINO_NOTES.length) map[GABC_LOWER[i]] = ARETINO_NOTES[pos];
+        map[GABC_LOWER[i]] = positionToAretino(i + transpose);
     }
     return map;
 }

@@ -32,6 +32,7 @@ The output starts with a `(g2)` clef token. If the GABC clef implies a flat key 
 ## Supported features
 
 - **Clefs**: `c1`, `c2`, `c3`, `c4` (default), `f3`, `f4`, `cb3`, `cb4`
+- **Extended pitch range**: notes above `G` and below `A` use Aretino octave markers (`^` / `v`)
 - **Barlines**: breath mark `,`, quarter bar `'`, half bar `;`, full bar `:`, double bar `::`, and interrogative `?` variants
 - **Accidentals**: flat `x`, natural `y`, sharp `#` — both as standalone signs and as intra-neume suffixes
 - **Neume shapes**: virga `v`/`V`/`O`, quilisma `w`/`W`, oriscus `>`, apostropha/strophe `o`/`s`, tenor (empty notehead) `r`/`R`

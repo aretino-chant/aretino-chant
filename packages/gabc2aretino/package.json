@@ -1,6 +1,6 @@
 {
   "name": "@aretino-chant/gabc2aretino",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Converter from Gregorio GABC to Aretino chant notation.",
   "type": "module",
   "exports": {

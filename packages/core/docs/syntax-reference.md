@@ -343,22 +343,30 @@ vertically to fit.
 
 ## 9. Braces and spanning marks
 
-A `{` … `}` pair draws a visual mark **above** the notes it spans. Three shapes
-are available:
+A `{` … `}` pair draws a visual mark over the notes it spans. The opening token
+selects the shape:
 
-| Opening token | Shape |
-|---|---|
-| `{` | Overbrace (curly brace pointing down) |
-| `\arc{` | Arc (smooth curve) |
-| `\line{` | Straight line |
+| Opening token | Shape | Drawn |
+|---|---|---|
+| `{` | Overbrace (curly brace pointing down) | above the notes |
+| `\arc{` | Arc (smooth curve) | above the notes |
+| `\line{` | Straight line | above the notes |
+| `\slur{` | Slur, dashed | below the notes |
+| `\slurSolid{` | Slur, solid | below the notes |
 
-The closing `}` may be followed by a quoted or unquoted label:
+The closing `}` may be followed by a label in double quotes:
 
 | Syntax | Label |
 |---|---|
 | `}` | No label |
 | `}"Text"` | Label in double quotes |
-| `}Word` | Label up to the next space |
+
+The quotes are required — an unquoted `}Word` is not a label. The `}` closes the
+span without one, and the letters that follow are read as ordinary notation, so
+`}melisma` silently adds an `e` and an `a` notehead to the line.
+
+Labels are drawn for `{`, `\arc{` and `\line{`. A label on a slur close parses
+but is not rendered.
 
 Spans can cross system breaks; the renderer continues the mark on the next row
 automatically.
@@ -375,13 +383,11 @@ automatically.
 (g2) { g a b C }"1." g { a b C D }"2." g
 ```
 
-In the AST, the opening token is `{ type: 'brace-open', kind: 'brace' | 'arc' | 'line' }` and the closing token is `{ type: 'brace-close', label? }`.
-
-| `\slur{`, `\slurSolid{` | dashed (by default) and solid slur between noteheads
-
 ```aretino
-\slur{f A} \slurSolid{A g}
+(g2) \slur{f A} \slurSolid{A g}
 ```
+
+In the AST, the opening token is `{ type: 'brace-open', kind: 'brace' | 'arc' | 'line' | 'slur' | 'slurSolid' }` and the closing token is `{ type: 'brace-close', label? }`.
 
 
 ---

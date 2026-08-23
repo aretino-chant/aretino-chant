@@ -123,7 +123,7 @@ Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
 unambiguously from the body.
 
-Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent
+Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
 
 ---
 
@@ -626,6 +626,21 @@ multi-word marker into one unit — `1.~Elsö` is an ordinary non-breaking pair,
 A marker wider than `textMaxIndent` (8 em by default, and never more than 30%
 of the available width) overhangs the column; if no word fits beside it, the
 body starts at the column on the next line.
+
+Markers hang flush left by default. `%option: textMarkerAlign=right` (or the
+`textMarkerAlign` renderer option) sets them flush against the text column
+instead, so a short `1.` ends where a long `Refrén.` ends:
+
+```aretino
+%option: textMarkerAlign=right
+%%
+W(stanza): 1.~~Első versszak | Második sor
+W(stanza): Refrén.~~Második versszak
+```
+
+The widest marker of the run still starts at the left margin, and one that
+overhangs a capped column starts there too. A host can set the alignment for
+one style only, with `textStyles: { stanza: { markerAlign: 'right' } }`.
 
 ### Manual line break
 

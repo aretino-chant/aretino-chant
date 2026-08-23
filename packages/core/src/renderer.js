@@ -287,10 +287,12 @@ export function renderAretino(source, options = {}) {
     ctx.textFont = textFont;
     // W: text-block styling. `textStyle` is the document default (block markers
     // override it), `textStyles` lets a host tune the presets, and
-    // `textMaxIndent` caps the text column a `~~` marker opens.
+    // `textMaxIndent` caps the text column a `~~` marker opens, and
+    // `textMarkerAlign` sets markers flush left or flush against that column.
     ctx.textStyle = typeof options.textStyle === 'string' ? options.textStyle : undefined;
     ctx.textStyles = options.textStyles;
     ctx.textMaxIndent = Number.isFinite(options.textMaxIndent) ? options.textMaxIndent : undefined;
+    ctx.textMarkerAlign = typeof options.textMarkerAlign === 'string' ? options.textMarkerAlign : undefined;
     // Escaped once: textFont is constant for the whole render but feeds the
     // font-family attribute of every <text> element emitted below.
     const escapedTextFont = escapeAttr(textFont);

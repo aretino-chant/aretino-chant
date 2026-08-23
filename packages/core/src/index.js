@@ -7,3 +7,4 @@ export { parseAretino, matchAccidental } from './parser.js';
 export { transposeSource } from './transpose.js';
 export { parseHeaderRendererOptions } from './options.js';
 export { drawToolbarGlyphIcon } from './glyphs.js';
+export { TEXT_STYLE_PRESETS, DEFAULT_TEXT_STYLE } from './verse.js';

@@ -285,6 +285,12 @@ export function renderAretino(source, options = {}) {
     ctx.virgaStemDescentBelowPrev = options.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev;
     ctx.virgaMaxBelowBottom = options.virgaMaxBelowBottom ?? METRICS.virgaMaxBelowBottom;
     ctx.textFont = textFont;
+    // W: text-block styling. `textStyle` is the document default (block markers
+    // override it), `textStyles` lets a host tune the presets, and
+    // `textMaxIndent` caps the text column a `~~` marker opens.
+    ctx.textStyle = typeof options.textStyle === 'string' ? options.textStyle : undefined;
+    ctx.textStyles = options.textStyles;
+    ctx.textMaxIndent = Number.isFinite(options.textMaxIndent) ? options.textMaxIndent : undefined;
     // Escaped once: textFont is constant for the whole render but feeds the
     // font-family attribute of every <text> element emitted below.
     const escapedTextFont = escapeAttr(textFont);
@@ -1189,7 +1195,21 @@ export function renderAretino(source, options = {}) {
 
         if (sec.verses && sec.verses.length > 0) {
             const verseResult = renderVerseLines(ctx, sec.verses, ctx.leftMargin, staffRightX, sectionContentBottom);
-            parts.push(verseResult.svg);
+            if (rows.length === 0) {
+                // A section of pure text produces no staff row, so without this
+                // the score would carry no row markers at all and could neither
+                // be split for an incipit nor paginated. Each text block is its
+                // own row; when the section does have staff rows the text
+                // belongs to the last of them and stays inside it.
+                let rowPrev = prevRowBottom;
+                for (const block of verseResult.blocks) {
+                    parts.push(`<!-- aretino-row ${globalRowIdx++} ${block.top.toFixed(3)} ${rowPrev.toFixed(3)} ${block.top.toFixed(3)} -->`);
+                    parts.push(block.svg);
+                    rowPrev = block.bottom;
+                }
+            } else {
+                parts.push(verseResult.svg);
+            }
             y = verseResult.bottom + ctx.staffGap;
             contentBottom = Math.max(contentBottom, verseResult.bottom);
             prevRowBottom = verseResult.bottom;

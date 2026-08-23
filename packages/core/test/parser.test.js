@@ -245,3 +245,40 @@ describe('matchAccidental', () => {
     expect(matchAccidental('Gb')).toEqual({ pitch: 'G', symbol: 'x' });
   });
 });
+
+describe('W: text blocks', () => {
+  const verses = src => parseAretino(src).lines.filter(l => l.type === 'verse');
+
+  it('captures a parenthesised style name', () => {
+    expect(verses('W(prose): szöveg')[0].style).toBe('prose');
+    expect(verses('W(stanza): szöveg')[0].style).toBe('stanza');
+  });
+
+  it('leaves a plain W: block without a style', () => {
+    expect(verses('W: szöveg')[0].style).toBeNull();
+  });
+
+  it('keeps an unknown style name rather than failing the parse', () => {
+    const [item] = verses('W(bogus): szöveg');
+
+    expect(item.style).toBe('bogus');
+    expect(item.lines).toEqual(['szöveg']);
+  });
+
+  it('records a source span per input line and for the block', () => {
+    const source = 'W(stanza): első\nmásodik';
+    const [item] = verses(source);
+
+    expect(item.lines).toEqual(['első', 'második']);
+    expect(item.spans).toEqual([
+      { srcStart: source.indexOf('első'), srcEnd: source.indexOf('első') + 4 },
+      { srcStart: source.indexOf('második'), srcEnd: source.indexOf('második') + 7 },
+    ]);
+    expect(item.srcStart).toBe(source.indexOf('első'));
+    expect(item.srcEnd).toBe(source.length);
+  });
+
+  it('does not treat a lowercase w( line as a styled text block', () => {
+    expect(verses('w(prose): szöveg')).toHaveLength(0);
+  });
+});

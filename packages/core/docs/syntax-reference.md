@@ -31,9 +31,10 @@ wins — please file an issue.
 12. [Accidentals](#12-accidentals)
 13. [Layout: breaks, expander, spacers](#13-layout-breaks-expander-spacers)
 14. [Lyrics](#14-lyrics)
-15. [Text formatting](#15-text-formatting)
-16. [Labels](#16-labels)
-17. [Embedding in Markdown](#17-embedding-in-markdown)
+15. [Text blocks](#15-text-blocks)
+16. [Text formatting](#16-text-formatting)
+17. [Labels](#17-labels)
+18. [Embedding in Markdown](#18-embedding-in-markdown)
 
 ---
 
@@ -122,7 +123,7 @@ Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
 unambiguously from the body.
 
-Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom
+Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent
 
 ---
 
@@ -134,6 +135,7 @@ Each body line is classified by its prefix:
 |---|---|---|
 | `w:` | lyrics | Syllable text aligned under the **preceding** music line |
 | `W:` | verse | Free-flowing psalm/verse text (not note-aligned) |
+| `W(style):` | verse | The same, set in a named [text block style](#15-text-blocks) |
 | `n:` | music continuation | More music for the same note-aligned lyric stream |
 | *(blank)* | blank | Vertical spacing |
 | *(anything else)* | music | A sequence of music tokens |
@@ -145,8 +147,8 @@ The space after `w:` / `W:` / `n:` is optional and stripped (`w: text` and
 came before it:
 
 - After a `w:` line, it continues that lyric line (joined with a space).
-- After a `W:` line, it becomes an explicit line break within the verse
-  (rendered indented).
+- After a `W:` line, it belongs to the same text block — an explicit line
+  break in `psalm` and `stanza`, reflowed away in `prose` and `rubric`.
 - Otherwise it is parsed as a new music line.
 - `n:` explicitly switches back to music after `w:` lines. Following `w:` lines
   then continue the previous note-aligned lyric lines, in order, instead of
@@ -532,7 +534,7 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | `_` | Extender line — holds the syllable over its own neume; each additional `_` extends it over one more following neume |
 | `\_` | Literal underscore inside one syllable |
 | `~` | Renders as a literal (non-breaking) space — keeps a multi-word unit in one syllable, e.g. `(unbreakable~space)` |
-| `~~` | Splits a syllable's display text from its alignment text |
+| `~~` | Splits a syllable's display text from its alignment text; in a `W:` block, a [marker](#15-text-blocks) from its body |
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
 
 Extender underscores follow the syllable they extend: `ro_` holds `ro` over its
@@ -546,7 +548,8 @@ w: ro___.
 ```
 
 `W:` verse lines flow as ordinary text (psalm tone style) and accept the same
-[text formatting](#15-text-formatting) as lyrics:
+[text formatting](#16-text-formatting) as lyrics. See
+[text blocks](#15-text-blocks) for their typography:
 
 ```aretino
 (g2) g ab a g e_d_ , g ab A'g g. ||
@@ -557,7 +560,87 @@ W: Miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen
 
 ---
 
-## 15. Text formatting
+## 15. Text blocks
+
+A `W:` line opens a **text block**: free-flowing text that is not aligned to
+notes. Unprefixed lines after it belong to the same block, and consecutive
+blocks stack until a blank line ends the section.
+
+### Styles
+
+A block is set in a named style, chosen parenthetically before the colon.
+`W:` on its own means `psalm`, so existing scores are unaffected. An
+unrecognised name falls back to the default rather than failing the parse.
+
+| Style | Source line breaks | Break indent | Wrap indent | Notes |
+|---|---|---|---|---|
+| `psalm` | kept | 2 em | 2 em | the default — verse starts stay visible |
+| `prose` | reflowed | 0 | 0 | a rubric or instruction set as running text |
+| `stanza` | kept | 0 | 1.5 em | a hymn strophe; only an overflow line indents |
+| `rubric` | reflowed | 0 | 0 | 85% size, red |
+
+```aretino
+W(prose): Az áldozás alatt a nép énekelhet, vagy a kántor
+zsoltárt énekelhet — ez a sor folyószövegként tördelődik.
+
+W(stanza): Ó jöjj, ó jöjj, Emmánuel,
+csak téged áhít Izrael,
+
+W: Dicsőség az Atyának és Fiúnak *
+és Szentlélek Istennek.
+```
+
+In `prose` and `rubric` a source line break is an editing convenience: the
+block reflows to the column width. In `psalm` and `stanza` it is kept as a
+break.
+
+Each style also carries its own line height and its own spacing between
+blocks. Where two styles meet, the seam takes the larger of what the block
+above claims below itself and what the block below claims above itself — so a
+rubric opens air around itself without any other style having to know it
+exists.
+
+The document default is set with `%option: textStyle=prose` (or the
+`textStyle` renderer option); a `W(style):` marker on a block always wins over
+either.
+
+### Markers
+
+`~~` separates a **marker** — a verse number, a `℟`, a role label — from the
+body of the block. The marker hangs at the left margin and the body starts at
+a text column shared by every block of the same style in a row:
+
+```aretino
+W(stanza): 1.~~Ó jöjj, ó jöjj, Emmánuel,
+W(stanza): 10.~~Ó jöjj, ó jöjj, Adonáj,
+W: \R.~~Dicsőség az Atyának és Fiúnak
+W(prose): Előénekes~és~nép:~~Az áldozás alatt a nép énekelhet…
+```
+
+Because the column is shared, `1.` and `10.` line up across a hymn's stanzas.
+It is shared only within a run of blocks of one style, so a wide role label in
+a neighbouring block cannot drag a hymn's numbers across the page. `~` binds a
+multi-word marker into one unit — `1.~Elsö` is an ordinary non-breaking pair,
+`1.~~Elsö` is a marker plus body.
+
+A marker wider than `textMaxIndent` (8 em by default, and never more than 30%
+of the available width) overhangs the column; if no word fits beside it, the
+body starts at the column on the next line.
+
+### Manual line break
+
+`|` breaks a line inside a block, exactly as a source newline does — so in
+`prose` and `rubric`, where source newlines reflow away, it is the break that
+survives. Surrounding spaces are trimmed, and inline formatting may span it.
+`\|` is a literal pipe.
+
+```aretino
+W(prose): <Az áldozás alatt | a nép énekelhet>
+```
+
+---
+
+## 16. Text formatting
 
 Lyric (`w:`) and verse (`W:`) text supports inline formatting. Styles nest.
 
@@ -587,11 +670,11 @@ W: + dagger ++ double~dagger (unbreakable~space)
 
 ---
 
-## 16. Labels
+## 17. Labels
 
 You can add labels above notes with the syntax `f"Label"`. Formatting tags are supported as well.
 
-## 17. Embedding in Markdown
+## 18. Embedding in Markdown
 
 The dev test page (and any host that adopts the same convention) recognizes
 fenced code blocks tagged `aretino` and turns each into a live editor with a

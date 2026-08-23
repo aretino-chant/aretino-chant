@@ -4,7 +4,7 @@ Design for named text-block styles in `@aretino-chant/core`.
 
 - **Target:** core `0.22.0`, plus a version bump in Cantores.
 - **Scope:** `packages/core/src/verse.js` and its callers. Cantores only consumes.
-- **Status:** design agreed. Not yet implemented.
+- **Status:** implemented in core `0.22.0`. §7 (Cantores) is still open.
 
 ## 1. Where we are
 

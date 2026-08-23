@@ -77,7 +77,7 @@ const aretinoStreamParser = {
                     } else {
                         if (line.trim() !== '') state.headerDone = true;
                         if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
-                        else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
+                        else if (/^\s*W(?:\([a-z]+\))?:/.test(line)) state.lineMode = 'verse';
                         else {
                             state.lineMode = 'music';
                             state.musicPrefixPending = /^\s*n:/.test(line);
@@ -86,7 +86,7 @@ const aretinoStreamParser = {
                 } else {
                     state.musicPrefixPending = false;
                     if (/^\s*w:/.test(line)) state.lineMode = 'lyrics';
-                    else if (/^\s*W:/.test(line)) state.lineMode = 'verse';
+                    else if (/^\s*W(?:\([a-z]+\))?:/.test(line)) state.lineMode = 'verse';
                     else {
                         if (/^\s*n:/.test(line)) state.musicPrefixPending = true;
                         if (state.lineMode !== 'lyrics' && state.lineMode !== 'verse') state.lineMode = 'music';
@@ -128,7 +128,7 @@ const aretinoStreamParser = {
 
         // Lyric / verse lines: w:/W: prefix as keyword, then inline formatting
         if (state.lineMode === 'lyrics' || state.lineMode === 'verse') {
-            if (stream.match(/[wW]:/)) return 'keyword';
+            if (stream.match(/w:|W(?:\([a-z]+\))?:/)) return 'keyword';
             return tokenInTextSpan(stream, state);
         }
 
@@ -247,7 +247,7 @@ function buildBigJumpDecorations(doc) {
         const text = line.text;
         if (text.trim() === '') { inVerse = false; inLyrics = false; continue; }
         if (/^\s*%/.test(text)) { inVerse = false; inLyrics = false; continue; }  // header / comment lines
-        if (/^\s*W:/.test(text)) { inVerse = true; inLyrics = false; continue; }  // verse line
+        if (/^\s*W(?:\([a-z]+\))?:/.test(text)) { inVerse = true; inLyrics = false; continue; }  // verse line
         if (/^\s*w:/.test(text)) { inVerse = false; inLyrics = true; continue; }  // lyrics line
         // n: is always a music continuation, even after a verse or lyrics block
         if ((inVerse || inLyrics) && !/^\s*n:/.test(text)) continue;

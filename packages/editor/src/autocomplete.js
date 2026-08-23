@@ -179,7 +179,7 @@ function lineTypeAt(state, pos) {
     const text = currentLine.text;
     // Explicit prefixes always determine the type, even on the first line
     if (/^\s*w:/.test(text)) return 'lyrics';
-    if (/^\s*W:/.test(text)) return 'verse';
+    if (/^\s*W(?:\([a-z]+\))?:/.test(text)) return 'verse';
     if (/^\s*n:/.test(text)) return 'music';
     if (isInHeader(state, pos)) return 'header';
     let prevMode = 'music';
@@ -187,7 +187,7 @@ function lineTypeAt(state, pos) {
         const t = state.doc.line(n).text;
         if (t.trim() === '' || /^\s*%%\s*$/.test(t)) { prevMode = 'music'; continue; }
         if (/^\s*w:/.test(t)) { prevMode = 'lyrics'; continue; }
-        if (/^\s*W:/.test(t)) { prevMode = 'verse'; continue; }
+        if (/^\s*W(?:\([a-z]+\))?:/.test(t)) { prevMode = 'verse'; continue; }
         if (/^\s*n:/.test(t)) { prevMode = 'music'; continue; }
     }
     return prevMode;

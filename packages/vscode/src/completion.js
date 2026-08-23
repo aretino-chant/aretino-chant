@@ -169,7 +169,7 @@ function isInHeader(document, lineNumber) {
 function lineTypeAt(document, lineNumber) {
     const text = document.lineAt(lineNumber).text;
     if (/^\s*w:/.test(text)) return 'lyrics';
-    if (/^\s*W:/.test(text)) return 'verse';
+    if (/^\s*W(?:\([a-z]+\))?:/.test(text)) return 'verse';
     if (/^\s*n:/.test(text)) return 'music';
     if (isInHeader(document, lineNumber)) return 'header';
     let prevMode = 'music';
@@ -177,7 +177,7 @@ function lineTypeAt(document, lineNumber) {
         const t = document.lineAt(n).text;
         if (t.trim() === '' || /^\s*%%\s*$/.test(t)) { prevMode = 'music'; continue; }
         if (/^\s*w:/.test(t)) { prevMode = 'lyrics'; continue; }
-        if (/^\s*W:/.test(t)) { prevMode = 'verse'; continue; }
+        if (/^\s*W(?:\([a-z]+\))?:/.test(t)) { prevMode = 'verse'; continue; }
         if (/^\s*n:/.test(t)) { prevMode = 'music'; continue; }
     }
     return prevMode;

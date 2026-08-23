@@ -21,6 +21,8 @@ const HEADER_RENDERER_OPTION_TYPES = {
     hideRepeatClef: 'boolean',
     canvasHeight: 'number',
     sourceMap: 'boolean',
+    textStyle: 'string',
+    textMaxIndent: 'number',
 };
 
 function parseBooleanOption(valueText) {

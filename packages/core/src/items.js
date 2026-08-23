@@ -32,7 +32,9 @@ export function groupSections(lines) {
         } else if (item.type === 'lyrics') {
             pending.lyrics.push(item);
         } else if (item.type === 'verse') {
-            pending.verses.push(item.lines);
+            // The whole item, not just its lines: the style and source spans
+            // have to survive into rendering, where runs are grouped.
+            pending.verses.push(item);
         }
     }
     flushPending();

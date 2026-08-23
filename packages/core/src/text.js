@@ -52,6 +52,23 @@ export function measureSegmentsWidth(segments, fontSize, fontFamily, measureFn =
     }, 0);
 }
 
+// Side padding renderMixedLabel puts around an inline glyph, as a fraction of
+// the glyph's effective font size. Half of it goes before the glyph, the rest
+// after, so a glyph advances by `advance + GLYPH_PAD * 1.5 * size`.
+const GLYPH_PAD = 0.15;
+
+// Width a run of segments actually occupies when drawn by renderMixedLabel —
+// measureSegmentsWidth plus the padding around each inline glyph. Line
+// breaking measures with this so a stress mark or accidental cannot overrun.
+export function measureSegmentsAdvance(segments, fontSize, fontFamily, measureFn = measureTextWidth) {
+    if (!segments || segments.length === 0) return 0;
+    return segments.reduce((sum, seg) => {
+        if (seg.glyph) return sum + (seg.glyphAdvance || 0) * segFontSize(seg, fontSize) / 1000
+            + GLYPH_PAD * 1.5 * segFontSize(seg, fontSize);
+        return sum + measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
+    }, 0);
+}
+
 // Return a copy of `segments` covering only the characters from `startChar` onwards.
 export function sliceSegments(segments, startChar) {
     const result = [];
@@ -96,10 +113,12 @@ export function trimSegmentsEnd(segments, length) {
 //   \color:X{text}   X-colored text (generic)
 //   +                dagger †
 //   ++               double dagger ‡
+//   |                line break, when `options.breaks` is set (verse text only)
 //   \X               literal X (escape for any special char)
-function parseFormattingToSegmentsInternal(text, sourceMap = null) {
+function parseFormattingToSegmentsInternal(text, sourceMap = null, options = {}) {
     text = String(text ?? '');
     const withSource = Array.isArray(sourceMap);
+    const allowBreaks = !!options.breaks;
     const stack = [{ type: 'root', bold: false, italic: false, underline: false, color: null, smallCaps: false, small: false, large: false }];
     const segments = [];
 
@@ -129,7 +148,7 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             ? (offsets ?? Array.from({ length: str.length }, () => null))
             : null;
         const last = segments[segments.length - 1];
-        if (last && !last.glyph && last.bold === st.bold && last.italic === st.italic &&
+        if (last && !last.glyph && !last.break && last.bold === st.bold && last.italic === st.italic &&
                 last.underline === st.underline && last.color === st.color && last.smallCaps === st.smallCaps &&
                 last.small === st.small && last.large === st.large) {
             last.text += str;
@@ -216,20 +235,27 @@ function parseFormattingToSegmentsInternal(text, sourceMap = null) {
             stack.push({ type: 'bracket', bold: false, italic: false, underline: true, color: null }); i++;
         } else if (text[i] === ']') {
             popType('bracket'); i++;
+        } else if (text[i] === '|' && allowBreaks) {
+            // Rides through as a segment rather than pre-splitting the source,
+            // so inline formatting may span the break. `\|` is a literal pipe.
+            const seg = { text: '', break: true, ...effectiveState() };
+            if (withSource) seg.sourceOffsets = [sourceAt(i)];
+            segments.push(seg);
+            i++;
         } else {
             addText(text[i], [sourceAt(i)]); i++;
         }
     }
 
-    return segments.filter(s => s.text !== '' || s.glyph);
+    return segments.filter(s => s.text !== '' || s.glyph || s.break);
 }
 
-export function parseFormattingToSegments(text) {
-    return parseFormattingToSegmentsInternal(text);
+export function parseFormattingToSegments(text, options = {}) {
+    return parseFormattingToSegmentsInternal(text, null, options);
 }
 
-export function parseFormattingToSegmentsWithSource(text, sourceMap) {
-    return parseFormattingToSegmentsInternal(text, sourceMap);
+export function parseFormattingToSegmentsWithSource(text, sourceMap, options = {}) {
+    return parseFormattingToSegmentsInternal(text, sourceMap, options);
 }
 
 export function renderSegments(segments) {
@@ -253,11 +279,11 @@ export function renderSegments(segments) {
 // Renders segments as SVG, mixing <text> elements for text runs and <path> elements
 // for inline glyphs (\b flat, \n natural, \# sharp). Handles centering via textAnchor.
 // Returns a string of one or more SVG elements.
-export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnchor = 'middle', measureFn = measureTextWidth) {
+export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnchor = 'middle', measureFn = measureTextWidth, fill = '#000') {
     if (!segments || segments.length === 0) return '';
     const hasGlyphs = segments.some(s => s.glyph);
     if (!hasGlyphs) {
-        return `<text xml:space="preserve" x="${cx}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="${textAnchor}" fill="#000">${renderSegments(segments)}</text>`;
+        return `<text xml:space="preserve" x="${cx}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="${textAnchor}" fill="${escapeAttr(fill)}">${renderSegments(segments)}</text>`;
     }
     const totalWidth = measureSegmentsWidth(segments, fontSize, fontFamily, measureFn);
     let x = textAnchor === 'middle' ? cx - totalWidth / 2 : cx;
@@ -269,7 +295,7 @@ export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnch
         if (textRun.length === 0) return;
         const content = renderSegments(textRun);
         if (content) {
-            parts.push(`<text xml:space="preserve" x="${textRunX}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="start" fill="#000">${content}</text>`);
+            parts.push(`<text xml:space="preserve" x="${textRunX}" y="${y}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="start" fill="${escapeAttr(fill)}">${content}</text>`);
         }
         textRun = [];
     }
@@ -278,8 +304,8 @@ export function renderMixedLabel(segments, cx, y, fontSize, fontFamily, textAnch
         if (seg.glyph) {
             flushTextRun();
             const efs = segFontSize(seg, fontSize);
-            const pad = 0.15 * efs;
-            const { svg } = drawInlineGlyph(seg.glyph, x + pad / 2, y, efs, seg.color || '#000');
+            const pad = GLYPH_PAD * efs;
+            const { svg } = drawInlineGlyph(seg.glyph, x + pad / 2, y, efs, seg.color || fill);
             parts.push(svg);
             x += (seg.glyphAdvance || 0) * efs / 1000 + pad * 1.5;
         } else {

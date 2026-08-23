@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseAretino, renderAretino, splitRowSVGs } from '../src/index.js';
+import { readFileSync } from 'node:fs';
+import { parseAretino, renderAretino, splitRowSVGs, renderFirstRow } from '../src/index.js';
 import { METRICS } from '../src/glyphs.js';
 import { measureTextWidth } from '../src/text.js';
 
@@ -749,11 +750,280 @@ describe('renderAretino', () => {
   });
 
   describe('verse lines', () => {
+    // Verse text: one <text> per display line (a marker adds one more on the
+    // block's first baseline). Sources here carry no w: lyrics, so every
+    // xml:space element in the SVG belongs to a verse block.
+    function verseLines(svg) {
+      return [...svg.matchAll(/<text xml:space="preserve" x="([\d.-]+)" y="([\d.-]+)"[^>]*font-size="([\d.]+)"[^>]*fill="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(m => ({
+          x: parseFloat(m[1]),
+          y: parseFloat(m[2]),
+          fontSize: parseFloat(m[3]),
+          fill: m[4],
+          text: m[5].replace(/<[^>]*>/g, ''),
+        }));
+    }
+
+    const NBSP = ' ';
+    const VERSE_OPTS = { width: 500, sourceMap: false };
+    // Left margin is one staff space (1.75 mm at 96 dpi); the lyric size
+    // (10 pt at 96 dpi) drives every verse indent, leading and gap.
+    const LEFT = METRICS.leftMargin * 1.75 * 96 / 25.4;
+    const SIZE = 10 * 96 / 72;
+
     it('preserves small and large formatting in wrapped verse text', () => {
       const svg = renderAretino('c\nW: First \\small{Second} \\large{Third}', { width: 600 });
 
       expect(svg).toContain('<tspan style="font-size:0.75em">Second</tspan>');
       expect(svg).toContain('<tspan style="font-size:1.3333333em">Third</tspan>');
+    });
+
+    it('renders an existing psalm score exactly as before styles existed', () => {
+      const source = readFileSync(new URL('./fixtures/psalm-verse.aretino', import.meta.url), 'utf8');
+      const expected = readFileSync(new URL('./fixtures/psalm-verse.svg', import.meta.url), 'utf8');
+
+      expect(renderAretino(source, { width: 700, sourceMap: false })).toBe(expected);
+    });
+
+    describe('defects', () => {
+      it('treats ~ as an unbreakable space', () => {
+        const words = 'aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn'.split(' ');
+        const opts = { ...VERSE_OPTS, width: 300 };
+        const loose = verseLines(renderAretino(`W: ${words.join(' ')}`, opts));
+        // Bind the pair that straddles the wrap point: it must move down whole.
+        const split = loose[0].text.split(' ').length - 1;
+        const bound = verseLines(renderAretino(
+          `W: ${words.slice(0, split).join(' ')} ${words[split]}~${words.slice(split + 1).join(' ')}`,
+          opts));
+
+        expect(loose[1].text.split(' ')[0]).toBe(words[split + 1]);
+        expect(bound[0].text).not.toContain(words[split]);
+        expect(bound[1].text.startsWith(`${words[split]}${NBSP}${words[split + 1]}`)).toBe(true);
+      });
+
+      it('renders inline glyphs in verse text instead of dropping them', () => {
+        const svg = renderAretino("W: A\\'men \\b \\n \\#", VERSE_OPTS);
+
+        // One <path> per glyph: stress mark, flat, natural, sharp.
+        expect([...svg.matchAll(/<path /g)]).toHaveLength(4);
+        expect(verseLines(svg).map(l => l.text).join('')).toContain('A');
+      });
+    });
+
+    describe('style selection', () => {
+      it('honours a block style marker', () => {
+        const [line] = verseLines(renderAretino('W(rubric): Itt a pap keresztet vet.', VERSE_OPTS));
+
+        expect(line.fill).toBe('red');
+        expect(line.fontSize).toBeCloseTo(SIZE * 0.85, 6);
+      });
+
+      it('falls back to psalm for an unknown style name', () => {
+        const unknown = verseLines(renderAretino('W(bogus): szöveg', VERSE_OPTS));
+        const psalm = verseLines(renderAretino('W: szöveg', VERSE_OPTS));
+
+        expect(unknown).toEqual(psalm);
+      });
+
+      it('resolves block marker over renderer option over %option over psalm', () => {
+        const styleOf = svg => verseLines(svg)[0].fill;
+        const header = '%option: textStyle=rubric\n%%\n';
+
+        expect(styleOf(renderAretino('W: szöveg', VERSE_OPTS))).toBe('#000');
+        expect(styleOf(renderAretino(`${header}W: szöveg`, VERSE_OPTS))).toBe('red');
+        expect(styleOf(renderAretino(`${header}W: szöveg`, { ...VERSE_OPTS, textStyle: 'prose' }))).toBe('#000');
+        expect(styleOf(renderAretino(`${header}W(rubric): szöveg`, { ...VERSE_OPTS, textStyle: 'prose' }))).toBe('red');
+      });
+
+      it('merges a host textStyles override over the preset', () => {
+        const [line] = verseLines(renderAretino('W(prose): szöveg', { ...VERSE_OPTS, textStyles: { prose: { color: 'blue' } } }));
+
+        expect(line.fill).toBe('blue');
+      });
+    });
+
+    describe('indents', () => {
+      const long = 'aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq';
+
+      it('indents both a source break and a wrapped line in psalm', () => {
+        const lines = verseLines(renderAretino(`W: rövid\n${long}`, VERSE_OPTS));
+
+        expect(lines[0].x).toBeCloseTo(LEFT, 6);
+        expect(lines[1].x).toBeCloseTo(LEFT + 2 * SIZE, 6);
+        expect(lines[2].x).toBeCloseTo(LEFT + 2 * SIZE, 6);
+      });
+
+      it('keeps a stanza break flush and indents only the wrapped line', () => {
+        const lines = verseLines(renderAretino(`W(stanza): rövid\n${long}`, VERSE_OPTS));
+
+        expect(lines[0].x).toBeCloseTo(LEFT, 6);
+        expect(lines[1].x).toBeCloseTo(LEFT, 6);
+        expect(lines[2].x).toBeCloseTo(LEFT + 1.5 * SIZE, 6);
+      });
+
+      it('reflows source breaks in prose and rubric', () => {
+        const prose = verseLines(renderAretino('W(prose): első\nmásodik', VERSE_OPTS));
+        const rubric = verseLines(renderAretino('W(rubric): első\nmásodik', VERSE_OPTS));
+
+        expect(prose).toHaveLength(1);
+        expect(prose[0].text).toBe('első második');
+        expect(rubric).toHaveLength(1);
+      });
+
+      it('honours source breaks in psalm and stanza', () => {
+        expect(verseLines(renderAretino('W: első\nmásodik', VERSE_OPTS))).toHaveLength(2);
+        expect(verseLines(renderAretino('W(stanza): első\nmásodik', VERSE_OPTS))).toHaveLength(2);
+      });
+    });
+
+    describe('line height and block gaps', () => {
+      it('leads lines inside a block by the style line height', () => {
+        const psalm = verseLines(renderAretino('W: első\nmásodik', VERSE_OPTS));
+        const stanza = verseLines(renderAretino('W(stanza): első\nmásodik', VERSE_OPTS));
+
+        expect(psalm[1].y - psalm[0].y).toBeCloseTo(1.1 * SIZE, 6);
+        expect(stanza[1].y - stanza[0].y).toBeCloseTo(1.15 * SIZE, 6);
+      });
+
+      it('uses gapWithin inside a run and the larger claim at a style change', () => {
+        const sameRun = verseLines(renderAretino('W: első\nW: második', VERSE_OPTS));
+        const changed = verseLines(renderAretino('W: első\nW(prose): második', VERSE_OPTS));
+        const toRubric = verseLines(renderAretino('W: első\nW(rubric): második', VERSE_OPTS));
+
+        expect(sameRun[1].y - sameRun[0].y).toBeCloseTo(1.3 * SIZE, 6);
+        expect(changed[1].y - changed[0].y).toBeCloseTo(1.6 * SIZE, 6);
+        // max(psalm.gapAfter 1.3, rubric.gapBefore 1.8)
+        expect(toRubric[1].y - toRubric[0].y).toBeCloseTo(1.8 * SIZE, 6);
+      });
+
+      it('gives a rubric its own leading at its own size', () => {
+        const lines = verseLines(renderAretino('W(rubric): első\nW(rubric): második', VERSE_OPTS));
+
+        expect(lines[1].y - lines[0].y).toBeCloseTo(1.2 * SIZE, 6);
+      });
+    });
+
+    describe('markers', () => {
+      it('shares one text column across a run and aligns 1. with 10.', () => {
+        const lines = verseLines(renderAretino('W(stanza): 1.~~Első\nW(stanza): 10.~~Tizedik', VERSE_OPTS));
+        const [oneMarker, oneBody, tenMarker, tenBody] = lines;
+
+        expect(oneMarker.text).toBe('1.');
+        expect(tenMarker.text).toBe('10.');
+        expect(oneMarker.x).toBeCloseTo(LEFT, 6);
+        expect(tenMarker.x).toBeCloseTo(LEFT, 6);
+        expect(oneBody.x).toBeCloseTo(tenBody.x, 6);
+        expect(oneBody.x).toBeGreaterThan(LEFT);
+      });
+
+      it('does not share the column across a style change', () => {
+        const lines = verseLines(renderAretino('W(stanza): 1.~~Első\nW(prose): Előénekes:~~Második', VERSE_OPTS));
+
+        expect(lines[1].x).toBeLessThan(lines[3].x);
+      });
+
+      it('binds a multi-word marker with ~', () => {
+        const [marker, body] = verseLines(renderAretino('W(prose): Előénekes~és~nép:~~Az áldozás alatt', VERSE_OPTS));
+
+        expect(marker.text).toBe(`Előénekes${NBSP}és${NBSP}nép:`);
+        expect(body.text).toBe('Az áldozás alatt');
+      });
+
+      it('hangs a marker in any style, including psalm', () => {
+        const [marker, body] = verseLines(renderAretino('W: \\R.~~Dicsőség az Atyának', VERSE_OPTS));
+
+        expect(marker.text).toBe('℟.');
+        expect(marker.x).toBeCloseTo(LEFT, 6);
+        expect(body.x).toBeGreaterThan(marker.x);
+      });
+
+      it('lets a marker over textMaxIndent overhang the column', () => {
+        const lines = verseLines(renderAretino('W(stanza): 100.~~Szöveg\nW(stanza): 1.~~Rövid', { ...VERSE_OPTS, textMaxIndent: 2 }));
+        const column = LEFT + 2 * SIZE;
+
+        // The narrow marker sits at the capped column; the wide one runs past it.
+        expect(lines[3].x).toBeCloseTo(column, 6);
+        expect(lines[1].x).toBeGreaterThan(column);
+      });
+
+      it('breaks to the column when no word fits beside an overhanging marker', () => {
+        const source = 'W(prose): Előénekes~és~az~egész~nép~együtt:~~Megszentelendő';
+        const lines = verseLines(renderAretino(source, { ...VERSE_OPTS, width: 300 }));
+
+        expect(lines).toHaveLength(2);
+        expect(lines[0].x).toBeCloseTo(LEFT, 6);
+        expect(lines[1].y).toBeGreaterThan(lines[0].y);
+        expect(lines[1].text).toBe('Megszentelendő');
+      });
+    });
+
+    describe('manual break', () => {
+      it('breaks the line like a source newline', () => {
+        const piped = verseLines(renderAretino('W: első | második', VERSE_OPTS));
+        const newline = verseLines(renderAretino('W: első\nmásodik', VERSE_OPTS));
+
+        expect(piped.map(l => [l.x, l.y, l.text])).toEqual(newline.map(l => [l.x, l.y, l.text]));
+      });
+
+      it('survives reflow, where source breaks do not', () => {
+        const lines = verseLines(renderAretino('W(prose): első\nmásodik | harmadik', VERSE_OPTS));
+
+        expect(lines.map(l => l.text)).toEqual(['első második', 'harmadik']);
+      });
+
+      it('carries inline formatting across the break', () => {
+        const svg = renderAretino('W(prose): <Az áldozás alatt | a nép énekelhet>', VERSE_OPTS);
+
+        expect([...svg.matchAll(/font-style="italic"/g)]).toHaveLength(2);
+        expect(verseLines(svg).map(l => l.text)).toEqual(['Az áldozás alatt', 'a nép énekelhet']);
+      });
+
+      it('leaves \\| as a literal pipe', () => {
+        const lines = verseLines(renderAretino('W: a \\| b', VERSE_OPTS));
+
+        expect(lines).toHaveLength(1);
+        expect(lines[0].text).toBe('a | b');
+      });
+
+      it('does not break lyric text on |', () => {
+        const svg = renderAretino('c\nw: a|b', { width: 300, sourceMap: false });
+
+        expect(svg).toContain('a|b');
+      });
+    });
+
+    it('justifies wrapped lines but never a block last line when asked', () => {
+      const source = 'W(prose): aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll';
+      const justified = renderAretino(source, { ...VERSE_OPTS, width: 300, textStyles: { prose: { align: 'justify' } } });
+      const lines = verseLines(justified);
+      const lastY = lines[lines.length - 1].y;
+      const firstRow = lines.filter(l => l.y === lines[0].y);
+
+      // A justified line is emitted word by word; the last line stays one run.
+      expect(firstRow.length).toBeGreaterThan(1);
+      expect(lines.filter(l => l.y === lastY)).toHaveLength(1);
+      expect(firstRow[firstRow.length - 1].x + 0.01).toBeGreaterThan(lines[0].x);
+    });
+
+    it('emits a row marker per block so a text-only score splits into rows', () => {
+      const source = 'W: első blokk\n\nW: második blokk\n\nW: harmadik blokk';
+      const rows = splitRowSVGs(renderAretino(source, VERSE_OPTS));
+
+      expect(rows).toHaveLength(3);
+      expect(rows[0]).toContain('első blokk');
+      expect(rows[0]).not.toContain('második blokk');
+      expect(renderFirstRow(source, VERSE_OPTS)).toContain('első blokk');
+    });
+
+    it('carries a class and a source span on every verse line', () => {
+      const source = 'W(stanza): első\nmásodik';
+      const svg = renderAretino(source, { width: 500 });
+      const groups = [...svg.matchAll(/<g class="([^"]*aretino-verse[^"]*)" data-src-start="(\d+)" data-src-end="(\d+)"/g)];
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0][1]).toContain('aretino-verse-stanza');
+      expect(parseInt(groups[0][2], 10)).toBe(source.indexOf('első'));
+      expect(parseInt(groups[1][2], 10)).toBe(source.indexOf('második'));
     });
   });
 

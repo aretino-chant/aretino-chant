@@ -184,8 +184,21 @@ export function parseAretino(source) {
             pendingMusicContinuationLyricPos = 0;
             continue;
         }
-        if (/^\s*W:/.test(raw)) {
-            result.push({ type: 'verse', lines: [raw.replace(/^\s*W:\s?/, '')] });
+        // `W:` opens a text block; `W(style):` names its typographic style.
+        // An unknown name is kept as written and resolved (or fallen back to
+        // the default) at render time, so a typo never fails the parse.
+        const verseLine = raw.match(/^(\s*W(?:\(([a-z]+)\))?:\s?)(.*)$/);
+        if (verseLine) {
+            const text = verseLine[3];
+            const textStart = lineStart + verseLine[1].length;
+            result.push({
+                type: 'verse',
+                style: verseLine[2] ?? null,
+                lines: [text],
+                spans: [{ srcStart: textStart, srcEnd: textStart + text.length }],
+                srcStart: textStart,
+                srcEnd: textStart + text.length,
+            });
             lastWasLyrics = false;
             implicitLyricContinuationIdx = null;
             pendingMusicContinuationLyricIndices = null;
@@ -243,11 +256,14 @@ export function parseAretino(source) {
             }
             continue;
         }
-        // A non-prefixed line that follows a W: verse line continues that verse
-        // as an explicit line break (rendered indented).
+        // A non-prefixed line that follows a W: verse line belongs to the same
+        // text block; its style decides whether the break survives rendering.
         const lastItem = result[result.length - 1];
         if (lastItem && lastItem.type === 'verse') {
-            lastItem.lines.push(raw.trim());
+            const trimmed = trimmedSourceText(raw, lineStart);
+            lastItem.lines.push(trimmed.text);
+            lastItem.spans.push({ srcStart: trimmed.srcStart, srcEnd: trimmed.srcStart + trimmed.text.length });
+            lastItem.srcEnd = trimmed.srcStart + trimmed.text.length;
             continue;
         }
         result.push({ type: 'music', tokens: tokenizeMusicLine(raw, lineStart) });

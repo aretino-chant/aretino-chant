@@ -735,7 +735,7 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
                 l => l.type === 'lyrics' && l.srcStart >= cmLine.from && l.srcStart <= cmLine.to,
             );
             if (lyricLine) ctx = { ...ctx, type: 'lyric', lyricLine };
-        } else if (/^\s*W:/.test(cmLine.text)) {
+        } else if (/^\s*W(?:\([a-z]+\))?:/.test(cmLine.text)) {
             ctx = { ...ctx, type: 'verse' };
         } else {
             // Continuation line (no w:/W: prefix).
@@ -746,14 +746,12 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
             if (lyricLine) {
                 ctx = { ...ctx, type: 'lyric', lyricLine };
             } else {
-                // Verse nodes have no source span — scan backwards for a W: line.
-                let lineNum = cmLine.number - 1;
-                while (lineNum >= 1) {
-                    const prev = view.state.doc.line(lineNum);
-                    if (/^\s*W:/.test(prev.text)) { ctx = { ...ctx, type: 'verse' }; break; }
-                    if (/^\s*[wn]:/.test(prev.text) || prev.text.trim() === '') break;
-                    lineNum--;
-                }
+                // Verse nodes carry the whole block's source span, so a caret on
+                // a continuation line maps straight to its block.
+                const verseBlock = ast.lines.find(
+                    l => l.type === 'verse' && l.srcStart < cmLine.from && l.srcEnd >= cmLine.from,
+                );
+                if (verseBlock) ctx = { ...ctx, type: 'verse' };
             }
         }
 

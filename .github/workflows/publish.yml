@@ -18,7 +18,7 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write # for npm provenance
+  id-token: write # for npm trusted publishing (OIDC) and provenance
 
 jobs:
   publish:
@@ -28,12 +28,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+          # registry-url is deliberately unset: it writes an .npmrc auth line
+          # that stops the npm CLI from starting the OIDC exchange when there
+          # is no NODE_AUTH_TOKEN. registry.npmjs.org is the default anyway.
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10.
+      - run: npm install -g npm@latest
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run build
       - name: Publish packages whose version was bumped
         run: node scripts/publish-bumped.mjs ${{ inputs.dry-run && '--dry-run' || '' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'

@@ -28,11 +28,15 @@ commit that bumps only one package publishes only that one.
 To rehearse a release without publishing, run the workflow manually with the
 *dry run* input, or run `node scripts/publish-bumped.mjs --dry-run` locally.
 
-The workflow needs an `NPM_TOKEN` repository secret — an npm automation token
-(or a granular token with write access to the `@aretino-chant` scope) with
-two-factor authentication not required for publishing. Packages are published
-with [npm provenance](https://docs.npmjs.com/generating-provenance-statements),
-which is why every published manifest carries a `repository` field.
+There is no npm token to keep in sync: the workflow authenticates with
+[trusted publishing](https://docs.npmjs.com/trusted-publishers), exchanging the
+job's OIDC identity for a short-lived credential. Each package is configured on
+npmjs.com under *Settings → Trusted Publisher* with this repository and the
+`publish.yml` workflow filename; a new package needs that entry before its first
+automated publish. Trusted publishing also attaches
+[provenance](https://docs.npmjs.com/generating-provenance-statements)
+automatically, which is why every published manifest carries a `repository`
+field.
 
 The VS Code extension in `packages/vscode` is not covered: it ships to the
 Marketplace via `npm run publish -w packages/vscode`.

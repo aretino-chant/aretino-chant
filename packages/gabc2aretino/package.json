@@ -22,6 +22,13 @@
     "gabc",
     "converter"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aretino-chant/aretino-chant.git",
+    "directory": "packages/gabc2aretino"
+  },
+  "homepage": "https://github.com/aretino-chant/aretino-chant#readme",
+  "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
   "license": "MPL-2.0",
   "author": "Bertalan Fodor",
   "peerDependencies": {

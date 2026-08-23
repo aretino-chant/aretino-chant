@@ -23,6 +23,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     sourceMap: 'boolean',
     textStyle: 'string',
     textMaxIndent: 'number',
+    textMarkerAlign: 'string',
 };
 
 function parseBooleanOption(valueText) {

@@ -754,13 +754,14 @@ describe('renderAretino', () => {
     // block's first baseline). Sources here carry no w: lyrics, so every
     // xml:space element in the SVG belongs to a verse block.
     function verseLines(svg) {
-      return [...svg.matchAll(/<text xml:space="preserve" x="([\d.-]+)" y="([\d.-]+)"[^>]*font-size="([\d.]+)"[^>]*fill="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g)]
+      return [...svg.matchAll(/<text xml:space="preserve" x="([\d.-]+)" y="([\d.-]+)" font-family="([^"]*)" font-size="([\d.]+)"[^>]*fill="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g)]
         .map(m => ({
           x: parseFloat(m[1]),
           y: parseFloat(m[2]),
-          fontSize: parseFloat(m[3]),
-          fill: m[4],
-          text: m[5].replace(/<[^>]*>/g, ''),
+          fontFamily: m[3],
+          fontSize: parseFloat(m[4]),
+          fill: m[5],
+          text: m[6].replace(/<[^>]*>/g, ''),
         }));
     }
 
@@ -770,6 +771,7 @@ describe('renderAretino', () => {
     // (10 pt at 96 dpi) drives every verse indent, leading and gap.
     const LEFT = METRICS.leftMargin * 1.75 * 96 / 25.4;
     const SIZE = 10 * 96 / 72;
+    const rightEdge = line => line.x + measureTextWidth(line.text, line.fontSize, line.fontFamily);
 
     it('preserves small and large formatting in wrapped verse text', () => {
       const svg = renderAretino('c\nW: First \\small{Second} \\large{Third}', { width: 600 });
@@ -944,6 +946,40 @@ describe('renderAretino', () => {
         // The narrow marker sits at the capped column; the wide one runs past it.
         expect(lines[3].x).toBeCloseTo(column, 6);
         expect(lines[1].x).toBeGreaterThan(column);
+      });
+
+      it('sets markers flush against the column when asked to right-align', () => {
+        const source = 'W(stanza): 1.~~Első versszak\nW(stanza): Refrén.~~Második versszak';
+        const lines = verseLines(renderAretino(source, { ...VERSE_OPTS, textMarkerAlign: 'right' }));
+        const [oneMarker, oneBody, refrainMarker, refrainBody] = lines;
+        const gap = 0.5 * SIZE;
+
+        // Both markers end one markerGap short of the shared text column, so the
+        // widest one still starts at the margin and the short one moves in.
+        expect(oneMarker.x).toBeGreaterThan(LEFT);
+        expect(refrainMarker.x).toBeCloseTo(LEFT, 6);
+        expect(rightEdge(oneMarker) + gap).toBeCloseTo(oneBody.x, 4);
+        expect(rightEdge(refrainMarker) + gap).toBeCloseTo(refrainBody.x, 4);
+      });
+
+      it('keeps a right-aligned marker inside the margin when it overhangs', () => {
+        const source = 'W(stanza): 100.~~Szöveg\nW(stanza): 1.~~Rövid';
+        const opts = { ...VERSE_OPTS, textMaxIndent: 2, textMarkerAlign: 'right' };
+        const lines = verseLines(renderAretino(source, opts));
+
+        expect(lines[0].x).toBeCloseTo(LEFT, 6);
+        expect(lines[2].x).toBeGreaterThan(LEFT);
+      });
+
+      it('right-aligns one style only from a host textStyles override', () => {
+        const source = 'W(stanza): 1.~~Első\nW(stanza): Refrén.~~Második';
+        const left = verseLines(renderAretino(source, VERSE_OPTS));
+        const right = verseLines(renderAretino(source, { ...VERSE_OPTS, textStyles: { stanza: { markerAlign: 'right' } } }));
+
+        expect(left[0].x).toBeCloseTo(LEFT, 6);
+        expect(right[0].x).toBeGreaterThan(LEFT);
+        // Only the marker moves: the shared text column is unchanged.
+        expect(right[1].x).toBeCloseTo(left[1].x, 6);
       });
 
       it('breaks to the column when no word fits beside an overhanging marker', () => {

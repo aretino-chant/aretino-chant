@@ -32,6 +32,9 @@ const NBSP = ' ';
 //   size         font size as a multiple of the lyric size.
 //   color        fill colour.
 //   markerGap    space between a `~~` marker and the text column.
+//   markerAlign  'left' sets every marker at the left margin; 'right' sets
+//                each one flush against the text column, so a short `1.` ends
+//                where a long `Refrén.` ends.
 //   maxIndent    cap on the text column, from the left margin.
 //
 // Gaps are multiples of the lyric size — a seam joins two styles, so it needs
@@ -40,22 +43,26 @@ export const TEXT_STYLE_PRESETS = {
     psalm: {
         breaks: 'honour', breakIndent: 2, wrapIndent: 2, lineHeight: 1.10,
         gapWithin: 1.30, gapBefore: 1.30, gapAfter: 1.30,
-        align: 'left', size: 1, color: '#000', markerGap: 0.5, maxIndent: 8,
+        align: 'left', size: 1, color: '#000',
+        markerGap: 0.5, markerAlign: 'left', maxIndent: 8,
     },
     prose: {
         breaks: 'reflow', breakIndent: 0, wrapIndent: 0, lineHeight: 1.25,
         gapWithin: 1.50, gapBefore: 1.60, gapAfter: 1.60,
-        align: 'left', size: 1, color: '#000', markerGap: 0.5, maxIndent: 8,
+        align: 'left', size: 1, color: '#000',
+        markerGap: 0.5, markerAlign: 'left', maxIndent: 8,
     },
     stanza: {
         breaks: 'honour', breakIndent: 0, wrapIndent: 1.5, lineHeight: 1.15,
         gapWithin: 1.60, gapBefore: 1.60, gapAfter: 1.60,
-        align: 'left', size: 1, color: '#000', markerGap: 0.5, maxIndent: 8,
+        align: 'left', size: 1, color: '#000',
+        markerGap: 0.5, markerAlign: 'left', maxIndent: 8,
     },
     rubric: {
         breaks: 'reflow', breakIndent: 0, wrapIndent: 0, lineHeight: 1.10,
         gapWithin: 1.20, gapBefore: 1.80, gapAfter: 1.60,
-        align: 'left', size: 0.85, color: 'red', markerGap: 0.5, maxIndent: 8,
+        align: 'left', size: 0.85, color: 'red',
+        markerGap: 0.5, markerAlign: 'left', maxIndent: 8,
     },
 };
 
@@ -64,6 +71,8 @@ export const DEFAULT_TEXT_STYLE = 'psalm';
 // The text column may never eat more than this share of the available width,
 // so a narrow projector column cannot end up with a two-word gutter.
 const MAX_INDENT_WIDTH_SHARE = 0.30;
+
+const MARKER_ALIGNMENTS = ['left', 'right'];
 
 // Resolves a style name to a preset merged with the host's `textStyles`
 // override. An unknown name falls back to the default style.
@@ -82,6 +91,9 @@ function resolveTextStyle(name, ctx = {}) {
     // `maxIndent` from the host is more specific, so it still wins.
     if (override?.maxIndent === undefined && Number.isFinite(ctx.textMaxIndent)) {
         style.maxIndent = ctx.textMaxIndent;
+    }
+    if (override?.markerAlign === undefined && MARKER_ALIGNMENTS.includes(ctx.textMarkerAlign)) {
+        style.markerAlign = ctx.textMarkerAlign;
     }
     return style;
 }
@@ -363,10 +375,18 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
 
         // Pass two: wrap and emit.
         for (const { block, lines, markerSegments, markerW } of prepared) {
+            // A right-aligned marker ends where the text column starts, so the
+            // widest marker of the run still sits at the left margin and the
+            // shorter ones move in. It never crosses the margin: a marker that
+            // overhangs a capped column starts there, aligned either way.
+            const markerX = style.markerAlign === 'right'
+                ? Math.max(leftX, markerColumn - markerGapPx - markerW)
+                : leftX;
+
             // A marker wider than the capped column overhangs it, and its own
             // block's text starts after the marker instead of at the column.
             const blockFirstX = markerSegments
-                ? Math.max(markerColumn, leftX + markerW + markerGapPx)
+                ? Math.max(markerColumn, markerX + markerW + markerGapPx)
                 : markerColumn;
 
             // 'reflow' styles treat a source line break as an editing
@@ -397,8 +417,8 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                     first = false;
                     let lineSvg = renderDisplayLine(displayLines[di], y, styleSize, fontFamily, style.color, justify, measureFn);
                     if (isBlockFirst && markerSegments) {
-                        lineSvg = renderTextRun(markerSegments, leftX, y, styleSize, fontFamily, style.color, measureFn)
-                            + renderUnderlines(markerSegments, leftX, y, styleSize, fontFamily, 'start', measureFn)
+                        lineSvg = renderTextRun(markerSegments, markerX, y, styleSize, fontFamily, style.color, measureFn)
+                            + renderUnderlines(markerSegments, markerX, y, styleSize, fontFamily, 'start', measureFn)
                             + lineSvg;
                     }
                     if (lineSvg !== '') {

@@ -1,0 +1,40 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/*/package.json'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Pack and validate, but do not publish'
+        type: boolean
+        default: false
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # for npm trusted publishing (OIDC) and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # registry-url is deliberately unset: it writes an .npmrc auth line
+          # that stops the npm CLI from starting the OIDC exchange when there
+          # is no NODE_AUTH_TOKEN. registry.npmjs.org is the default anyway.
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10.
+      - run: npm install -g npm@latest
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+      - name: Publish packages whose version was bumped
+        run: node scripts/publish-bumped.mjs ${{ inputs.dry-run && '--dry-run' || '' }}

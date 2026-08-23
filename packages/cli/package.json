@@ -1,10 +1,20 @@
 {
   "name": "@aretino-chant/cli",
   "version": "0.3.0",
+  "description": "Command line renderer for Aretino chant source files.",
   "type": "module",
   "bin": {
     "aretino": "bin/aretino.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aretino-chant/aretino-chant.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/aretino-chant/aretino-chant#readme",
+  "bugs": "https://github.com/aretino-chant/aretino-chant/issues",
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
   "scripts": {
     "test": "node --test"
   },

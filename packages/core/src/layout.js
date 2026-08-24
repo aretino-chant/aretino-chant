@@ -100,7 +100,9 @@ export function layoutRows(items, ctx, initialClef, staffRightX, drawStartClef, 
         if (hasKeySig) {
             reserved += keySigAdvance(ctx, rowStartKeySig);
             if (!showClef) {
-                reserved += ss(ctx, METRICS.clefPostGap);
+                // Keep a clefless key signature off the staff's left edge, then
+                // retain the normal post-signature gap before the first note.
+                reserved += ctx.staffSpace / 2 + ss(ctx, METRICS.clefPostGap);
             } else {
                 reserved += ss(ctx, 1);
             }

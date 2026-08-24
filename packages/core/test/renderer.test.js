@@ -91,6 +91,16 @@ function renderedStaffSpace(svg) {
   return Math.abs(ys[0] - ys[1]);
 }
 
+function staffLeft(svg) {
+  const m = svg.match(/<line[^>]* x1="([^"]+)"/);
+  return m ? Number(m[1]) : null;
+}
+
+function firstFlatX(svg) {
+  const m = svg.match(/<path d="M12 -170[^>]* transform="translate\(([^,]+),/);
+  return m ? Number(m[1]) : null;
+}
+
 describe('renderAretino', () => {
   it('produces a string containing <svg', () => {
     const ast = parseAretino('');
@@ -190,6 +200,12 @@ describe('renderAretino', () => {
   });
 
   describe('measure accidentals across wrapped rows', () => {
+    it('insets a key signature when no clef is drawn at the start of the row', () => {
+      const svg = renderAretino('(K:b) c', { width: 400, hideRepeatClef: true });
+
+      expect(firstFlatX(svg) - staffLeft(svg)).toBeCloseTo(renderedStaffSpace(svg) / 2, 5);
+    });
+
     it('repeats a preceding accidental before the first affected neume after an automatic wrap', () => {
       const source = '(g2) (b) b b b b b b b b b b b b b b b b | b b';
       const svg = renderAretino(source, { width: 150, hideRepeatClef: true });

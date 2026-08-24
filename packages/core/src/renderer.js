@@ -763,6 +763,11 @@ export function renderAretino(source, options = {}) {
             }
 
             const startKeySig = row.startKeySig ?? [];
+            if (!row.drawStartClef && startKeySig.length > 0) {
+                // Without a clef, leave the same minimum inset used by other
+                // clefless row-start content before drawing the first accidental.
+                cursorX += ctx.staffSpace / 2;
+            }
             for (const acc of startKeySig) {
                 const a = drawAccidental(ctx, acc.pitch, acc.symbol, cursorX, staffBottomY);
                 parts.push(a.svg);

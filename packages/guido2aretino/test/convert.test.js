@@ -8,6 +8,11 @@ describe('guidoToAretino', () => {
         expect(guidoToAretino('7')).toBe('C');
     });
 
+    it('uses uppercase pitches outside the normal octave', () => {
+        expect(guidoToAretino('ð-ñ-0-1-2-3-4-5-6-7-8'))
+            .toBe('A B c d e f g a b C D');
+    });
+
     it('converts virga pitch characters', () => {
         expect(guidoToAretino('q')).toBe("d'");
         expect(guidoToAretino('r')).toBe("g'");

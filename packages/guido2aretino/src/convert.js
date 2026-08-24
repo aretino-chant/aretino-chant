@@ -3,8 +3,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 // Guido TTF pitch characters (keyboard position → Aretino pitch)
-// 0123456789öü  →  c d e f g a b C D E F G
+// ðñ0123456789öü  →  A B c d e f g a b C D E F G
+// The two Alt-code glyphs before the number row are the pitches below the
+// normal c–b octave.
 const PITCH_MAP = {
+    'ð': 'A', 'ñ': 'B',
     '0': 'c', '1': 'd', '2': 'e', '3': 'f', '4': 'g',
     '5': 'a', '6': 'b', '7': 'C', '8': 'D', '9': 'E',
     'ö': 'F', 'ü': 'G',

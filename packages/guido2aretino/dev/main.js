@@ -17,8 +17,8 @@ const INITIAL_ROWS = [
     '<X',
     // standalone X (accidental, not after clef)
     '4X5',
-    // pitch scale: all 12 pitches
-    '0-1-2-3-4-5-6-7-8-9-ö-ü.',
+    // pitch scale, including the uppercase notes outside the normal octave
+    'ð-ñ-0-1-2-3-4-5-6-7-8-9-ö-ü.',
     // barlines: : , .
     '3-4-:-5-6-,-3-4.',
     // mora characters

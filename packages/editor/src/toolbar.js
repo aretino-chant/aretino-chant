@@ -724,7 +724,13 @@ function modeFromContext(ctx) {
 
 // --- Main export ---
 
-export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
+// Resolves the fine-grained context at a position, upgrading the generic
+// 'empty' context (no music token under the caret) to 'lyric', 'verse' or
+// 'heading' by inspecting the surrounding source line(s). Shared by
+// buildToolbarState and by the clipboard paste handler in editor.js, which
+// needs the same notion of "are we somewhere that interprets Aretino's
+// inline text-formatting syntax ({bold}, <italic>, [underline], …)".
+export function resolveContext(view, ast, caretPos, selFrom, selTo) {
     let ctx = contextAtPosition(ast, caretPos, selFrom, selTo);
 
     // Detect lyric-line context: caret on a w: line that has no music tokens.
@@ -761,6 +767,11 @@ export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
         }
     }
 
+    return ctx;
+}
+
+export function buildToolbarState(view, ast, caretPos, selFrom, selTo) {
+    const ctx = resolveContext(view, ast, caretPos, selFrom, selTo);
     const groups = GROUPS_BY_MODE[modeFromContext(ctx)].map(fn => fn(view, ctx));
     return { groups, context: { type: ctx.type } };
 }

@@ -19,6 +19,7 @@ const HEADER_RENDERER_OPTION_TYPES = {
     virgaStemDescentBelowPrev: 'number',
     virgaMaxBelowBottom: 'number',
     hideRepeatClef: 'boolean',
+    justifyWithoutLyrics: 'boolean',
     canvasHeight: 'number',
     sourceMap: 'boolean',
     textStyle: 'string',

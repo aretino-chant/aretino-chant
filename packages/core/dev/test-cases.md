@@ -230,6 +230,41 @@ w: no no Extraordinarily no no no
 
 ---
 
+## Spacing Without Lyrics
+
+A gap is leveled/justified only where real lyric text sits on one of its sides.
+A bare psalm melody keeps the default neume advance even across a `(z)` break:
+
+```aretino
+(g2) g g g g a g. g f g g. (z) g g g g a g. g f g g. ||
+```
+
+Division marks (`*`, `+`, `\V`, `~`, punctuation) reserve their own room but do
+not count as sung text, so this row is not justified:
+
+```aretino
+(g2) g g g g a g. (z) g f g g. ||
+w: * + * \V ~ .
+```
+
+The same row with sung syllables under it justifies as usual:
+
+```aretino
+(g2) g g g g a g. (z) g f g g. ||
+w: Di-cső-ség az A-tyá-nak
+```
+
+`%option: justifyWithoutLyrics=true` restores the older, unconditional
+justification:
+
+```aretino
+%option: justifyWithoutLyrics=true
+%%
+(g2) g g g g a g. g f g g. (z) g g g g a g. g f g g. ||
+```
+
+---
+
 ## Explicit Line Break `(z)` / `(Z)`
 
 ```aretino

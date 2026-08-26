@@ -89,6 +89,7 @@ All options are optional. Defaults in **bold**.
 | `virgaStemDescentBelowPrev` | number (staff-spaces) | **1.75** | How far a virga stem descends past a lower preceding note (when the stem is drawn down to that note). |
 | `virgaMaxBelowBottom` | number (staff-spaces) | **1.75** | Hard cap on how far a virga stem tip may extend below the bottom staff line. |
 | `hideRepeatClef` | boolean | **false** | When true, draws the clef only on the first system; subsequent wrapped lines omit the repeated clef. |
+| `justifyWithoutLyrics` | boolean | **false** | By default, gap leveling and row justification apply only where real lyric text sits on one side of the gap, so a bare psalm melody keeps the default advance between its notes. Set true to level and justify every neume gap regardless of lyrics. |
 | `canvasHeight` | number (px) | — | Forces total SVG height (logical units). When unset, height is computed from content. |
 
 > **Note:** Pitch, clef, accidentals, and other musical content come from the

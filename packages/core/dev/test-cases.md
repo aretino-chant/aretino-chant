@@ -125,6 +125,13 @@ Neume-separator gap `/` — visual grouping within one ligature:
 (g2) fefdc.efdc./feg.gggee/cededdc. c
 ```
 
+A plica on a non-final note of a run cuts the ligature exactly like `/` — the
+second and third groups below are spaced identically, while the first stays tight:
+
+```aretino
+(g2) gab g. || g/ab g. || g~ab g.
+```
+
 ---
 
 ## Accidentals
@@ -157,6 +164,14 @@ Inline uppercase accidentals:
 
 ```aretino
 (g2) (Fb) F (fn) f (C#) C  (An)A
+```
+
+An accidental holds until the next barline. When the measure wraps to a new row,
+the renderer repeats it before the first neume on that row that it affects:
+
+```aretino
+(g2) g (bb) b a g b a g. (z) b a g b. ||
+w: O Lord, hear my hum-ble call to you a-gain now.
 ```
 
 ---
@@ -200,6 +215,29 @@ w:   Glo-ri-\(a\) ex-cel-\(sis\)
 w:   g a b C D E F
 ```
 
+## Octave-Shift Markers (`^` / `v`)
+
+The 14 letters run out at `A` and `G`. Prefix a pitch with `^` to raise it an
+octave or `v` to lower it; ledger lines are drawn automatically:
+
+```aretino
+(g2) g a b C D E F G ^a ^b ^C ^D
+w:   up and o-ver the top of the staff and be-yond
+```
+
+```aretino
+(g2) e d c B A vg vf ve vd
+w:   down be-low the bot-tom of the range here
+```
+
+Markers stack (`^^c` is two octaves up) and work glued inside a ligature:
+
+```aretino
+(g2) c ^^c ^^^c | g^a^bg ga^bC vgvfg
+```
+
+---
+
 ---
 
 ## Expander `*` and Spacers
@@ -224,6 +262,16 @@ own width locally instead of widening every other gap on the line. Here the
 gaps around "Extraordinarily" stay wide while all other gaps stay uniform:
 
 ```aretino
+(g2) g g g g g g
+w: no no Extraordinarily no no no
+```
+
+Raising `gapOutlierThreshold` past the widest gap turns the outlier rule off —
+now "Extraordinarily" widens every gap on the line:
+
+```aretino
+%option: gapOutlierThreshold=100
+%%
 (g2) g g g g g g
 w: no no Extraordinarily no no no
 ```
@@ -286,6 +334,56 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 w: O Lord, hear my hum-ble call to you!
 ```
 
+## Transpose
+
+`%transpose: N` shifts the rendered music by `N` semitones, leaving the source
+text alone. The key signature is transposed — or added where the source had
+none — and inline accidentals appear where the new key needs them:
+
+```aretino
+%transpose: 2
+%%
+(g2) c d e f g a g f | e_ d. c. ||
+w: Trans-posed up a whole tone, with key sig-na-ture.
+```
+
+```aretino
+%transpose: -3
+%%
+(g2) (K:bb) f g a b C b a g f. ||
+```
+
+---
+
+## Repeated Clef and Bare Key Signature
+
+`hideRepeatClef=true` drops the clef normally redrawn at the start of a wrapped
+row. The key signature still repeats, and keeps its inset from the staff edge:
+
+```aretino
+%option: hideRepeatClef=true
+%%
+(g2) (K:bb) a a a g a C b g a. (z) b a g f g a g. ||
+w: O Lord, hear my hum-ble call to you! O Lord, hear my call.
+```
+
+---
+
+## Other Renderer Options
+
+Any option accepted by `renderAretino` can be set from the header, one per line:
+
+```aretino
+%option: lyricSize=14
+%option: lyricDistance=1.5
+%option: noteSpacing=1.6
+%%
+(g2) a a a g a C b g a. ||
+w: O Lord, hear my hum-ble call to you!
+```
+
+---
+
 ---
 
 ## Text and Multiple Stanzas
@@ -294,6 +392,21 @@ w: O Lord, hear my hum-ble call to you!
 (g2) g a b g. ab a g e_d_ , g ab ag g. ||
 w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 w: Al-le-lu-ja, al-le-lu-ja, al-le-lu-ja.
+```
+
+## Music Continuation (`n:`)
+
+`n:` switches back to music after `w:` lines. The `w:` lines that follow
+continue the previous note-aligned lyric lines, in order, instead of starting
+new stanzas — so this renders as two stanzas over one continuous melody:
+
+```aretino
+(g2) g a b g.
+w: Al-le-lu-ia,
+w: Al-le-lu-ja,
+n: ab a g e_d_ ||
+w: al-le-lu-ia.
+w: al-le-lu-ja.
 ```
 
 ## Prefix Text Alignment (`~~`)
@@ -343,6 +456,59 @@ w: a__ b ro_.`;
 
 ---
 
+## Syllable Boundaries and Extenders
+
+`-` is a collapsible hyphen, `=` a mandatory one, `\-` a literal hyphen inside a
+single syllable, and `~` a non-breaking space that binds words into one syllable:
+
+```aretino
+(g2) g a g a g a g a
+w: col-lapse man=da-to-ry on\-ly two~words
+```
+
+Extender underscores hold a syllable over following neumes — `ro_` over its own,
+`ro__` over one more, `ro___` over two more — with trailing punctuation set at
+the far end of the line:
+
+```aretino
+(g2) g g g g g g
+w: ro_ ro__ ro___.
+```
+
+---
+
+## Braces and Spanning Marks
+
+`{ … }` draws an overbrace; `\arc{`, `\line{`, `\slur{` and `\slurSolid{` select
+other shapes. A quoted label after the closing `}` is drawn for brace, arc and
+line:
+
+```aretino
+(g2) { g a b C } g { a b C D }"melisma" g.
+```
+
+```aretino
+(g2) \arc{ g a b } C \line{ C D E F } g.
+```
+
+Slurs are drawn below the notes (dashed, and solid):
+
+```aretino
+(g2) \slur{f a} g \slurSolid{a g} f.
+```
+
+```aretino
+(g2) { g a b C }"1." g { a b C D }"2." g.
+```
+
+A span crossing a row break continues on the next row:
+
+```aretino
+(g2) { g a b C a b C (z) D a b C a b } g.
+```
+
+---
+
 ## Labels
 ```aretino
 (g2) c"<Label:>" d e f g | a
@@ -385,6 +551,62 @@ W: {Gloria} Patri, et \V Filio, * et Spiritui Sancto.
 W: \R Sicut erat in principio, * et nunc et semper.
 W: + dagger ++ double~dagger (unbreakable~space)
 ```
+
+## Text Block Styles
+
+`W(style):` sets a block's typography. `psalm` (the default) and `stanza` keep
+source line breaks; `prose` and `rubric` reflow them. The seam between two
+styles takes the larger of the two spacings:
+
+```aretino
+W(prose): Az áldozás alatt a nép énekelhet, vagy a kántor
+zsoltárt énekelhet — ez a sor folyószövegként tördelődik.
+
+W(stanza): Ó jöjj, ó jöjj, Emmánuel,
+csak téged áhít Izrael,
+
+W(rubric): A pap a nép felé fordul.
+
+W: Dicsőség az Atyának és Fiúnak *
+és Szentlélek Istennek.
+```
+
+`%option: textStyle=` sets the document default; a `W(style):` marker still wins.
+`|` is a manual line break — the break that survives reflowing in `prose`:
+
+```aretino
+%option: textStyle=prose
+%%
+W: Ez a blokk folyószöveg, mert a dokumentum alapstílusa prose. | Ez a sor a kézi töréstől kezdődik.
+W(psalm): Ez a blokk viszont zsoltárstílusú, mert a blokk jelölése erősebb.
+```
+
+---
+
+## Text Block Markers
+
+`~~` splits a marker — a verse number, a `℟`, a role label — from the block body.
+The marker hangs at the left margin and the bodies share a text column across
+blocks of the same style, so `1.` and `10.` line up:
+
+```aretino
+W(stanza): 1.~~Ó jöjj, ó jöjj, Emmánuel,
+W(stanza): 10.~~Ó jöjj, ó jöjj, Adonáj,
+W: \R.~~Dicsőség az Atyának és Fiúnak
+W(prose): Előénekes~és~nép:~~Az áldozás alatt a nép énekelhet.
+```
+
+`textMarkerAlign=right` sets the markers flush against the text column instead
+of the left margin, so a short `1.` ends where a long `Refrén.` ends:
+
+```aretino
+%option: textMarkerAlign=right
+%%
+W(stanza): 1.~~Első versszak
+W(stanza): Refrén.~~Második versszak
+```
+
+---
 
 ---
 

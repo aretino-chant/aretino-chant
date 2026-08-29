@@ -1128,8 +1128,9 @@ describe('renderAretino', () => {
       // (z) forces a justified break, so the first row ends with the barline and
       // is stretched to the right margin. The barline must keep only its normal
       // post-gap before the margin — the same as an automatic wrap — instead of
-      // a wider reserve surviving as a void.
-      const svg = renderAretino('g g g g | (z) g g g g', { width: 600, hideRepeatClef: true });
+      // a wider reserve surviving as a void. (The lyrics are what make the row
+      // justify at all: a lyric-less row keeps its default neume advances.)
+      const svg = renderAretino('g g g g | (z) g g g g\nw: a a a a b b b b', { width: 600, hideRepeatClef: true });
       const rows = splitRowSVGs(svg);
       expect(rows.length).toBeGreaterThan(1);
 
@@ -1297,6 +1298,72 @@ describe('renderAretino', () => {
 
       expect(gaps[1]).toBeCloseTo(gaps[0] + METRICS.spacerAdvance * ss, 1);
       expect(gaps[2]).toBeCloseTo(gaps[0], 1);
+    });
+  });
+
+  describe('lyric-less neumes', () => {
+    function rowGaps(svg, rowIndex = 0) {
+      const boxes = ligatureBoxes(splitRowSVGs(svg)[rowIndex]);
+      return boxes.slice(0, -1).map((b, i) => boxes[i + 1].x - b.right);
+    }
+
+    it('keeps the default advance on a justified row with no lyrics', () => {
+      // A bare psalm melody has no syllables to even out, so (z) must not
+      // stretch it to the margin: every gap stays the plain neume advance,
+      // exactly as on an unjustified row.
+      const justified = rowGaps(renderAretino('(g2) g g g g g (z) g g', { width: 600 }));
+      const ragged = rowGaps(renderAretino('(g2) g g g g g', { width: 600 }));
+
+      expect(justified).toHaveLength(4);
+      expect(ragged).toHaveLength(4);
+      justified.forEach((gap, i) => expect(gap).toBeCloseTo(ragged[i], 5));
+    });
+
+    it('does not justify a row whose lyrics are only division marks', () => {
+      // '*' (flex/asterisk) and '+' (dagger) are editorial marks, not sung
+      // text. They still reserve room for themselves, so the gaps they touch
+      // are wider than a bare gap — but the row is not spread to the margin.
+      const marked = rowGaps(renderAretino('(g2) g g g g g (z) g g\nw: * + *', { width: 600 }));
+      const real = rowGaps(renderAretino('(g2) g g g g g (z) g g\nw: a b c', { width: 600 }));
+      const bare = rowGaps(renderAretino('(g2) g g g g g', { width: 600 }));
+
+      expect(marked[3]).toBeCloseTo(bare[3], 5);
+      expect(marked[0]).toBeLessThan(real[0] / 4);
+    });
+
+    it('justifies a lyric-less row when justifyWithoutLyrics is set', () => {
+      const gaps = rowGaps(renderAretino('(g2) g g g g g (z) g g', {
+        width: 600,
+        justifyWithoutLyrics: true,
+      }));
+      const bare = rowGaps(renderAretino('(g2) g g g g g', { width: 600 }));
+
+      gaps.forEach(gap => expect(gap).toBeGreaterThan(bare[0] * 4));
+      gaps.forEach(gap => expect(gap).toBeCloseTo(gaps[0], 1));
+    });
+
+    it('treats a neume held under a melisma or extender as lyric-bearing', () => {
+      // The extra note groups of 'Al- -' and the neumes an extender line runs
+      // over carry no text of their own, but they are still sung syllables:
+      // their gaps take part in justification like any other.
+      const melisma = rowGaps(renderAretino('(g2) cd ef ga gf (z) c\nw: Al- - le -lu', { width: 600 }));
+      const extender = rowGaps(renderAretino('(g2) g g g g (z) g\nw: ro___.', { width: 600 }));
+      const bare = rowGaps(renderAretino('(g2) g g g g', { width: 600 }));
+
+      melisma.forEach(gap => expect(gap).toBeGreaterThan(bare[0] * 4));
+      extender.forEach(gap => expect(gap).toBeGreaterThan(bare[0] * 4));
+    });
+
+    it('leaves lyric-less neumes at the default advance next to sung ones', () => {
+      // Only the gaps around the intonation syllables level; the reciting
+      // notes that follow keep their default advance.
+      const gaps = rowGaps(renderAretino('(g2) g g g g a g. g f g g. (z)\nw: Di-cső-ség', { width: 400 }));
+      const bare = rowGaps(renderAretino('(g2) g g g g a g. g f g g.', { width: 400 }));
+
+      expect(gaps[0]).toBeGreaterThan(bare[0] * 4);
+      for (let i = 3; i < gaps.length; i++) {
+        expect(gaps[i]).toBeCloseTo(bare[i], 5);
+      }
     });
   });
 

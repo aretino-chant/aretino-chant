@@ -2,6 +2,16 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-08-26
+
+- **Neume gaps are only leveled and justified around real lyrics.** A gap with
+  no lyric text on either side now keeps the default neume advance instead of
+  being stretched, so a bare psalm melody — or one carrying nothing but
+  division marks such as `*`, `+` or `~` — is laid out with even, default
+  spacing rather than spread across the row. Set the new
+  `justifyWithoutLyrics` renderer option (or `%option:
+  justifyWithoutLyrics=true`) to restore the previous behaviour.
+
 ### 2026-05-23
 
 - Added repeatable `%option:` headers for source-level renderer options, e.g.

@@ -182,6 +182,13 @@ export function measureBarline(ctx, kind) {
     return base + ss(ctx, METRICS.barlinePostGap);
 }
 
+// A neume that carries real lyric text (set by the renderer from the w: lines;
+// see hasRealLyricText). Leveling exists to even out spacing that *syllables*
+// make uneven, so only these neumes take part in it.
+function lyricBearing(it) {
+    return it.kind === 'ligature' && it.hasLyric === true;
+}
+
 // Whether the boundary between two adjacent row items receives leveled
 // inter-neume space. Skipped boundaries:
 //  - an accidental glued to its following neume (one atomic unit);
@@ -191,12 +198,18 @@ export function measureBarline(ctx, kind) {
 //    break (a spacer thus rides on top of a normally leveled gap);
 //  - paren arcs hug their group the way an accidental hugs its note;
 //  - words of one tenor recitation phrase (~-joined) keep a fixed normal
-//    space between them.
+//    space between them;
+//  - a gap with no real lyric on either side: a bare psalm melody (or one
+//    written with nothing but division marks under it) keeps the default
+//    advance between its notes instead of being leveled or justified out to
+//    the margin. `justifyWithoutLyrics` marks every neume lyric-bearing to
+//    restore the older, unconditional behaviour.
 export function isLeveledGap(it, next) {
     if (it.kind === 'accidental' && next.kind === 'ligature') return false;
     if (it.kind === 'brace-open' || it.kind === 'brace-close' || it.kind === 'spacer') return false;
     if (it.kind === 'paren-open' || next.kind === 'paren-close') return false;
     if (it.recitationChainId != null && next.recitationChainId === it.recitationChainId) return false;
+    if (!lyricBearing(it) && !lyricBearing(next)) return false;
     return true;
 }
 

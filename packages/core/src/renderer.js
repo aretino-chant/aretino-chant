@@ -26,6 +26,7 @@ import { wrapSrc } from './svg.js';
 import {
     parseSyllables,
     expandSyllablesForLigatures,
+    hasRealLyricText,
     formatLyricLine,
     emitBarlineLabels,
     emitAlignedSyllables,
@@ -104,6 +105,7 @@ function splitRecitationWords(syl) {
             alignText: m[0],
             segments: withPrefix ? trimSegmentsEnd(segments, start + m[0].length) : wordSegs,
             alignSegments: wordSegs, suffixSegments: [],
+            realLyric: hasRealLyricText(m[0]),
             hyphenAfter: false, hyphenMandatory: false, kind: 'note',
         });
     }
@@ -257,6 +259,10 @@ export function renderAretino(source, options = {}) {
     const noteSpacing = Math.max(0.5, options.noteSpacing ?? 1);
     const textFont = options.textFont || DEFAULT_FONT;
     const hideRepeatClef = !!options.hideRepeatClef;
+    // Opt back into leveling/justifying neume gaps that no lyric text touches
+    // (see isLeveledGap): by default a lyric-less psalm melody keeps the plain
+    // default advance between its notes.
+    const justifyWithoutLyrics = !!options.justifyWithoutLyrics;
     const sourceMap = options.sourceMap !== false;
 
     // The whole engraving is parameterised by a single pixel-size: staffSpace.
@@ -488,6 +494,17 @@ export function renderAretino(source, options = {}) {
             return m;
         });
 
+        // Which neumes carry real lyric text. Only gaps touching one of these
+        // are leveled or justified (see isLeveledGap in measure.js), so a psalm
+        // melody written without lyrics — or with nothing but division marks
+        // such as `*` or `+` under it — keeps the default advance between its
+        // notes instead of being spread across the row.
+        for (const it of items) {
+            if (it.kind === 'ligature') {
+                it.hasLyric = justifyWithoutLyrics;
+            }
+        }
+
         // Reserve extra advance after a neume whose syllable is wider than the
         // neume's natural trailing slack, so the next neume isn't overlapped.
         if (alignSyllables) {
@@ -517,6 +534,10 @@ export function renderAretino(source, options = {}) {
                 for (const notes of verseNotes) {
                     if (li < notes.length) {
                         const note = notes[li];
+                        // Any stanza with real text here makes the neume lyric-bearing.
+                        if (note.realLyric ?? hasRealLyricText(note)) {
+                            it.hasLyric = true;
+                        }
                         const alignW = measureSegmentsWidth(note.alignSegments || note.segments, ctx.lyricSize, ctx.textFont, ctx.measureText);
                         const suffixW = note.suffixSegments
                             ? measureSegmentsWidth(note.suffixSegments, ctx.lyricSize, ctx.textFont, ctx.measureText)

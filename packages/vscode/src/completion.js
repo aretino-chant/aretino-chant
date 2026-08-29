@@ -58,6 +58,7 @@ const OPTION_VALUE_OPTIONS = [
     { label: 'virgaStemDescentBelowPrev', detail: 'number — virga stem descent past a lower preceding note', section: SECTION.rendererOptions },
     { label: 'virgaMaxBelowBottom', detail: 'number — max virga stem descent below bottom staff line', section: SECTION.rendererOptions },
     { label: 'hideRepeatClef', detail: 'boolean — hide repeated clef at line start', section: SECTION.rendererOptions },
+    { label: 'justifyWithoutLyrics', detail: 'boolean — justify neume gaps even without lyrics', section: SECTION.rendererOptions },
     { label: 'canvasHeight',   detail: 'number — canvas height', section: SECTION.rendererOptions },
 ];
 

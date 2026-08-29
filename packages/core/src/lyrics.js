@@ -35,10 +35,32 @@ function sourceSpanFromOffsets(offsets) {
     return { srcStart: Math.min(...real), srcEnd: Math.max(...real) + 1 };
 }
 
+// Characters that make a syllable count as sung text. Editorial marks alone —
+// the flex/asterisk `*`, the daggers `+`/`++` (rendered as † and ‡), the ℟/℣
+// signs, a bare `~` space, brackets or punctuation — are not lyrics, so a neume
+// carrying only those is treated as lyric-less (see hasRealLyricText).
+const REAL_LYRIC_CHAR = /[\p{L}\p{N}]/u;
+
+// Whether a syllable carries *real* lyrics, i.e. at least one letter or digit.
+// Neume spacing is leveled and justified only around real lyrics: a psalm
+// melody written without text (or with nothing but division marks under it)
+// keeps the default advance between its notes instead of being spread out.
+export function hasRealLyricText(syl) {
+    if (!syl) {
+        return false;
+    }
+    const text = typeof syl === 'string' ? syl : (syl.text ?? '');
+    return REAL_LYRIC_CHAR.test(text);
+}
+
 // Expands a per-syllable array into a per-ligature array. A syllable with
 // noteGroupCount=N occupies N consecutive ligature slots: the first slot
 // carries the real text; subsequent slots are empty placeholders with
 // hyphenAfter=true so the hyphen-connector and snug spacing still apply.
+//
+// Placeholder slots inherit the source syllable's `realLyric` flag: a neume held
+// under a melisma or an extender line is still sung text even though its own
+// slot is empty.
 //
 // An extender syllable ("ro__") is held over extenderCount neumes total: its
 // own neume plus one per *extra* underscore. So "ro_" covers just its own
@@ -51,6 +73,8 @@ export function expandSyllablesForLigatures(notes) {
     for (const syl of notes) {
         const n = syl.noteGroupCount || 1;
         const isExtender = (syl.extenderCount || 0) > 0;
+        const realLyric = hasRealLyricText(syl);
+        syl.realLyric = realLyric;
         expanded.push(syl);
         for (let k = 1; k < n; k++) {
             const isLast = k === n - 1;
@@ -60,6 +84,7 @@ export function expandSyllablesForLigatures(notes) {
                 segments: [],
                 alignSegments: [],
                 suffixSegments: [],
+                realLyric,
                 hyphenAfter: isExtender ? false : (isLast ? syl.hyphenAfter : true),
                 hyphenMandatory: isExtender ? false : (syl.hyphenMandatory || false),
                 extender: isExtender,

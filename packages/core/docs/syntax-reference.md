@@ -123,7 +123,7 @@ Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
 unambiguously from the body.
 
-Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
+Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, justifyWithoutLyrics, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
 
 ---
 
@@ -518,6 +518,37 @@ justification:
 (g2) a a a g a C b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
+
+### Spacing without lyrics
+
+Neume spacing is evened out (and rows justified) only where **real lyric text**
+sits on one side of the gap — a gap needs a syllable to make it uneven in the
+first place. A gap between two neumes that carry no sung text keeps the plain
+default advance, so a bare psalm melody is engraved with even spacing instead
+of being spread across the row, even after a `(z)` break:
+
+```aretino
+(g2) g g g g a g. g f g g. (z) g g g g a g. g f g g. ||
+```
+
+Division marks are not lyrics for this purpose: a syllable made up only of
+`*`, `+`/`++`, `\R`, `\V`, `~` or punctuation still reserves room for itself,
+but does not make its neume count as sung — this row stays tight:
+
+```aretino
+(g2) g g g g a g. (z) g f g g. ||
+w: * + * \V ~ .
+```
+
+Replace those marks with sung syllables and the same row justifies:
+
+```aretino
+(g2) g g g g a g. (z) g f g g. ||
+w: Di-cső-ség az A-tyá-nak
+```
+
+Set `%option: justifyWithoutLyrics=true` to level and justify every neume gap
+regardless of lyrics (the behaviour before this rule existed).
 
 ---
 

@@ -97,6 +97,25 @@ Every attribute has a matching JavaScript property of the same name.
 | `change` | yes / yes | `{ value: string, caret: number, selection: object }` | Fired on every document change, including every keystroke. |
 | `selectionchange` | yes / yes | `{ caret: number, selection: object }` | Fired when the primary selection changes. |
 
+## Pasting Rich Text
+
+Pasting content copied from a browser page, word processor, or email into a
+lyric (`w:`) line, a verse (`W:`) block, or a header field (title, subtitle,
+caption, rubric) converts bold, italic, underline, and color formatting into
+Aretino's inline text-formatting syntax (`{bold}`, `<italic>`, `[underline]`,
+`\color:NAME{…}`) instead of dropping it. Paragraph and `<br>` boundaries
+become a space in lyric text and `" | "` (a manual line break) in verse and
+header text. Characters that are otherwise meaningful in that syntax (`{`,
+`<`, `[`, `+`, `\`, and `|` in verse/header text) are escaped in the pasted
+text so they survive as literal characters.
+
+Pasting elsewhere in the document (music lines, blank lines) is unaffected —
+those characters mean something else there (`{` opens a spanning brace mark
+over notes, for instance). Plain-text clipboard content, and HTML with no
+character formatting to preserve, also paste unchanged, so pasting a raw
+Aretino snippet (e.g. `{bold}` copied from another score) keeps its literal
+meaning rather than being escaped.
+
 ## Custom Preview Integration
 
 Set `preview="false"` when your app renders the preview itself. The editor

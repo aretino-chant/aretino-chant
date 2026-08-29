@@ -7,7 +7,8 @@ import { EditorState } from '@codemirror/state';
 import { renderAretino, parseAretino } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
 import { highlightAtSelection, sourceSpanFromPreviewClick } from './caret.js';
-import { buildToolbarState } from './toolbar.js';
+import { buildToolbarState, resolveContext } from './toolbar.js';
+import { convertHtmlPaste } from './clipboard.js';
 
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;1,400&display=swap';
 
@@ -206,6 +207,9 @@ class AretinoEditor extends HTMLElement {
                         if (update.docChanged) this._handleChange();
                         if (update.selectionSet) this._handleSelectionChange();
                     }),
+                    EditorView.domEventHandlers({
+                        paste: (event, view) => this._handlePaste(event, view),
+                    }),
                 ],
             }),
             parent: editorPane,
@@ -328,6 +332,31 @@ class AretinoEditor extends HTMLElement {
             const t = view.state.doc.sliceString(from, to);
             return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
+    }
+
+    // Converts pasted rich text (HTML clipboard content, e.g. copied from a
+    // browser page) into Aretino's inline formatting syntax, when the paste
+    // target is somewhere that syntax is interpreted — a lyric line, a verse
+    // block, or a header field. Returns false (letting CodeMirror's default,
+    // plain-text paste run) whenever there's no HTML to convert, the target
+    // context doesn't support inline formatting, or the HTML carries no
+    // formatting worth preserving — so pasting plain text, or Aretino source
+    // copied from elsewhere, behaves exactly as before.
+    _handlePaste(event, view) {
+        const html = event.clipboardData?.getData('text/html');
+        if (!html) return false;
+
+        const sel = view.state.selection.main;
+        const ast = parseAretino(this.value);
+        const ctx = resolveContext(view, ast, sel.head, sel.from, sel.to);
+        if (ctx.type !== 'lyric' && ctx.type !== 'verse' && ctx.type !== 'heading') return false;
+
+        const converted = convertHtmlPaste(html, ctx.type);
+        if (converted === null) return false;
+
+        event.preventDefault();
+        view.dispatch(view.state.replaceSelection(converted));
+        return true;
     }
 
     _handleChange() {

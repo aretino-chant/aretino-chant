@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseAretino, renderAretino, splitRowSVGs, renderFirstRow } from '../src/index.js';
 import { METRICS } from '../src/glyphs.js';
-import { measureTextWidth } from '../src/text.js';
+import { measureTextWidth, measureTextAscent } from '../src/text.js';
 
 function firstLyricY(svg) {
   // Extract the y attribute from the first <text> element that contains
@@ -45,8 +45,17 @@ function courtesyAccidentalCount(svg) {
   return (svg.match(/aretino-courtesy-accidental/g) || []).length;
 }
 
+// A lyric hyphen is a drawn stroke, not the font's '-' glyph, so that its length
+// answers to the lyric size and to the room between the syllables rather than to
+// the face's side bearings. A gap wide enough carries several strokes for the one
+// hyphen, so count the gaps (the strokes of one hyphen share a y).
+function hyphenStrokes(svg) {
+  return [...svg.matchAll(/<line class="aretino-lyric-hyphen" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="[^"]+" stroke="[^"]*" stroke-width="([^"]+)"/g)]
+    .map(m => ({ x1: +m[1], x2: +m[3], y: +m[2], width: +m[4] }));
+}
+
 function renderedHyphenCount(svg) {
-  return (svg.match(/<text[^>]*>-<\/text>/g) || []).length;
+  return hyphenStrokes(svg).length;
 }
 
 function sourceMappedGroups(svg) {
@@ -173,6 +182,141 @@ describe('renderAretino', () => {
     it('accepts lyricDistance of zero without error', () => {
       const svg = renderAretino(source, { lyricDistance: 0 });
       expect(svg).toContain('<svg');
+    });
+  });
+
+  describe('first lyric line clearance', () => {
+    // Distance from the bottom staff line to the lyric baseline, which is what
+    // the clearance rules actually settle.
+    const drop = (src, opts = {}) => {
+      const svg = renderAretino(src, { width: 400, ...opts });
+      return firstLyricY(svg) - staffBottom(svg);
+    };
+
+    it('clears a virga stem, not just the notehead', () => {
+      // A' is a low virga: its stem hangs well below the bottom line, far past
+      // the lyricMinStaffDistance floor the lyrics would otherwise take.
+      expect(drop("A'\nw: mi")).toBeGreaterThan(drop('A\nw: mi'));
+    });
+
+    it('hangs the letters by their real ascent, not by the font size', () => {
+      // Same music, same font size: only the letters differ.
+      const xheight = drop('c\nw: mi');
+      const ascender = drop('c\nw: li');
+      const accentedCap = drop('c\nw: Ám');
+      expect(xheight).toBeLessThan(ascender);
+      expect(ascender).toBeLessThan(accentedCap);
+    });
+
+    it('clears a hanging virga stem by the full lyricDistance', () => {
+      // The stem is drawn with a round linecap, so its ink reaches half a stroke
+      // width past the endpoint; the clearance is measured against that ink.
+      const svg = renderAretino("(g2) (K:B) a_gb'ag/a_C CCCagaga a. ;\nw: Haec di-es (\\red{*})", { width: 500 });
+      const space = renderedStaffSpace(svg);
+      const syl = lyricTextEntries(svg).filter(l => l.text !== '')[0];
+      const letterTop = syl.y - measureTextAscent(syl.text, syl.fontSize, 'serif');
+      // Every downward stroke drawn in the row, bottom edge including the cap.
+      const strokeBottoms = [...svg.matchAll(/<line x1="([^"]+)" y1="([^"]+)" x2="\1" y2="([^"]+)" stroke="#000" stroke-width="([^"]+)"/g)]
+        .map(m => ({ x: +m[1], bottom: Math.max(+m[2], +m[3]) + +m[4] / 2 }));
+      const sylW = measureTextWidth(syl.text, syl.fontSize, 'serif');
+      const under = strokeBottoms.filter(v => v.x >= syl.x - sylW / 2 && v.x <= syl.x + sylW / 2);
+      expect(under.length).toBeGreaterThan(0);
+      const deepest = Math.max(...under.map(v => v.bottom));
+      expect(letterTop - deepest).toBeGreaterThanOrEqual(METRICS.lyricDistance * space - 1e-6);
+    });
+
+    it('pairs each syllable with the music over its own span', () => {
+      // The same two neumes and the same two syllables, swapped. A tall syllable
+      // standing over the deep stem needs a lower baseline than a short one
+      // does; a row-wide maximum could not tell the two rows apart.
+      const tallOverStem = drop("c A'\nw: mi Ám");
+      const shortOverStem = drop("A' c\nw: mi Ám");
+      expect(tallOverStem).toBeGreaterThan(shortOverStem);
+    });
+
+    it('keeps every syllable of a row on one baseline', () => {
+      const svg = renderAretino("c c A' c\nw: mi se Ám re", { width: 400 });
+      const ys = new Set(lyricTextEntries(svg).map(l => l.y));
+      expect(ys.size).toBe(1);
+    });
+
+    it('advances stanzas by lyricLineSkip', () => {
+      const src = 'c d\nw: a b\nw: c d';
+      const ys = opts => [...new Set(lyricTextEntries(renderAretino(src, { width: 400, ...opts })).map(l => l.y))]
+        .sort((a, b) => a - b);
+      const [first, second] = ys({});
+      const [wideFirst, wideSecond] = ys({ lyricLineSkip: 2 });
+      expect(second - first).toBeCloseTo(firstLyricSize(renderAretino(src, { width: 400 })) * 1.2, 5);
+      expect(wideSecond - wideFirst).toBeGreaterThan(second - first);
+    });
+  });
+
+  describe('lyric hyphen strokes', () => {
+    const src = 'c d\nw: Di-cső';
+
+    it('flexes the stroke between its minimum and maximum length', () => {
+      const size = firstLyricSize(renderAretino(src, { width: 400 }));
+      const snug = hyphenStrokes(renderAretino(src, { width: 400, noteSpacing: 1.8 }))[0];
+      const roomy = hyphenStrokes(renderAretino(src, { width: 400, noteSpacing: 3 }))[0];
+      expect(snug.x2 - snug.x1).toBeGreaterThanOrEqual(METRICS.lyricHyphenMinLen * size - 1e-6);
+      expect(roomy.x2 - roomy.x1).toBeCloseTo(METRICS.lyricHyphenMaxLen * size, 5);
+      expect(snug.x2 - snug.x1).toBeLessThanOrEqual(roomy.x2 - roomy.x1 + 1e-6);
+    });
+
+    it('spreads several strokes across a gap too wide for one', () => {
+      const size = firstLyricSize(renderAretino(src, { width: 400 }));
+      const wide = hyphenStrokes(renderAretino(src, { width: 800, noteSpacing: 12 }));
+      expect(wide.length).toBeGreaterThan(1);
+      // Each is at full length, and they share the one baseline.
+      expect(new Set(wide.map(h => h.y)).size).toBe(1);
+      for (const h of wide) {
+        expect(h.x2 - h.x1).toBeCloseTo(METRICS.lyricHyphenMaxLen * size, 5);
+      }
+      // The white between them is even — no stroke sits closer to its neighbour
+      // than to the next.
+      const air = wide.slice(1).map((h, i) => h.x1 - wide[i].x2);
+      for (const a of air) {
+        expect(a).toBeCloseTo(air[0], 5);
+      }
+    });
+
+    it('spreads a melisma\u2019s hyphens between the syllables, not the neumes', () => {
+      // "Al- -" holds Al over two neumes; the slot on the second carries no
+      // letters. The hyphens belong to the one gap between Al and le, so they
+      // are spread over that whole distance rather than a neume at a time.
+      const svg = renderAretino('(g2) cd ef ga gf ef ed c. (z)\nw: Al- - le -lu - - - ia.', { width: 700 });
+      const lyr = lyricTextEntries(svg).filter(l => l.text !== '');
+      const al = lyr.find(l => l.text === 'Al');
+      const le = lyr.find(l => l.text === 'le');
+      const gapLeft = al.x + measureTextWidth('Al', al.fontSize, 'serif') / 2;
+      const gapRight = le.x - measureTextWidth('le', le.fontSize, 'serif') / 2;
+      const run = hyphenStrokes(svg).filter(h => h.x1 >= gapLeft - 1 && h.x2 <= gapRight + 1);
+      expect(run.length).toBeGreaterThan(1);
+      const air = [
+        run[0].x1 - gapLeft,
+        ...run.slice(1).map((h, i) => h.x1 - run[i].x2),
+        gapRight - run[run.length - 1].x2,
+      ];
+      for (const a of air) {
+        expect(a).toBeCloseTo(air[0], 4);
+      }
+    });
+
+    it('honours the hyphen length and thickness options', () => {
+      const size = firstLyricSize(renderAretino(src, { width: 400 }));
+      const [h] = hyphenStrokes(renderAretino(src, {
+        width: 400, noteSpacing: 3, lyricHyphenMaxLen: 1, lyricHyphenWidth: 0.2,
+      }));
+      expect(h.x2 - h.x1).toBeCloseTo(size, 5);
+      expect(h.width).toBeCloseTo(size * 0.2, 5);
+    });
+
+    it('hangs the stroke above the baseline, in x-heights of the face', () => {
+      const svg = renderAretino(src, { width: 400, noteSpacing: 3 });
+      const [h] = hyphenStrokes(svg);
+      const onBaseline = hyphenStrokes(renderAretino(src, { width: 400, noteSpacing: 3, lyricHyphenPos: 0 }))[0];
+      expect(h.y).toBeLessThan(onBaseline.y);
+      expect(onBaseline.y).toBeCloseTo(firstLyricY(svg), 5);
     });
   });
 
@@ -385,12 +529,34 @@ describe('renderAretino', () => {
         expect(renderedHyphenCount(svg)).toBe(1);
       });
 
-      it('== separator spans 2 notes and always shows both hyphens', () => {
+      it('== spans 2 notes as one hyphen, never collapsed', () => {
+        // Two hyphens mean the syllable is held over two neumes, not that two
+        // hyphens are set: what stands between the syllables is one hyphen, and
+        // the empty second slot does not break it in half.
         const svg = renderAretino('c d e\nw: rülsz==e', { width: 400, noteSpacing: 0.3 });
         const texts = lyricTextEntries(svg).map(l => l.text);
         expect(texts).toContain('rülsz');
         expect(texts).toContain('e');
-        expect(renderedHyphenCount(svg)).toBe(2);
+        expect(renderedHyphenCount(svg)).toBe(1);
+      });
+
+      it('== spreads its hyphen over the whole melisma, not neume by neume', () => {
+        const svg = renderAretino('c d e\nw: rülsz==e', { width: 400, noteSpacing: 3 });
+        const lyr = lyricTextEntries(svg);
+        const left = lyr.find(l => l.text === 'rülsz');
+        const right = lyr.find(l => l.text === 'e');
+        const strokes = hyphenStrokes(svg);
+        expect(strokes.length).toBeGreaterThan(1);
+        // The run belongs to the one gap between the two syllables, so its air is
+        // even across the whole span — the empty slot in the middle leaves no seam.
+        const air = [
+          strokes[0].x1 - (left.x + measureTextWidth('rülsz', left.fontSize, 'serif') / 2),
+          ...strokes.slice(1).map((h, i) => h.x1 - strokes[i].x2),
+          (right.x - measureTextWidth('e', right.fontSize, 'serif') / 2) - strokes[strokes.length - 1].x2,
+        ];
+        for (const a of air) {
+          expect(a).toBeCloseTo(air[0], 4);
+        }
       });
 
       it('= forced hyphen reserves room so it does not overlap the syllables', () => {
@@ -400,12 +566,12 @@ describe('renderAretino', () => {
         const lyr = lyricTextEntries(svg);
         const left = lyr.find(l => l.text === 'rülsz');
         const right = lyr.find(l => l.text === 'e');
-        const hyphenX = [...svg.matchAll(/<text x="([^"]+)" y="[^"]+"[^>]*>-<\/text>/g)].map(m => +m[1])[0];
+        const stroke = hyphenStrokes(svg)[0];
         const leftRight = left.x + w('rülsz') / 2;
         const rightLeft = right.x - w('e') / 2;
-        // The hyphen's box must sit between the two syllables, touching neither's ink.
-        expect(hyphenX - w('-') / 2).toBeGreaterThanOrEqual(leftRight - 1e-6);
-        expect(hyphenX + w('-') / 2).toBeLessThanOrEqual(rightLeft + 1e-6);
+        // The stroke must sit between the two syllables, touching neither's ink.
+        expect(stroke.x1).toBeGreaterThanOrEqual(leftRight - 1e-6);
+        expect(stroke.x2).toBeLessThanOrEqual(rightLeft + 1e-6);
       });
 
       it('= does not apply the Hungarian digraph transform even when tight', () => {

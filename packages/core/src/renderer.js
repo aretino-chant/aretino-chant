@@ -29,10 +29,14 @@ import {
     hasRealLyricText,
     formatLyricLine,
     emitBarlineLabels,
-    emitAlignedSyllables,
+    layoutRowSyllables,
+    emitLaidOutSyllables,
+    hyphenRoom,
 } from './lyrics.js';
 import {
     measureTextWidth,
+    measureTextAscent,
+    measureXHeight,
     measureSegmentsWidth,
     sliceSegments,
     trimSegmentsEnd,
@@ -45,7 +49,7 @@ import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
-import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, firstLyricBaselineY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -286,6 +290,12 @@ export function renderAretino(source, options = {}) {
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
     ctx.lyricMinStaffDistance = ss(ctx, options.lyricMinStaffDistance ?? METRICS.lyricMinStaffDistance);
+    // Lyric hyphen geometry (fractions of the lyric size, except the position,
+    // which is in x-heights of the lyric face); read by hyphenGeometry().
+    for (const key of ['lyricHyphenMinLen', 'lyricHyphenMaxLen', 'lyricHyphenWidth',
+                       'lyricHyphenSpace', 'lyricHyphenPos', 'lyricHyphenRepeat']) {
+        ctx[key] = Number.isFinite(options[key]) ? options[key] : METRICS[key];
+    }
     // Virga stem geometry (in spatia); read by drawNote/noteInkBounds via ss().
     ctx.virgaStemLength = options.virgaStemLength ?? METRICS.virgaStemLength;
     ctx.virgaStemDescentBelowPrev = options.virgaStemDescentBelowPrev ?? METRICS.virgaStemDescentBelowPrev;
@@ -325,7 +335,28 @@ export function renderAretino(source, options = {}) {
         }
         return w;
     };
-    const lyricLineHeight = ctx.lyricSize * 1.2;
+    // Ascents are memoised the same way: the first stanza of every row is measured
+    // syllable by syllable to settle the lyric baseline, and the same syllables
+    // recur across stanzas and rows.
+    const rawAscent = options.measureAscent ?? measureTextAscent;
+    const ascentCache = new Map();
+    ctx.measureAscent = (text, fontSize, fontFamily, bold, italic) => {
+        if (text === '') return 0;
+        const key = text + '\0' + fontSize + (bold ? 'b' : '') + (italic ? 'i' : '');
+        let a = ascentCache.get(key);
+        if (a === undefined) {
+            a = rawAscent(text, fontSize, fontFamily, bold, italic);
+            ascentCache.set(key, a);
+        }
+        return a;
+    };
+    // The lyric face's x-height, which the hyphen stroke is hung in.
+    ctx.lyricXHeight = measureXHeight(ctx.lyricSize, textFont);
+    // Ascent used where a row has no syllables of its own to measure: an accented
+    // capital over an x-height letter, the tallest a lyric line is likely to run.
+    const fallbackAscent = ctx.measureAscent('\u00c1y', ctx.lyricSize, textFont);
+    const lyricLineHeight = ctx.lyricSize
+        * (Number.isFinite(options.lyricLineSkip) ? options.lyricLineSkip : METRICS.lyricLineSkip);
 
     const hasIndent = 'indent' in ast.header || 'behúzás' in ast.header;
     const indentText = hasIndent ? (ast.header['indent'] ?? ast.header['behúzás'] ?? '') : '';
@@ -513,8 +544,9 @@ export function renderAretino(source, options = {}) {
             // note spacing follows the widened word break.
             const minGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
             // Width reserved for a forced ("=") hyphen between two syllables; must
-            // match the gap emitAlignedSyllables opens for a mandatory hyphen.
-            const hyphenReserve = ctx.measureText('.', ctx.lyricSize, ctx.textFont);
+            // match the room the lyric layout opens for a mandatory hyphen, which
+            // is the shortest stroke plus the air on either side of it.
+            const hyphenReserve = hyphenRoom(ctx);
             const halfNoteW = halfNoteWPx;
             const ligInfo = [];
             let li = 0;
@@ -1063,7 +1095,8 @@ export function renderAretino(source, options = {}) {
                         if (g.maxY > rowBottomY) rowBottomY = g.maxY;
                         recitationGlyphDrawn.add(it.recitationChainId);
                     }
-                    rowLigatures.push({ centerX: cursorX, leftX: cursorX, rightX: cursorX, shouldAlignLeft: true });
+                    // No notehead of its own on a repeat, so no ink to clear.
+                    rowLigatures.push({ centerX: cursorX, leftX: cursorX, rightX: cursorX, shouldAlignLeft: true, maxY: -Infinity });
                     cursorX += (it.syllableExtra || 0);
                 } else if (it.kind === 'ligature') {
                     const lastGroup = it.groups[it.groups.length - 1];
@@ -1084,7 +1117,7 @@ export function renderAretino(source, options = {}) {
                     // to this row) carries no syllable, so it must not consume a
                     // syllable slot in the 1-ligature⇄1-syllable alignment.
                     if (!it.neumeContinuation) {
-                        rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft });
+                        rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft, maxY: r.maxY });
                     }
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
@@ -1145,11 +1178,12 @@ export function renderAretino(source, options = {}) {
             const isLastRow = rowIdx === rows.length - 1;
             const rowLigCount = rowLigatures.length;
             const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
-            const lyricTopY = Math.max(
-                (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance,
-                staffBottomY + ctx.lyricMinStaffDistance);
-            let lyricY = lyricTopY + ctx.lyricSize;
 
+            // Lay every stanza out horizontally first. Nothing in that layout
+            // depends on the baseline, and the first stanza's syllable spans are
+            // what the baseline is settled from: each syllable is cleared of the
+            // music standing over its own span, by its own measured ascent.
+            const verseLayouts = [];
             if (alignSyllables) {
                 for (let v = 0; v < verseCount; v++) {
                     const notes = verseNotes[v];
@@ -1157,8 +1191,23 @@ export function renderAretino(source, options = {}) {
                     const end = isLastRow
                         ? Math.max(notes.length, ligOffset + rowLigCount)
                         : ligOffset + rowLigCount;
-                    const rowSyllables = notes.slice(start, end);
-                    const aligned = emitAlignedSyllables(ctx, rowSyllables, rowLigatures, lyricY);
+                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures));
+                }
+            }
+            let lyricY;
+            if (alignSyllables && verseLayouts.length > 0) {
+                lyricY = firstLyricBaselineY(ctx, verseLayouts[0].spans, rowLigatures,
+                    staffBottomY, lowestNoteY, fallbackAscent);
+            } else {
+                const lyricTopY = Math.max(
+                    (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance,
+                    staffBottomY + ctx.lyricMinStaffDistance);
+                lyricY = lyricTopY + fallbackAscent;
+            }
+
+            if (alignSyllables) {
+                for (let v = 0; v < verseCount; v++) {
+                    const aligned = emitLaidOutSyllables(ctx, verseLayouts[v], lyricY);
                     parts.push(aligned.svg);
                     if (aligned.maxX > maxRenderedX) maxRenderedX = aligned.maxX;
                     const barlineMap = verseBarlineMaps[v];

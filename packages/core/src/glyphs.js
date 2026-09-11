@@ -167,11 +167,43 @@ export const METRICS = {
     rightMargin: 1,
     staffGap: 2.5,
     titleTopPadding: 2,
-    lyricDistance: 0.2,
-    // Lyrics normally sit `lyricDistance` below the lowest note. This floor keeps
+    // Clearance between the music's lowest ink and the top of the lyric letters.
+    // Both are measured: the ink includes virga stems, morae and ictus (see
+    // noteInkBounds), and the letters are measured by their real ascent, so a row
+    // of short lower-case syllables rides closer than one carrying capitals.
+    //
+    // Half a staff space. Because both ends of the measurement are real, this is
+    // the gap that actually appears on the page — where a virga stem hangs over a
+    // syllable, the letters clear its tip by this much and no less. It is set
+    // against `lyricMinStaffDistance` below: a row with something hanging beneath
+    // the staff must not be given less air than a row with nothing.
+    lyricDistance: 0.5,
+    // Lyrics normally sit `lyricDistance` below the lowest ink. This floor keeps
     // the lyric line at least `lyricMinStaffDistance` (SS) below the bottom staff
     // line even when the notes sit high in (or above) the staff.
-    lyricMinStaffDistance: 0.75
+    lyricMinStaffDistance: 0.75,
+    // Stanza advance, as a multiple of the lyric font size.
+    lyricLineSkip: 1.2,
+
+    // --- Lyric hyphens ----------------------------------------------------
+    // The hyphen between two syllables of a word is a drawn stroke, not the
+    // lyric font's '-' glyph: a glyph carries side bearings of its own and
+    // differs from face to face, so at a singable lyric size it sets a mark of
+    // unpredictable length. Lengths and thickness are fractions of the lyric
+    // font size. The stroke gives way to the room there is, between min and max,
+    // so a stretched row draws a long one and a tight row a short one without
+    // either of them moving a notehead.
+    lyricHyphenMinLen: 0.17,
+    lyricHyphenMaxLen: 0.33,
+    lyricHyphenWidth: 0.04,
+    // Air on either side of the stroke, keeping it off the letters.
+    lyricHyphenSpace: 0.05,
+    // Height above the baseline, in x-heights of the lyric face: .5 puts the
+    // stroke across the middle of the letters it stands between, 1 on top of them.
+    lyricHyphenPos: 0.55,
+    // A gap wider than this many font sizes carries more than one stroke, so a
+    // justified row or a long melisma does not leave a lone hyphen adrift.
+    lyricHyphenRepeat: 4
 };
 
 export const PITCH_BASE = { A: -4, B: -3, c: -2, d: -1, e: 0, f: 1, g: 2, a: 3, b: 4, C: 5, D: 6, E: 7, F: 8, G: 9 };
@@ -342,6 +374,31 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
     return parts.join('');
 }
 
+// Auto-virga per group: every local pitch peak gets a downward stem on the left.
+// Left side non-strict (>=), right side strict (>) so only the last note of a
+// plateau is marked (e.g. "ggf" → virga on the second g).
+//
+// Exported because the stem it adds is ink that hangs below the staff, so the
+// lyric clearance (rowLowestNoteY) has to reach the same verdict as the drawing.
+export function computeAutoVirga(notes) {
+    const autoVirga = new Array(notes.length).fill(false);
+    if (notes.length < 2) {
+        return autoVirga;
+    }
+    const pitchPositions = notes.map(n => pitchToPos(n));
+    if (Math.max(...pitchPositions) <= Math.min(...pitchPositions)) {
+        return autoVirga;
+    }
+    for (let i = 0; i < notes.length; i++) {
+        const atLeastAsHighAsLeft = i === 0 || pitchPositions[i] >= pitchPositions[i - 1];
+        const higherThanRight = i === notes.length - 1 || pitchPositions[i] > pitchPositions[i + 1];
+        if (atLeastAsHighAsLeft && higherThanRight && !notes[i].noVirga) {
+            autoVirga[i] = true;
+        }
+    }
+    return autoVirga;
+}
+
 export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
     const isSmall = note.modifiers && note.modifiers.includes('small');
     const scale = isSmall ? METRICS.smallNoteScale : 1;
@@ -369,7 +426,11 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
             : ss(ctx, ctx.virgaStemLength ?? METRICS.virgaStemLength);
         const maxBottom = staffBottomY + ss(ctx, ctx.virgaMaxBelowBottom ?? METRICS.virgaMaxBelowBottom);
         const cappedLength = Math.max(ss(ctx, 1.75), Math.min(stemLength, maxBottom - cy));
-        maxY = Math.max(maxY, cy + cappedLength);
+        // The stem is drawn with a round linecap, so its ink reaches half a stroke
+        // width past the endpoint. That half stroke is what the lyric clearance
+        // measures against, so it has to be in the bounds.
+        const half = stroke(ctx, METRICS.stemStroke, METRICS.stemStrokeMinPx) / 2;
+        maxY = Math.max(maxY, cy + cappedLength + half);
     }
 
     for (const mod of note.modifiers ?? []) {

@@ -18,6 +18,7 @@ import {
     noteheadLeftPoint,
     drawAccidental,
     noteInkBounds,
+    computeAutoVirga,
 } from './glyphs.js';
 import { ss } from './units.js';
 import { accidentalSymbolAdvance, accidentalAdvance } from './accidentals.js';
@@ -70,23 +71,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             }
         }
 
-        // Auto-virga per group: every local pitch peak gets a downward stem on the left.
-        // Left side non-strict (>=), right side strict (>) so only the last note of a
-        // plateau is marked (e.g. "ggf" → virga on the second g).
-        const autoVirga = new Array(notes.length).fill(false);
-        if (notes.length >= 2) {
-            const pitchPositions = notes.map(n => pitchToPos(n));
-            const hasVariation = Math.max(...pitchPositions) > Math.min(...pitchPositions);
-            if (hasVariation) {
-                for (let i = 0; i < notes.length; i++) {
-                    const atLeastAsHighAsLeft = i === 0 || pitchPositions[i] >= pitchPositions[i - 1];
-                    const higherThanRight = i === notes.length - 1 || pitchPositions[i] > pitchPositions[i + 1];
-                    if (atLeastAsHighAsLeft && higherThanRight && !notes[i].noVirga) {
-                        autoVirga[i] = true;
-                    }
-                }
-            }
-        }
+        const autoVirga = computeAutoVirga(notes);
 
         // Collect ligature connectors to draw on top of everything else.
         const connectorParts = [];

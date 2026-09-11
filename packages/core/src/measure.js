@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { METRICS, pitchY } from './glyphs.js';
+import { METRICS, pitchY, noteInkBounds, computeAutoVirga } from './glyphs.js';
 import { ss } from './units.js';
 import {
     accidentalSymbolAdvance,
@@ -315,26 +315,79 @@ export function measureItem(ctx, item) {
     return 0;
 }
 
-// Lowest (largest-y) point reached by any notehead in a row, used to push the
-// lyric baseline below notes that dip beneath the staff.
+// Lowest (largest-y) ink reached by a ligature's notes, used to push the lyric
+// baseline below whatever actually hangs beneath the staff. That is rarely the
+// notehead: a virga stem descends to `virgaMaxBelowBottom` below the bottom line,
+// well past the `lyricMinStaffDistance` floor the lyrics would otherwise take, and
+// morae and a below-set ictus reach down too. So the verdict is `noteInkBounds`,
+// the same geometry the drawing uses — including the auto-virga stems the drawing
+// adds, and the group splits an internal mora forces, since both change which
+// note a stem measures its length from.
+export function ligatureLowestInkY(ctx, item, staffBottomY) {
+    const { groups } = splitGroupsAtInternalMora(item.groups, item.gaps ?? []);
+    let maxY = -Infinity;
+    for (const notes of groups) {
+        const autoVirga = computeAutoVirga(notes);
+        let prevCy = null;
+        for (let i = 0; i < notes.length; i++) {
+            const cy = pitchY(ctx, notes[i], staffBottomY);
+            const drawnNote = autoVirga[i] ? { ...notes[i], virga: true } : notes[i];
+            const bounds = noteInkBounds(ctx, drawnNote, cy, staffBottomY, prevCy);
+            if (bounds.maxY > maxY) maxY = bounds.maxY;
+            prevCy = cy;
+        }
+    }
+    return maxY;
+}
+
+// Lowest ink reached anywhere in a row. Used where a single answer is needed for
+// the whole row — the row-start clef/prefix decision, and as the fallback when a
+// row carries no syllables to measure against.
 export function rowLowestNoteY(ctx, row, staffBottomY) {
-    // Track the raw center of the lowest note; the notehead half-height is added
-    // once at the end. (Adding it inside the loop would inflate the running
-    // maximum so a genuinely lower note one step down couldn't overtake it.)
-    let maxCenterY = staffBottomY;
-    const halfNoteH = ss(ctx, METRICS.noteBoxHeight) * 0.5;
+    let maxY = staffBottomY;
     for (const it of row.items) {
         if (it.kind !== 'ligature') {
             continue;
         }
-        for (const group of it.groups) {
-            for (const note of group) {
-                const cy = pitchY(ctx, note, staffBottomY);
-                if (cy > maxCenterY) {
-                    maxCenterY = cy;
-                }
-            }
-        }
+        const y = ligatureLowestInkY(ctx, it, staffBottomY);
+        if (y > maxY) maxY = y;
     }
-    return maxCenterY > staffBottomY ? maxCenterY + halfNoteH : staffBottomY;
+    return maxY;
+}
+
+// The baseline the first lyric line needs, given where each syllable sits and
+// what music hangs over it.
+//
+// Each syllable is paired with the ink above *its own* horizontal span rather
+// than with the row's deepest point, so one low virga stem pushes down only the
+// syllables it actually stands over, and a tall letter elsewhere in the row adds
+// no height under a stem that never meets it. The letters are measured by their
+// real ascent, so the clearance is between the ink and the letters that are
+// there, not between the ink and an em box mostly full of air.
+//
+// `spans` are `{ leftX, rightX, ascent }` for the syllables, `inkSpans` are
+// `{ leftX, rightX, maxY }` for the drawn ligatures. `fallbackAscent` answers for
+// a row with no syllables to measure.
+export function firstLyricBaselineY(ctx, spans, inkSpans, staffBottomY, rowLowestY, fallbackAscent) {
+    const floor = staffBottomY + ctx.lyricMinStaffDistance;
+    if (!spans || spans.length === 0) {
+        const top = Math.max(
+            (rowLowestY > staffBottomY ? rowLowestY : staffBottomY) + ctx.lyricDistance,
+            floor);
+        return top + fallbackAscent;
+    }
+    let baseline = -Infinity;
+    for (const span of spans) {
+        let ink = staffBottomY;
+        for (const s of inkSpans) {
+            if (s.rightX < span.leftX || s.leftX > span.rightX) {
+                continue;
+            }
+            if (s.maxY > ink) ink = s.maxY;
+        }
+        const top = Math.max(ink + ctx.lyricDistance, floor);
+        const need = top + span.ascent;
+        if (need > baseline) baseline = need;
+    }
+    return baseline;
 }

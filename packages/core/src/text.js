@@ -38,6 +38,102 @@ export function measureTextWidth(text, fontSize, fontFamily, bold = false, itali
     return text.length * fontSize * 0.55 * (bold ? 1.1 : 1.0) * (italic ? 0.95 : 1.0);
 }
 
+// Baseline-to-top of the letters a string actually contains, in the same units
+// as fontSize. The first lyric line is hung from this rather than from the font
+// size, so a row of short lower-case syllables rides closer to the music than a
+// row carrying capitals or Hungarian accents — which is how the clearance is
+// reckoned by hand.
+//
+// A browser measures the real ink (`actualBoundingBoxAscent`). Headless there is
+// no face to measure, so the letters are classed the way measureTextWidth
+// estimates widths there: an accented capital reaches highest, an ascender,
+// capital or digit next, and an x-height letter least.
+const ACCENTED_CAP_ASCENT = 0.95;
+const ASCENDER_ASCENT = 0.75;
+const XHEIGHT_ASCENT = 0.52;
+
+// Lower-case letters whose stem rises to the ascender line.
+const LOWER_ASCENDERS = 'bdfhklß';
+
+function estimateAscentFactor(text) {
+    let factor = 0;
+    for (const ch of text) {
+        // NFD splits a precomposed letter into its base and its diacritics, so
+        // one table answers for á, ő and û alike.
+        const decomposed = ch.normalize('NFD');
+        const base = decomposed[0];
+        const accented = decomposed.length > 1;
+        const upper = base !== base.toLowerCase() && base === base.toUpperCase();
+        let f;
+        if (upper && accented) {
+            f = ACCENTED_CAP_ASCENT;
+        } else if (upper || accented || /[0-9]/.test(base)
+                || LOWER_ASCENDERS.includes(base.toLowerCase()) && base === base.toLowerCase()
+                || '([{|/\\!?†‡'.includes(base)) {
+            f = ASCENDER_ASCENT;
+        } else if (/[\p{L}\p{N}]/u.test(base)) {
+            f = XHEIGHT_ASCENT;
+        } else {
+            // Punctuation sitting on the baseline (. , ; : - ~ space) adds no height.
+            continue;
+        }
+        if (f > factor) factor = f;
+    }
+    return factor;
+}
+
+export function measureTextAscent(text, fontSize, fontFamily, bold = false, italic = false) {
+    if (text === '') {
+        return 0;
+    }
+    if (typeof document !== 'undefined') {
+        try {
+            if (!_measureCanvas) {
+                _measureCanvas = document.createElement('canvas');
+            }
+            const c2d = _measureCanvas.getContext('2d');
+            const style = (italic ? 'italic ' : '') + (bold ? 'bold ' : '');
+            c2d.font = `${style}${fontSize}px ${fontFamily}`;
+            const m = c2d.measureText(text);
+            if (m.actualBoundingBoxAscent) {
+                return m.actualBoundingBoxAscent;
+            }
+            if (m.fontBoundingBoxAscent) {
+                return m.fontBoundingBoxAscent;
+            }
+        } catch (_e) {
+            // fall through to estimation
+        }
+    }
+    return estimateAscentFactor(text) * fontSize;
+}
+
+// Baseline to the top of the lower-case letters. A lyric hyphen is hung in
+// x-heights (see METRICS.lyricHyphenPos) so that it crosses the middle of the
+// letters it stands between in any face: an x-height is a real measurement and
+// not a fixed part of the body — .44 of it in Times, .55 in Merriweather — so a
+// stroke reckoned in x-heights sits where the eye expects it, where one reckoned
+// in the body would ride up and down with the face.
+export function measureXHeight(fontSize, fontFamily) {
+    if (typeof document !== 'undefined') {
+        try {
+            if (!_measureCanvas) {
+                _measureCanvas = document.createElement('canvas');
+            }
+            const c2d = _measureCanvas.getContext('2d');
+            c2d.font = `${fontSize}px ${fontFamily}`;
+            const m = c2d.measureText('x');
+            if (m.actualBoundingBoxAscent) {
+                return m.actualBoundingBoxAscent;
+            }
+        } catch (_e) {
+            // fall through to estimation
+        }
+    }
+    // Times' own x-height, which is the face string widths fall back to as well.
+    return fontSize * 0.45;
+}
+
 function segFontSize(seg, fontSize) {
     if (seg.large) return fontSize * 4 / 3;
     if (seg.small) return fontSize * 0.75;
@@ -50,6 +146,22 @@ export function measureSegmentsWidth(segments, fontSize, fontFamily, measureFn =
         if (seg.glyph) return sum + (seg.glyphAdvance || 0) * segFontSize(seg, fontSize) / 1000;
         return sum + measureFn(seg.text, segFontSize(seg, fontSize), fontFamily, seg.bold, seg.italic);
     }, 0);
+}
+
+// Tallest ascent among a run of segments, honouring each segment's own size
+// ($small / $large) so a large-set initial is cleared by its own height.
+// An inline glyph is measured by its em box, there being no ink metric for it.
+export function measureSegmentsAscent(segments, fontSize, fontFamily, ascentFn = measureTextAscent) {
+    if (!segments || segments.length === 0) return 0;
+    let max = 0;
+    for (const seg of segments) {
+        const size = segFontSize(seg, fontSize);
+        const a = seg.glyph
+            ? size * ASCENDER_ASCENT
+            : ascentFn(seg.text, size, fontFamily, seg.bold, seg.italic);
+        if (a > max) max = a;
+    }
+    return max;
 }
 
 // Side padding renderMixedLabel puts around an inline glyph, as a fraction of

@@ -2,14 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { escapeAttr } from './glyphs.js';
+import { escapeAttr, METRICS } from './glyphs.js';
 import { wrapSrc } from './svg.js';
 import {
     LITERAL_HYPHEN,
     LITERAL_OPEN_PAREN,
     LITERAL_UNDERSCORE,
     measureTextWidth,
+    measureTextAscent,
+    measureXHeight,
     measureSegmentsWidth,
+    measureSegmentsAscent,
     sliceSegments,
     trimSegmentsEnd,
     parseFormattingToSegments,
@@ -390,12 +393,83 @@ function hungarianDigraphTransformPair(syl1, syl2) {
     return null;
 }
 
+// -- the geometry of the stroke drawn between two syllables of a word --
+// The hyphen is not the lyric font's '-' glyph but a stroke, so that it answers
+// to the size of the lyrics and to nothing else: a glyph carries side bearings
+// of its own, differs from face to face, and at a singable size draws a mark the
+// engraver never asked for. Everything here is a multiple of the lyric size save
+// the height, which is of the face's x-height — the stroke belongs in the middle
+// of the lower-case letters.
+//
+// The length gives way to the room there is, between lyricHyphenMinLen and
+// lyricHyphenMaxLen, so a stretched row draws a long stroke and a tight one a
+// short stroke without either of them moving a notehead.
+export function hyphenGeometry(ctx) {
+    const sz = ctx.lyricSize;
+    const min = (ctx.lyricHyphenMinLen ?? METRICS.lyricHyphenMinLen) * sz;
+    const max = Math.max(min, (ctx.lyricHyphenMaxLen ?? METRICS.lyricHyphenMaxLen) * sz);
+    return {
+        min,
+        max,
+        space: (ctx.lyricHyphenSpace ?? METRICS.lyricHyphenSpace) * sz,
+        width: (ctx.lyricHyphenWidth ?? METRICS.lyricHyphenWidth) * sz,
+        dy: (ctx.lyricHyphenPos ?? METRICS.lyricHyphenPos)
+            * (ctx.lyricXHeight ?? measureXHeight(sz, ctx.textFont)),
+        repeat: (ctx.lyricHyphenRepeat ?? METRICS.lyricHyphenRepeat) * sz,
+    };
+}
+
+// The room a hyphen needs between two syllables: the shortest stroke it may be
+// drawn as, and the air on either side that keeps it off the letters. Under that
+// there is no hyphen to draw, and the two syllables are pulled into one word
+// instead (or, for a mandatory "=" hyphen, the room is bought from the spacing).
+// The note-spacing pass reserves exactly this, so the two agree.
+export function hyphenRoom(ctx) {
+    const g = hyphenGeometry(ctx);
+    return g.min + g.space * 2;
+}
+
+// Draws the hyphen strokes that fill the gap [gapLeft, gapRight].
+// One stroke as long as the room allows; but a gap wider than lyricHyphenRepeat
+// font sizes carries several strokes at full length instead, so that no lone
+// hyphen is left adrift in the middle of the white.
+//
+// However many there are, the white is even: the air before the first stroke,
+// between each pair, and after the last are all the same. (abc2svg leaves half a
+// stroke of air at each end and whatever is left over between the strokes, so the
+// run reads as a group shoved against the syllables rather than as an evenly
+// broken rule.) With k strokes of length l in a gap of width w, that air is
+// (w - k*l) / (k + 1) — which for a single stroke is simply centring it.
+function drawHyphenStrokes(gapLeft, gapRight, lyricY, g) {
+    const w = gapRight - gapLeft;
+    const count = Math.floor(w / g.repeat) + 1;
+    const len = count > 1
+        ? g.max
+        : Math.min(Math.max(w - g.space * 2, g.min), g.max);
+    const air = (w - count * len) / (count + 1);
+    const y = lyricY - g.dy;
+    const parts = [];
+    let x = gapLeft + air;
+    let rightX = x + len;
+    for (let i = 0; i < count; i++) {
+        parts.push(`<line class="aretino-lyric-hyphen" x1="${x}" y1="${y}" x2="${x + len}" y2="${y}" stroke="#000" stroke-width="${g.width}"/>`);
+        rightX = x + len;
+        x += len + air;
+    }
+    return { svg: parts.join(''), rightX };
+}
+
 // Lays out a row's worth of syllables centered under their corresponding
-// ligature centers. Adjusts for collisions and emits hyphens between
-// syllables of the same word when there's room.
-export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
+// ligature centers, adjusting for collisions and deciding where hyphens and
+// extender lines go. Nothing vertical is settled here: the result is a list of
+// draw operations with x positions only, so the caller can measure the row's
+// syllables (their spans and their ascents) and choose the lyric baseline before
+// anything is committed to an SVG string.
+export function layoutRowSyllables(ctx, syllables, ligatures) {
+    const ops = [];
+    const spans = [];
     if (syllables.length === 0) {
-        return { svg: '', maxX: 0 };
+        return { ops, spans, maxX: 0 };
     }
     const fontSize = ctx.lyricSize;
     const fontFamily = ctx.textFont;
@@ -404,21 +478,30 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     // ~ (which renders a literal space). A fixed fraction of the font size
     // (e.g. 0.18em) is narrower than a true space and reads as too tight.
     const measureFn = ctx.measureText ?? measureTextWidth;
+    const ascentFn = ctx.measureAscent ?? measureTextAscent;
     const minGap = measureFn(' ', fontSize, fontFamily) || fontSize * 0.25;
-    // A hyphen occupies the width of an 'n' character; if the gap between
-    // syllables is smaller than that, there is no room to render it.
-    const hyphenSpaceW = measureFn('.', fontSize, fontFamily);
+    // The room a hyphen must have between two syllables; below it the hyphen goes
+    // and the syllables are pulled together.
+    const hyphenGap = hyphenRoom(ctx);
     const trailingAdvance = fontSize * 0.6;
+    // Renders nothing at all — a melisma continuation slot, as against a syllable
+    // of bare punctuation, which has ink and does end a hyphen run.
+    const carriesNoText = syl => !syl.segments || !syl.segments.some(seg => seg.glyph || seg.text);
 
-    const parts = [];
     let prevRight = -Infinity;
     let lastRight = null;
-    // Rightmost ink, including hyphens, so the caller can grow the viewBox width.
+    // A melisma's continuation slots carry no letters of their own: "Al- - le"
+    // puts an empty slot on the second neume of Al's melisma. The hyphens belong
+    // to the one gap between the two syllables that *do* have letters, so an empty
+    // slot must not break the run into pieces spread a neume at a time. While one
+    // is pending, this holds the left edge of the gap being accumulated.
+    let pendingHyphenLeft = null;
+    // Rightmost ink of the syllables themselves; hyphen and extender strokes add
+    // to it as they are drawn.
     let maxX = 0;
-    // Track the parts[] index and left position of the previous syllable so it can be
-    // re-rendered in-place when a Hungarian digraph transform fires on collapse.
-    let prevSylIdx = -1;
-    let prevLeft = 0;
+    // Index into ops of the previous syllable, so it can be rewritten in place
+    // when a Hungarian digraph transform fires on collapse.
+    let prevSylOp = null;
     const workSyllables = syllables.slice();
     // Extender prolongation line: the x-span [extStartX, extEndX] of the line
     // currently being built, or nulls when no extender is in progress. State is
@@ -428,7 +511,6 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     let extEndX = null;
     let extTextRightX = null;
     const extenderGap = fontSize * 0.15;
-    const extenderStrokeW = Math.max(0.5, fontSize * 0.06);
     // Prolongation lines shorter than this are visual stubs, so they are dropped.
     // A single short note under the syllable text leaves little or no room past
     // the text, so most single-underscore ("ro_") extenders draw nothing.
@@ -436,7 +518,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     const flushExtender = () => {
         let drewLine = false;
         if (extStartX !== null && extEndX !== null && extEndX - extStartX >= extenderMinLen) {
-            parts.push(`<line x1="${extStartX}" y1="${lyricY}" x2="${extEndX}" y2="${lyricY}" stroke="#000" stroke-width="${extenderStrokeW}"/>`);
+            ops.push({ op: 'extender', x1: extStartX, x2: extEndX });
             if (extEndX > maxX) maxX = extEndX;
             drewLine = true;
         }
@@ -472,37 +554,43 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
         // left edge of full text: align portion starts at (center - alignW/2),
         // prefix sits to the left of it
         let left = center - alignW / 2 - prefixW;
-        let hyphenX = null;
+        let hyphenGapLeft = null;
         if (i > 0) {
             const prevSyl = workSyllables[i - 1];
             const needsHyphen = prevSyl.hyphenAfter;
             if (needsHyphen) {
-                if (left - prevRight >= hyphenSpaceW) {
-                    hyphenX = (left + prevRight) / 2;
-                } else if (prevSyl.hyphenMandatory || left - prevRight > hyphenSpaceW * 0.6) {
+                // Where the gap starts: the last syllable that had letters, which
+                // is the previous one unless empty melisma slots stand between.
+                const gapStart = pendingHyphenLeft ?? prevRight;
+                if (left - gapStart >= hyphenGap) {
+                    hyphenGapLeft = gapStart;
+                } else if (prevSyl.hyphenMandatory || pendingHyphenLeft !== null
+                        || left - gapStart > hyphenGap * 0.6) {
                     // Open a hyphen-wide gap so the hyphen sits between the
                     // syllables instead of overprinting them. This happens for a
-                    // mandatory ("=") hyphen, or when collapsing a normal "-"
-                    // would pull the syllable left by more than half a hyphen's
-                    // width — too far a jump, so we make room instead.
-                    left = prevRight + hyphenSpaceW;
+                    // mandatory ("=") hyphen, when collapsing a normal "-" would
+                    // pull the syllable left by more than half a hyphen's room —
+                    // too far a jump, so we make room instead — or when a melisma
+                    // stands between, which is never collapsed away.
+                    left = gapStart + hyphenGap;
                     center = left + prefixW + alignW / 2;
-                    hyphenX = (left + prevRight) / 2;
+                    hyphenGapLeft = gapStart;
                 } else {
-                    // Hyphen collapsed: apply Hungarian double-consonant rule if applicable.
-                    // The previous syllable's SVG is re-rendered in-place at the same left
-                    // position; the current syllable is re-measured with the new text.
+                    // Hyphen collapsed: apply Hungarian double-consonant rule if
+                    // applicable. The previous syllable's placement is rewritten at
+                    // the same left position; the current one is re-measured.
                     const transformed = hungarianDigraphTransformPair(workSyllables[i - 1], syl);
                     if (transformed) {
                         workSyllables[i - 1] = transformed[0];
                         syl = transformed[1];
                         workSyllables[i] = syl;
                         const newFullW1 = measureSegmentsWidth(transformed[0].segments, fontSize, fontFamily, measureFn);
-                        const newTC1 = prevLeft + newFullW1 / 2;
-                        const newSvg1 = `<text xml:space="preserve" x="${newTC1}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(transformed[0].segments)}</text>`
-                            + renderUnderlines(transformed[0].segments, newTC1, lyricY, fontSize, fontFamily, 'middle', measureFn);
-                        parts[prevSylIdx] = wrapSrc(transformed[0], newSvg1, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap);
-                        prevRight = prevLeft + newFullW1;
+                        prevSylOp.syl = transformed[0];
+                        prevSylOp.right = prevSylOp.left + newFullW1;
+                        prevSylOp.textCenter = prevSylOp.left + newFullW1 / 2;
+                        prevSylOp.span.rightX = prevSylOp.right;
+                        prevSylOp.span.ascent = measureSegmentsAscent(transformed[0].segments, fontSize, fontFamily, ascentFn);
+                        prevRight = prevSylOp.right;
                         fullW = measureSegmentsWidth(syl.segments, fontSize, fontFamily, measureFn);
                         alignW = measureSegmentsWidth(syl.alignSegments || syl.segments, fontSize, fontFamily, measureFn);
                         suffixW = syl.suffixSegments ? measureSegmentsWidth(syl.suffixSegments, fontSize, fontFamily, measureFn) : 0;
@@ -517,16 +605,35 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
             }
         }
         const right = left + fullW;
-        const textCenter = left + fullW / 2;
-
-        const syllableSvg = `<text xml:space="preserve" x="${textCenter}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(syl.segments)}</text>`
-            + renderUnderlines(syl.segments, textCenter, lyricY, fontSize, fontFamily, 'middle', measureFn);
-        prevSylIdx = parts.length;
-        prevLeft = left;
-        parts.push(wrapSrc(syl, syllableSvg, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap));
-        if (hyphenX !== null) {
-            parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
-            if (hyphenX + hyphenSpaceW / 2 > maxX) maxX = hyphenX + hyphenSpaceW / 2;
+        const span = {
+            leftX: left,
+            rightX: right,
+            ascent: measureSegmentsAscent(syl.segments, fontSize, fontFamily, ascentFn),
+        };
+        // An empty slot has no letters to clear, so it is not paired with the ink
+        // over it; only what is actually set asks for room.
+        if (!carriesNoText(syl)) {
+            spans.push(span);
+        }
+        prevSylOp = {
+            op: 'syllable',
+            syl,
+            left,
+            right,
+            textCenter: left + fullW / 2,
+            span,
+        };
+        ops.push(prevSylOp);
+        if (hyphenGapLeft !== null && carriesNoText(syl)) {
+            // Carry the gap forward past the empty slot, so the strokes are spread
+            // over the whole distance between the two syllables rather than neume
+            // by neume.
+            pendingHyphenLeft = hyphenGapLeft;
+        } else {
+            if (hyphenGapLeft !== null) {
+                ops.push({ op: 'hyphen', gapLeft: hyphenGapLeft, gapRight: left });
+            }
+            pendingHyphenLeft = null;
         }
         // Extender ("ro_", "ro__"): the syllable is held over its own neume plus
         // one further neume per extra underscore. Build a single continuous
@@ -560,7 +667,7 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
                 if (suf.length) {
                     const sx = drewLine ? targetRight : (textRight ?? targetRight ?? right);
                     const anchor = drewLine ? 'end' : 'start';
-                    parts.push(`<text xml:space="preserve" x="${sx}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="${anchor}" fill="#000">${renderSegments(suf)}</text>`);
+                    ops.push({ op: 'suffix', x: sx, anchor, segments: suf });
                     const suffixRight = drewLine ? sx : sx + sufW;
                     if (suffixRight > maxX) maxX = suffixRight;
                 }
@@ -578,9 +685,48 @@ export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
     // knows the syllable continues on the next row.
     const lastSyl = workSyllables[workSyllables.length - 1];
     if (lastSyl && lastSyl.hyphenAfter && lastRight !== null) {
-        const hyphenX = lastRight + hyphenSpaceW / 2;
-        parts.push(`<text x="${hyphenX}" y="${lyricY}" font-family="${escapeAttr(fontFamily)}" font-size="${fontSize}" text-anchor="middle" fill="#000">-</text>`);
-        if (hyphenX + hyphenSpaceW / 2 > maxX) maxX = hyphenX + hyphenSpaceW / 2;
+        ops.push({
+            op: 'hyphen',
+            gapLeft: pendingHyphenLeft ?? lastRight,
+            gapRight: lastRight + hyphenGap,
+        });
+    }
+    return { ops, spans, maxX };
+}
+
+// Renders a laid-out row of syllables at the given baseline.
+export function emitLaidOutSyllables(ctx, layout, lyricY) {
+    const fontSize = ctx.lyricSize;
+    const fontFamily = ctx.textFont;
+    const fontAttr = escapeAttr(fontFamily);
+    const measureFn = ctx.measureText ?? measureTextWidth;
+    const geom = hyphenGeometry(ctx);
+    const extenderStrokeW = Math.max(0.5, fontSize * 0.06);
+    const parts = [];
+    let maxX = layout.maxX;
+    for (const op of layout.ops) {
+        if (op.op === 'syllable') {
+            const svg = `<text xml:space="preserve" x="${op.textCenter}" y="${lyricY}" font-family="${fontAttr}" font-size="${fontSize}" text-anchor="middle" fill="#000">${renderSegments(op.syl.segments)}</text>`
+                + renderUnderlines(op.syl.segments, op.textCenter, lyricY, fontSize, fontFamily, 'middle', measureFn);
+            parts.push(wrapSrc(op.syl, svg, 'aretino-lyric aretino-syllable', undefined, undefined, undefined, undefined, ctx.sourceMap));
+        } else if (op.op === 'hyphen') {
+            const drawn = drawHyphenStrokes(op.gapLeft, op.gapRight, lyricY, geom);
+            parts.push(drawn.svg);
+            if (drawn.rightX > maxX) maxX = drawn.rightX;
+        } else if (op.op === 'extender') {
+            parts.push(`<line class="aretino-lyric-extender" x1="${op.x1}" y1="${lyricY}" x2="${op.x2}" y2="${lyricY}" stroke="#000" stroke-width="${extenderStrokeW}"/>`);
+        } else if (op.op === 'suffix') {
+            parts.push(`<text xml:space="preserve" x="${op.x}" y="${lyricY}" font-family="${fontAttr}" font-size="${fontSize}" text-anchor="${op.anchor}" fill="#000">${renderSegments(op.segments)}</text>`);
+        }
     }
     return { svg: parts.join(''), maxX };
+}
+
+// Lays out and renders a row's worth of syllables in one step, for callers that
+// have already settled the lyric baseline.
+export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
+    if (syllables.length === 0) {
+        return { svg: '', maxX: 0 };
+    }
+    return emitLaidOutSyllables(ctx, layoutRowSyllables(ctx, syllables, ligatures), lyricY);
 }

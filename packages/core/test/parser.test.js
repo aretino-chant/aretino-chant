@@ -13,6 +13,12 @@ describe('parseAretino', () => {
     expect(ast.optionHeaders).toEqual(['lyricDistance=2', 'hideRepeatClef=true']);
   });
 
+  it('still parses %option: headers after a leading plain % comment line', () => {
+    const ast = parseAretino('% random comment\n%option: lyricDistance=2\n%%\ng h i');
+    expect(ast.header.option).toBe('lyricDistance=2');
+    expect(ast.optionHeaders).toEqual(['lyricDistance=2']);
+  });
+
   it('uses n: to resume music and append the following w: to the previous lyrics', () => {
     const source = 'c d\nw: one two\nn: e f\nw: three four';
     const ast = parseAretino(source);

@@ -121,7 +121,7 @@ export function parseAretino(source) {
             }
             continue;
         }
-        if (line.trim() === '') {
+        if (line.trim() === '' || line.trimStart().startsWith('%')) {
             continue;
         }
         bodyStart = i;

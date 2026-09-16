@@ -2,13 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-// NOTE: The VS Code extension duplicates these suggestion lists and the
-// context-detection logic in packages/vscode/src/completion.js (its CommonJS
-// extension host cannot import this CodeMirror-based module). Keep the two in
-// sync when adding directives or completion rules.
+// NOTE: The VS Code extension duplicates the context-detection logic in
+// packages/vscode/src/completion.js (its CommonJS extension host cannot import
+// this CodeMirror-based module). It loads @aretino-chant/core's RENDERER_OPTIONS
+// via a dynamic import instead of hand-maintaining the renderer-option list, so
+// that stays in sync automatically; keep the rest of the completion lists and
+// rules in sync by hand when adding new directives.
 
 import { pickedCompletion } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
+import { RENDERER_OPTIONS } from '@aretino-chant/core';
 
 export const completionSections = {
     clefs: { name: 'Clefs', rank: 1 },
@@ -34,25 +37,11 @@ const HEADER_KEY_OPTIONS = [
     { label: '%%',         detail: 'End of header section', section: completionSections.headerKeys },
 ];
 
-const OPTION_VALUE_OPTIONS = [
-    { label: 'width',          detail: 'number — output width in pixels', section: completionSections.rendererOptions },
-    { label: 'widthMm',        detail: 'number — output width in mm', section: completionSections.rendererOptions },
-    { label: 'dpi',            detail: 'number — dots per inch', section: completionSections.rendererOptions },
-    { label: 'zoom',           detail: 'number — zoom factor', section: completionSections.rendererOptions },
-    { label: 'staffSpaceMm',   detail: 'number — staff space in mm', section: completionSections.rendererOptions },
-    { label: 'lyricSize',      detail: 'number — lyric font size', section: completionSections.rendererOptions },
-    { label: 'textFont',       detail: 'string — rendered text font family', section: completionSections.rendererOptions },
-    { label: 'noteSpacing',    detail: 'number — spacing between notes', section: completionSections.rendererOptions },
-    { label: 'staffGap',       detail: 'number — gap between staves', section: completionSections.rendererOptions },
-    { label: 'lyricDistance',  detail: 'number — distance from lowest note to lyrics', section: completionSections.rendererOptions },
-    { label: 'lyricMinStaffDistance', detail: 'number — minimum distance from bottom staff line to lyrics', section: completionSections.rendererOptions },
-    { label: 'virgaStemLength', detail: 'number — virga stem descent (staff-spaces)', section: completionSections.rendererOptions },
-    { label: 'virgaStemDescentBelowPrev', detail: 'number — virga stem descent past a lower preceding note', section: completionSections.rendererOptions },
-    { label: 'virgaMaxBelowBottom', detail: 'number — max virga stem descent below bottom staff line', section: completionSections.rendererOptions },
-    { label: 'hideRepeatClef', detail: 'boolean — hide repeated clef at line start', section: completionSections.rendererOptions },
-    { label: 'justifyWithoutLyrics', detail: 'boolean — justify neume gaps even without lyrics', section: completionSections.rendererOptions },
-    { label: 'canvasHeight',   detail: 'number — canvas height', section: completionSections.rendererOptions },
-];
+const OPTION_VALUE_OPTIONS = RENDERER_OPTIONS.map(({ name, type, detail, default: def }) => ({
+    label: name,
+    detail: `${type} — ${detail} (default: ${def})`,
+    section: completionSections.rendererOptions,
+}));
 
 const LINE_PREFIX_OPTIONS = [
     { label: 'w:', detail: 'Lyrics aligned under the preceding music line', apply: 'w: ', type: 'keyword', section: completionSections.lineType },

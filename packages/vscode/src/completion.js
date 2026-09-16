@@ -9,6 +9,11 @@
 // is plain CommonJS and cannot import the editor's CodeMirror-based module, so
 // the suggestion lists and the context detection are duplicated here and fed
 // into a VS Code CompletionItemProvider. Keep the two in sync.
+//
+// OPTION_VALUE_OPTIONS below is generated from packages/core/src/options.js —
+// run `npm run generate -w packages/vscode` after adding a renderer option
+// there. `npm test -w packages/vscode` fails if this drifts out of sync.
+// See scripts/generate-renderer-options.mjs.
 
 const vscode = require('vscode');
 
@@ -42,25 +47,44 @@ const HEADER_KEY_OPTIONS = [
     { label: '%%',         detail: 'End of header section', section: SECTION.headerKeys },
 ];
 
+/* GENERATE:OPTION_VALUE_OPTIONS:START */
 const OPTION_VALUE_OPTIONS = [
-    { label: 'width',          detail: 'number — output width in pixels', section: SECTION.rendererOptions },
-    { label: 'widthMm',        detail: 'number — output width in mm', section: SECTION.rendererOptions },
-    { label: 'dpi',            detail: 'number — dots per inch', section: SECTION.rendererOptions },
-    { label: 'zoom',           detail: 'number — zoom factor', section: SECTION.rendererOptions },
-    { label: 'staffSpaceMm',   detail: 'number — staff space in mm', section: SECTION.rendererOptions },
-    { label: 'lyricSize',      detail: 'number — lyric font size', section: SECTION.rendererOptions },
-    { label: 'textFont',       detail: 'string — rendered text font family', section: SECTION.rendererOptions },
-    { label: 'noteSpacing',    detail: 'number — spacing between notes', section: SECTION.rendererOptions },
-    { label: 'staffGap',       detail: 'number — gap between staves', section: SECTION.rendererOptions },
-    { label: 'lyricDistance',  detail: 'number — distance from lowest note to lyrics', section: SECTION.rendererOptions },
-    { label: 'lyricMinStaffDistance', detail: 'number — minimum distance from bottom staff line to lyrics', section: SECTION.rendererOptions },
-    { label: 'virgaStemLength', detail: 'number — virga stem descent (staff-spaces)', section: SECTION.rendererOptions },
-    { label: 'virgaStemDescentBelowPrev', detail: 'number — virga stem descent past a lower preceding note', section: SECTION.rendererOptions },
-    { label: 'virgaMaxBelowBottom', detail: 'number — max virga stem descent below bottom staff line', section: SECTION.rendererOptions },
-    { label: 'hideRepeatClef', detail: 'boolean — hide repeated clef at line start', section: SECTION.rendererOptions },
-    { label: 'justifyWithoutLyrics', detail: 'boolean — justify neume gaps even without lyrics', section: SECTION.rendererOptions },
-    { label: 'canvasHeight',   detail: 'number — canvas height', section: SECTION.rendererOptions },
+    { label: 'width', detail: 'number — output width in pixels (default: auto)', section: SECTION.rendererOptions },
+    { label: 'widthMm', detail: 'number — output width in mm (default: 180)', section: SECTION.rendererOptions },
+    { label: 'dpi', detail: 'number — dots per inch (default: 96)', section: SECTION.rendererOptions },
+    { label: 'zoom', detail: 'number — zoom factor (default: 1)', section: SECTION.rendererOptions },
+    { label: 'staffSpaceMm', detail: 'number — staff space in mm (default: 1.75)', section: SECTION.rendererOptions },
+    { label: 'lyricSize', detail: 'number — lyric font size (default: 10)', section: SECTION.rendererOptions },
+    { label: 'textFont', detail: 'string — rendered text font family (default: Palatino Linotype)', section: SECTION.rendererOptions },
+    { label: 'noteSpacing', detail: 'number — spacing between notes (default: 1)', section: SECTION.rendererOptions },
+    { label: 'gapOutlierThreshold', detail: 'number — gap ratio flagged as an outlier when justifying (default: 2)', section: SECTION.rendererOptions },
+    { label: 'avoidLoneSyllables', detail: 'boolean — avoid leaving a single syllable at a line break (default: true)', section: SECTION.rendererOptions },
+    { label: 'gapOutlierThresholdMin', detail: 'number — minimum gap ratio considered for outlier detection (default: 1)', section: SECTION.rendererOptions },
+    { label: 'wrapCondenseMin', detail: 'number — minimum condense ratio allowed when wrapping (default: 0.75)', section: SECTION.rendererOptions },
+    { label: 'wrapStretchMax', detail: 'number — maximum stretch ratio allowed when wrapping (default: 2)', section: SECTION.rendererOptions },
+    { label: 'recitationLoneWordMin', detail: 'number — minimum word count before recitation may end on a lone word (default: 2.25)', section: SECTION.rendererOptions },
+    { label: 'staffGap', detail: 'number — gap between staves (default: 2.5)', section: SECTION.rendererOptions },
+    { label: 'lyricDistance', detail: 'number — distance from lowest note to lyrics (default: 0.5)', section: SECTION.rendererOptions },
+    { label: 'lyricMinStaffDistance', detail: 'number — minimum distance from bottom staff line to lyrics (default: 0.75)', section: SECTION.rendererOptions },
+    { label: 'lyricLineSkip', detail: 'number — line spacing between stacked lyric lines (default: 1.2)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenMinLen', detail: 'number — minimum syllable length before a hyphen may be inserted (default: 0.17)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenMaxLen', detail: 'number — maximum gap length that still gets a hyphen (default: 0.33)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenWidth', detail: 'number — width of an inserted hyphen (default: 0.04)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenSpace', detail: 'number — spacing around an inserted hyphen (default: 0.05)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenPos', detail: 'number — vertical position of an inserted hyphen (default: 0.55)', section: SECTION.rendererOptions },
+    { label: 'lyricHyphenRepeat', detail: 'number — minimum spacing between repeated hyphens (default: 4)', section: SECTION.rendererOptions },
+    { label: 'virgaStemLength', detail: 'number — virga stem descent (staff-spaces) (default: 2.75)', section: SECTION.rendererOptions },
+    { label: 'virgaStemDescentBelowPrev', detail: 'number — virga stem descent past a lower preceding note (default: 2.25)', section: SECTION.rendererOptions },
+    { label: 'virgaMaxBelowBottom', detail: 'number — max virga stem descent below bottom staff line (default: 1.75)', section: SECTION.rendererOptions },
+    { label: 'hideRepeatClef', detail: 'boolean — hide repeated clef at line start (default: false)', section: SECTION.rendererOptions },
+    { label: 'justifyWithoutLyrics', detail: 'boolean — justify neume gaps even without lyrics (default: false)', section: SECTION.rendererOptions },
+    { label: 'canvasHeight', detail: 'number — canvas height (default: auto)', section: SECTION.rendererOptions },
+    { label: 'sourceMap', detail: 'boolean — emit source position data for editor sync (default: true)', section: SECTION.rendererOptions },
+    { label: 'textStyle', detail: 'string — named text style preset (default: psalm)', section: SECTION.rendererOptions },
+    { label: 'textMaxIndent', detail: 'number — maximum indent for the first music line (default: 8)', section: SECTION.rendererOptions },
+    { label: 'textMarkerAlign', detail: 'string — alignment of rubric/caption markers (default: left)', section: SECTION.rendererOptions },
 ];
+/* GENERATE:OPTION_VALUE_OPTIONS:END */
 
 const LINE_PREFIX_OPTIONS = [
     { label: 'w:', detail: 'Lyrics aligned under the preceding music line', insert: 'w: ', type: 'keyword', section: SECTION.lineType },

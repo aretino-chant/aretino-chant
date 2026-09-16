@@ -5,6 +5,6 @@
 export { renderAretino, splitRowSVGs, renderFirstRow } from './renderer.js';
 export { parseAretino, matchAccidental } from './parser.js';
 export { transposeSource } from './transpose.js';
-export { parseHeaderRendererOptions } from './options.js';
+export { parseHeaderRendererOptions, RENDERER_OPTIONS } from './options.js';
 export { drawToolbarGlyphIcon } from './glyphs.js';
 export { TEXT_STYLE_PRESETS, DEFAULT_TEXT_STYLE } from './verse.js';

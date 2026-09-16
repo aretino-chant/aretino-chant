@@ -209,6 +209,8 @@
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "vscode:prepublish": "node esbuild.js --production",
+    "generate": "node scripts/generate-renderer-options.mjs",
+    "test": "node scripts/generate-renderer-options.mjs --check",
     "package": "vsce package --no-dependencies",
     "publish": "vsce publish --no-dependencies"
   },

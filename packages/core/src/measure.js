@@ -247,9 +247,11 @@ export function isLevelingTargetGap(it, next) {
 // every other gap on the line out to match it. If every candidate floor is an
 // outlier there is nothing sensible to level toward, so the smallest wins (no
 // extra space is spent); an empty candidate set levels to nothing.
-export function levelingTarget(ctx, targetFloors) {
+// `threshold` (in staff spaces) defaults to the render's gapOutlierThreshold;
+// the line breaker lowers it when it condenses a row (see levelingNeed).
+export function levelingTarget(ctx, targetFloors, thresholdSS = ctx.gapOutlierThreshold ?? METRICS.gapOutlierThreshold) {
     if (targetFloors.length === 0) return 0;
-    const threshold = ss(ctx, ctx.gapOutlierThreshold ?? METRICS.gapOutlierThreshold);
+    const threshold = ss(ctx, thresholdSS);
     const below = targetFloors.filter(f => f <= threshold);
     return below.length ? Math.max(...below) : Math.min(...targetFloors);
 }
@@ -257,7 +259,9 @@ export function levelingTarget(ctx, targetFloors) {
 // Extra width, beyond the items' own advances, needed to raise every leveled
 // gap between the given row items to the leveling target — the space an
 // unjustified row consumes to make all neume distances come out the same.
-export function levelingNeed(ctx, rowItems) {
+// The need never decreases as `thresholdSS` grows, and only changes where the
+// threshold passes one of the row's own target floors.
+export function levelingNeed(ctx, rowItems, thresholdSS) {
     const floors = [];
     const targetFloors = [];
     for (let i = 0; i < rowItems.length - 1; i++) {
@@ -269,8 +273,97 @@ export function levelingNeed(ctx, rowItems) {
         if (isLevelingTargetGap(it, next)) targetFloors.push(f);
     }
     if (floors.length === 0) return 0;
-    const top = levelingTarget(ctx, targetFloors);
+    const top = levelingTarget(ctx, targetFloors, thresholdSS);
     return floors.reduce((s, f) => s + Math.max(0, top - f), 0);
+}
+
+// The floors of the gaps that may set the leveling target, in pixels. Their
+// values are the only thresholds at which levelingNeed changes.
+export function levelingTargetFloors(ctx, rowItems) {
+    const targetFloors = [];
+    for (let i = 0; i < rowItems.length - 1; i++) {
+        if (isLevelingTargetGap(rowItems[i], rowItems[i + 1])) {
+            targetFloors.push(gapFloor(ctx, rowItems[i], rowItems[i + 1]));
+        }
+    }
+    return targetFloors;
+}
+
+// Orphaned and widowed syllables caused by breaking a line between two
+// ligatures (the last of one row and the first of the next; the head and tail
+// of a neume split at '/' both carry the neume's word). Each ligature carries
+// `lyricWord`, one `{ word, pos, len }` or null per stanza (set by the
+// renderer). When both sides of the break sing the same word, `b = left.pos`
+// syllables stay before the break and `len − b` go after it: one syllable left
+// at the end of the line is an orphan, one at the start of the next a widow.
+// A split inside the word's last syllable leaves nothing after the break, so
+// it is neither. Violations add up over the stanzas.
+export function breakViolations(left, right) {
+    const lw = left?.lyricWord;
+    const rw = right?.lyricWord;
+    if (!lw || !rw) return 0;
+    let count = 0;
+    for (let s = 0; s < lw.length; s++) {
+        const a = lw[s];
+        const b = rw[s];
+        if (!a || !b || a.word !== b.word) continue;
+        const after = a.len - a.pos;
+        if (after === 0) continue;
+        if (a.pos === 1) count++;
+        if (after === 1) count++;
+    }
+    return count;
+}
+
+// The white space a neume leaves after its notehead at the natural advance,
+// which condensing and stretching a row are measured against.
+export function naturalNeumeWhite(ctx) {
+    return ctx.singleNoteAdvance - ss(ctx, METRICS.noteBoxWidth);
+}
+
+// How far each gap after a row item may be narrowed: never below what its
+// lyrics need (`syllableNeed`, set by the renderer), and never by more than
+// (1 − wrapCondenseMin) of the natural white space between neumes. Only the
+// neume-to-neume gaps that set the leveling target give anything up.
+export function condenseCaps(ctx, rowItems) {
+    const limit = Math.max(0, 1 - (ctx.wrapCondenseMin ?? METRICS.wrapCondenseMin)) * naturalNeumeWhite(ctx);
+    const caps = new Array(rowItems.length).fill(0);
+    for (let i = 0; i < rowItems.length - 1; i++) {
+        const it = rowItems[i];
+        if (it.kind !== 'ligature' || it.recitationGlyphless || it.syllableNeed == null) continue;
+        if (!isLevelingTargetGap(it, rowItems[i + 1])) continue;
+        const width = measureItem(ctx, it) - accidentalListAdvance(ctx, it.leadingCourtesyAccidentals);
+        caps[i] = Math.max(0, Math.min(width - it.syllableNeed, limit));
+    }
+    return caps;
+}
+
+// Take `deficit` pixels out of a row's gaps, evenly, each gap giving up at most
+// its cap (see condenseCaps): the smallest δ with Σ min(capᵢ, δ) = deficit.
+// Returns `{ cuts, delta }`, where cuts[i] is the narrowing of the gap after
+// item i, or null when the caps cannot cover the deficit.
+export function condenseGaps(ctx, rowItems, deficit) {
+    const caps = condenseCaps(ctx, rowItems);
+    const cuts = new Array(rowItems.length).fill(0);
+    if (deficit <= 0) return { cuts, delta: 0 };
+    const total = caps.reduce((s, c) => s + c, 0);
+    if (total + 1e-9 < deficit) return null;
+    const sorted = caps.filter(c => c > 0).sort((a, b) => a - b);
+    let remaining = deficit;
+    let delta = 0;
+    for (let i = 0; i < sorted.length; i++) {
+        const open = sorted.length - i;
+        const step = sorted[i] - delta;
+        if (step * open >= remaining) {
+            delta += remaining / open;
+            remaining = 0;
+            break;
+        }
+        remaining -= step * open;
+        delta = sorted[i];
+    }
+    for (let i = 0; i < caps.length; i++) cuts[i] = Math.min(caps[i], delta);
+    return { cuts, delta };
 }
 
 export function measureItem(ctx, item) {

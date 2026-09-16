@@ -2,6 +2,25 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-09-16
+
+- **Line breaks avoid lone syllables.** An automatic break no longer leaves one
+  syllable of a word alone at the end of a line or at the start of the next
+  when a nearby break fits: the row is condensed to take the syllable in, or
+  the word moves to the next line. Breaks in scores that had lone syllables
+  (and the rows after them) can move. Manual `(z)`/`(Z)` breaks are unchanged,
+  and the lone syllable stays when fixing it would stretch or squeeze the
+  spacing too far or add a line. Set the new `avoidLoneSyllables` renderer
+  option to false (or `%option: avoidLoneSyllables=false`) for the previous
+  breaks; `gapOutlierThresholdMin`, `wrapCondenseMin` and `wrapStretchMax` tune
+  how far the spacing may bend.
+- **Tenor recitations may break next to a wide word.** A recited phrase used to
+  wrap only with at least two words on each side of the break, so a phrase of
+  three words never wrapped. With `avoidLoneSyllables`, a word at least
+  `recitationLoneWordMin` (2.25 em) wide may now stand alone at the break
+  (`mert Krisztus | halála lett`). A short word is never left alone
+  (`Krisztus halála | lett`), even when keeping it company adds a line.
+
 ### 2026-08-26
 
 - **Neume gaps are only leveled and justified around real lyrics.** A gap with

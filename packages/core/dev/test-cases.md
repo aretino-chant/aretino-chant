@@ -322,6 +322,51 @@ w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O
 
 ---
 
+## Lone Syllables
+
+A line break doesn't leave one syllable of a word alone. (These blocks are
+`fixed`, so the `width` option in their headers sets where the lines break.) Here the greedy fill
+would break `kö-nyö-rül-je | tek`; the row is condensed to take `tek` in:
+
+```aretino fixed
+%option: width=115
+%%
+(c4) g f g a g f g a g f g a g f e f g
+w: Ó Is-ten, kö-nyö-rül-je-tek raj-tunk, meg-szen-tel a-kik mi-ránk
+```
+
+The same score with `avoidLoneSyllables=false` breaks greedily:
+
+```aretino fixed
+%option: width=115
+%option: avoidLoneSyllables=false
+%%
+(c4) g f g a g f g a g f g a g f e f g
+w: Ó Is-ten, kö-nyö-rül-je-tek raj-tunk, meg-szen-tel a-kik mi-ránk
+```
+
+When taking the syllable in doesn't fit, the word moves down whole
+(`meg | szen-tel` becomes ` | meg-szen-tel`) and the row it leaves is justified:
+
+```aretino fixed
+%option: width=331
+%%
+(c4) g f g a g f g a g f g a g f e f g
+w: Ó Is-ten, kö-nyö-rül-je-tek raj-tunk, meg-szen-tel a-kik mi-ránk
+```
+
+Neumes much wider than their syllables can give up part of their white space
+(`wrapCondenseMin`), so this eight-syllable word fits four rows instead of five:
+
+```aretino fixed
+%option: width=94
+%%
+(c4) gagf fgaf gf fgag gfg agf fgf gag
+w: a-a-a-a-a-a-a-a
+```
+
+---
+
 ## Header
 
 ```aretino

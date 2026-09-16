@@ -32,6 +32,7 @@ import {
     layoutRowSyllables,
     emitLaidOutSyllables,
     hyphenRoom,
+    lyricWords,
 } from './lyrics.js';
 import {
     measureTextWidth,
@@ -49,7 +50,7 @@ import { groupSections, flattenItems } from './items.js';
 import { trailingClef, trailingKeySig } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
-import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, firstLyricBaselineY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget } from './measure.js';
+import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, firstLyricBaselineY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget, condenseGaps, condenseCaps } from './measure.js';
 import { emitLigature } from './ligature.js';
 
 const DEFAULT_FONT = "'Palatino Linotype', 'Book Antiqua', Palatino, serif";
@@ -285,6 +286,18 @@ export function renderAretino(source, options = {}) {
     ctx.gapOutlierThreshold = Number.isFinite(options.gapOutlierThreshold)
         ? Math.max(0, options.gapOutlierThreshold)
         : METRICS.gapOutlierThreshold;
+    // Keep a line break from leaving one syllable of a word alone (see
+    // chooseBreak in layout.js), and how far a row may be condensed or
+    // stretched to do so.
+    ctx.avoidLoneSyllables = options.avoidLoneSyllables !== false;
+    ctx.gapOutlierThresholdMin = Math.min(ctx.gapOutlierThreshold, Math.max(0,
+        Number.isFinite(options.gapOutlierThresholdMin) ? options.gapOutlierThresholdMin : METRICS.gapOutlierThresholdMin));
+    ctx.wrapCondenseMin = Math.min(1, Math.max(0,
+        Number.isFinite(options.wrapCondenseMin) ? options.wrapCondenseMin : METRICS.wrapCondenseMin));
+    ctx.wrapStretchMax = Math.max(0,
+        Number.isFinite(options.wrapStretchMax) ? options.wrapStretchMax : METRICS.wrapStretchMax);
+    ctx.recitationLoneWordMin = Math.max(0,
+        Number.isFinite(options.recitationLoneWordMin) ? options.recitationLoneWordMin : METRICS.recitationLoneWordMin);
     ctx.leftMargin = ss(ctx, METRICS.leftMargin);
     ctx.rightMargin = ss(ctx, METRICS.rightMargin);
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
@@ -503,6 +516,7 @@ export function renderAretino(source, options = {}) {
         // into one glyphless piece per word so the phrase can wrap between words.
         // Only happens with a single stanza (see expandTenorRecitations).
         expandTenorRecitations(items, verseNotes);
+        const verseWords = verseNotes.map(lyricWords);
         const verseBarlines = verseSyllables.map(arr => arr.filter(s => s.kind === 'barline'));
         const verseCount = sec.lyrics.length;
         const totalLigatures = items.reduce((n, it) => n + (it.kind === 'ligature' ? 1 : 0), 0);
@@ -588,7 +602,15 @@ export function renderAretino(source, options = {}) {
                 const protectedCurrRight = isCentered
                     ? maxCurrRight
                     : Math.max(maxCurrRight, visualRight);
-                ligInfo.push({ item: it, maxSylW, protectedCurrRight, isCentered, maxPrefixW, itemIdx });
+                ligInfo.push({ item: it, maxSylW, protectedCurrRight, isCentered, maxPrefixW, itemIdx, visualRight });
+                // The word sung on this neume in each stanza, so the line breaker
+                // can tell a break that leaves one syllable of a word alone.
+                // Recitation pieces keep their own orphan/widow rule.
+                it.lyricWord = it.recitationGlyphless ? null : verseWords.map(words => words[li] ?? null);
+                // A recited word this narrow looks stranded alone at a line edge.
+                if (it.recitationGlyphless) {
+                    it.recitationWordShort = maxSylW < ctx.recitationLoneWordMin * ctx.lyricSize;
+                }
                 li++;
             }
             for (let i = 0; i < ligInfo.length; i++) {
@@ -672,6 +694,11 @@ export function renderAretino(source, options = {}) {
                 }
                 const gap = pairConnected ? (pairMandatory ? hyphenReserve : 0) : minGap;
                 item.syllableExtra = Math.max(0, currRight + nextLeftIntrusion + gap - baseAdv);
+                // The advance the lyrics really need (never less than the notes'
+                // own ink): how far a condensed row may narrow this neume's gap.
+                if (!item.recitationGlyphless) {
+                    item.syllableNeed = Math.max(currRight + nextLeftIntrusion + gap, ligInfo[i].visualRight);
+                }
             }
         }
 
@@ -901,11 +928,21 @@ export function renderAretino(source, options = {}) {
                 itemsWidth -= (lastItem.barlinePostExtra || 0);
             }
             const extra = Math.max(0, remaining - itemsWidth);
+            // A row the line breaker condensed to keep a syllable company is
+            // wider than the staff: take the overflow out of its neume gaps,
+            // never below what the lyrics need (see condenseGaps).
+            const condenseCuts = row.condense > 0 && itemsWidth > remaining
+                ? (condenseGaps(ctx, row.items, itemsWidth - remaining)?.cuts ?? condenseCaps(ctx, row.items))
+                : null;
             const expanderCount = row.items.reduce((n, it) => n + (it.kind === 'expander' ? 1 : 0), 0);
             let extraPerExpander = 0;
             // Per-gap justification space, indexed by the item the gap follows.
             const gapExtras = new Array(row.items.length).fill(0);
-            if (extra > 0 && expanderCount > 0) {
+            if (condenseCuts) {
+                for (let i = 0; i < condenseCuts.length; i++) {
+                    gapExtras[i] = -condenseCuts[i];
+                }
+            } else if (extra > 0 && expanderCount > 0) {
                 // Expanders are explicit slack absorbers: they soak up all the
                 // leftover space (only when the row is justified).
                 if (row.justify) {

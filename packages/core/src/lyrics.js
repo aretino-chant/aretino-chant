@@ -93,11 +93,48 @@ export function expandSyllablesForLigatures(notes) {
                 extender: isExtender,
                 extenderLast: isExtender && isLast,
                 extenderSuffixSegments: isExtender && isLast ? (syl.extenderSuffixSegments || []) : [],
+                continuation: true,
                 kind: 'note',
             });
         }
     }
     return expanded;
+}
+
+// The word each ligature slot belongs to, for keeping a line break from
+// leaving one syllable of a word alone at either side of it. A word is a run of
+// slots joined by `hyphenAfter`, and a placeholder slot (`continuation`) belongs
+// to the syllable before it. Returns one entry per slot: `{ word, pos, len }`,
+// where `word` identifies the word within this stanza, `pos` is the 1-based
+// number of the syllable sung on the slot and `len` the word's syllable count,
+// or null for a slot with no real lyric (a bare `*`), which is part of no word.
+export function lyricWords(notes) {
+    const result = new Array(notes.length).fill(null);
+    let wordId = 0;
+    let open = null; // { id, slots, pos } of the word being built
+    const close = () => {
+        if (!open) return;
+        for (const i of open.slots) result[i].len = open.pos;
+        open = null;
+    };
+    for (let i = 0; i < notes.length; i++) {
+        const syl = notes[i];
+        if (!(syl.realLyric ?? hasRealLyricText(syl))) {
+            close();
+            continue;
+        }
+        const joined = open && (syl.continuation || notes[i - 1]?.hyphenAfter);
+        if (!joined) {
+            close();
+            open = { id: ++wordId, slots: [], pos: 1 };
+        } else if (!syl.continuation) {
+            open.pos++;
+        }
+        open.slots.push(i);
+        result[i] = { word: open.id, pos: open.pos, len: 0 };
+    }
+    close();
+    return result;
 }
 
 // "San-ctus, (M.:) Do-mi-nus" → [

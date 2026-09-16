@@ -123,7 +123,7 @@ Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
 unambiguously from the body.
 
-Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, lyricDistance, lyricMinStaffDistance, hideRepeatClef, justifyWithoutLyrics, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
+Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, avoidLoneSyllables, gapOutlierThresholdMin, wrapCondenseMin, wrapStretchMax, lyricDistance, lyricMinStaffDistance, hideRepeatClef, justifyWithoutLyrics, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
 
 ---
 
@@ -518,6 +518,12 @@ justification:
 (g2) a a a g a C b g a. (z) a a a a g e e d. (Z) g g g a g f e d.
 w:   O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you! O Lord, hear my hum-ble call to you!
 ```
+
+Automatic breaks avoid leaving a single syllable of a word alone at the end of
+a line or at the start of the next: the row is condensed a little to take the
+syllable in, or the word moves down whole, as long as the spacing stays within
+bounds and no line is added (see `avoidLoneSyllables` in the API reference).
+Manual `(z)` and `(Z)` breaks are the author's decision and are never moved.
 
 ### Spacing without lyrics
 

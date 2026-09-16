@@ -7,7 +7,7 @@ by itself at either side of the break.
 - **Scope:** `layout.js`, `measure.js`, `renderer.js`, `lyrics.js`, `options.js`,
   plus docs and test cases. No other package changes: the editor, the VS Code
   preview and the CLI pick up the new options through `options.js`.
-- **Status:** design. Not started.
+- **Status:** implemented (core `0.25.0`). See §9 for where the code differs from this design.
 
 ## 1. Where we are
 
@@ -217,10 +217,21 @@ documented in `docs/api.md`.
 | `avoidLoneSyllables` | boolean | **true** | Turn §3 on. `false` gives exactly today's breaks. |
 | `gapOutlierThresholdMin` | SS | **1.0** | Lowest `gapOutlierThreshold` stage 1 may use for a row. Clamped to `≤ gapOutlierThreshold`. |
 | `wrapCondenseMin` | fraction | **0.75** | Share of the natural white space between neumes that stage 2 must keep. `1` turns stage 2 off. |
-| `wrapStretchMax` | fraction | **1.0** | Most extra white space a pulled-back row may add per gap, as a multiple of the natural white space. |
+| `wrapStretchMax` | fraction | **2.0** | Most extra white space a pulled-back row may add per gap, as a multiple of the natural white space. |
 
-The defaults are starting values. Set them from the test cases in §6 before
-release, and record the final values and the reasons for them in this section.
+Final values, measured on syllabic Hungarian texts over widths 100–700 px and
+lyric sizes 10–20 pt (lone syllables left, out of 3481 with the option off):
+
+- `wrapStretchMax` **2.0** (raised from 1.0). The natural white space `w0` is
+  only 0.725 SS, so at 1.0 a pulled-back row could hardly move a word: 2716
+  lone syllables remained. At 2.0 it is 2257, at 3.0 1946, but rendered
+  side by side 3.0 visibly spreads a row (`di – cső – sé – ges`), while 2.0
+  still reads as normal justified spacing.
+- `wrapCondenseMin` **0.75** and `gapOutlierThresholdMin` **1.0** unchanged.
+  In syllabic chant they change nothing (the syllables are wider than their
+  neumes, so no gap has white space to give, and a pushed neume rarely fits by
+  levelling alone). They matter for melismatic neumes: the stage 2 test case
+  fits an eight-syllable word on four rows instead of five.
 
 ## 5. Implementation
 
@@ -366,9 +377,8 @@ breaks exactly.
 
 ## 8. Not done
 
-- **The recitation rule stays separate.** It works on words with no cost model.
-  Merging it with §3 is a natural follow-up, but it would change recitation
-  layouts, which have their own tests and users.
+- **The recitation rule stays separate** from the syllable search, but it was
+  relaxed afterwards (see §9).
 - **The threshold is fixed at one syllable.** "Two syllables left alone" is
   not configurable. Add it only if someone asks.
 - **No global optimisation.** The search is local to each break, and the row
@@ -378,3 +388,34 @@ breaks exactly.
 - **Language rules.** Words come only from the author's hyphens. There is no
   hyphenation dictionary and no special handling for single-letter syllables
   (`a-men`).
+
+## 9. Implementation notes
+
+Where the code differs from the text above:
+
+- `fillRow(layout, state, bound)` takes `{ stopBefore: p }` or
+  `{ forceBefore: p }` (break before item `p`, the latter counting everything
+  before `p` as fitting). A candidate that ends at a manual break or the end
+  of the section ends there, and isn't scored.
+- `condenseGaps` returns `{ cuts, delta }`; the caps come from
+  `condenseCaps`. `syllableNeed` is floored at the neume's own ink, so a tiny
+  centred syllable can't let the next neume run into the notes.
+- The renderer takes the deficit of a condensed row from its own width
+  (`itemsWidth − remaining`), not from `row.condense`, since the row start can
+  differ slightly from the line breaker's estimate (prefix text, a trailing
+  barline's reserve).
+- No candidates are tried while a parenthesised group is open on the greedy
+  row, and candidates stop at a `)`.
+- A row with no leveled gaps can't stretch (`x = ∞` when it has leftover
+  space).
+- Cost: on one 540-syllable section the layout takes about twice as long
+  (mostly the row count guard's greedy fills).
+- Recitations (added after the first implementation): with `avoidLoneSyllables`
+  on, only a *short* recited word counts as lone, one narrower than
+  `recitationLoneWordMin` (2.25 em of the lyric size, measured, so there is no
+  syllabization). `mert Krisztus | halála lett` is fine, `Krisztus halála |
+  lett` is not. A short lone word is a hard rule, as before: the words are
+  carried to the next line even when that costs a line.
+- The gaps between recited words are not condensed. They are already one word
+  space, the least a gap between two words gets anywhere, so there is nothing
+  to take out of them.

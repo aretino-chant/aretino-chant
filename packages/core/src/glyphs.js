@@ -38,6 +38,10 @@ export const METRICS = {
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.71/2,           // extra space per '/' between neume groups
     gapOutlierThreshold: 2.0,          // gap floors wider than this are outliers: they keep their own width instead of driving the unified neume gap
+    gapOutlierThresholdMin: 1.0,       // lowest gapOutlierThreshold the line breaker may use for a row it condenses to avoid a lone syllable
+    wrapCondenseMin: 0.75,             // share of the natural white space between neumes a condensed row must keep
+    recitationLoneWordMin: 2.25,       // em of the lyric size: a recited word at least this wide may stand alone at a line break
+    wrapStretchMax: 2.0,               // most extra white space per gap a row pulled back to avoid a lone syllable may take, in natural white spaces
 
     // --- Staff lines ------------------------------------------------------
     staffLineCount: 5,

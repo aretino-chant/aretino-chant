@@ -322,6 +322,53 @@ describe('renderAretino', () => {
       }
     });
 
+    describe('a melisma written as one /-split neume', () => {
+      // One `/`-split neume carries one syllable however many groups it has, so
+      // the rows it is broken across have no syllable slot of their own. The
+      // hyphen run still belongs to the word, and must be spread over the notes
+      // it is held on and carried across the row breaks.
+      const melisma = "gC'ga'f/gC'ag/gC'C'ga'f/gC'aga'/CD'Cbaga'/C'aD'CD'CbaCE'DCD'g/aC'baC'/gaC'ga'";
+      const src = notes => `(g2) g ag a g a ga ag ${notes} g\nw: kezd-te a ta-n\u00edt-v\u00e1-nyok l\u00e1-b\u00e1t.`;
+      // Strokes sitting on one row's lyric line, given a syllable set on it.
+      const rowStrokes = (svg, syl) => hyphenStrokes(svg)
+        .filter(h => h.y < syl.y && h.y > syl.y - syl.fontSize);
+
+      it('spreads the run over the held neume at the end of the row', () => {
+        const svg = renderAretino(src(melisma), { width: 460 });
+        const lyr = lyricTextEntries(svg).filter(l => l.text !== '');
+        const la = lyr.find(l => l.text === 'l\u00e1');
+        const bat = lyr.find(l => l.text === 'b\u00e1t.');
+        expect(bat.y).toBeGreaterThan(la.y);
+        const run = rowStrokes(svg, la).filter(h => h.x1 > la.x);
+        expect(run.length).toBeGreaterThan(1);
+        // The run reaches the far end of the melisma, not just past the letters.
+        expect(run[run.length - 1].x2).toBeGreaterThan(la.x + 10 * la.fontSize);
+      });
+
+      it('carries the run across the row break to the next syllable', () => {
+        const svg = renderAretino(src(melisma), { width: 460 });
+        const lyr = lyricTextEntries(svg).filter(l => l.text !== '');
+        const bat = lyr.find(l => l.text === 'b\u00e1t.');
+        const run = rowStrokes(svg, bat).filter(h => h.x2 < bat.x);
+        expect(run.length).toBeGreaterThan(1);
+        // It starts at the row's continued neume, far left of the syllable.
+        expect(run[0].x1).toBeLessThan(bat.x - 10 * bat.fontSize);
+      });
+
+      it('fills a row the melisma covers end to end', () => {
+        // Long enough that one whole row is nothing but the continued neume, so
+        // that row has no syllable at all to hang a hyphen on.
+        const svg = renderAretino(src(`${melisma}/${melisma}`), { width: 460 });
+        const lyr = lyricTextEntries(svg).filter(l => l.text !== '');
+        const la = lyr.find(l => l.text === 'l\u00e1');
+        const bat = lyr.find(l => l.text === 'b\u00e1t.');
+        const ys = [...new Set(hyphenStrokes(svg).map(h => h.y))];
+        const middle = ys.filter(y => y > la.y && y < bat.y - bat.fontSize);
+        expect(middle.length).toBe(1);
+        expect(hyphenStrokes(svg).filter(h => h.y === middle[0]).length).toBeGreaterThan(1);
+      });
+    });
+
     it('honours the hyphen length and thickness options', () => {
       const size = firstLyricSize(renderAretino(src, { width: 400 }));
       const [h] = hyphenStrokes(renderAretino(src, {

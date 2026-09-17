@@ -580,6 +580,14 @@ w: Al-le-lu-ia, al-le-lu-ia, al-le-lu-ia.
 | `~~` | Splits a syllable's display text from its alignment text; in a `W:` block, a [marker](#15-text-blocks) from its body |
 | `*` | Flex / asterisk — a verse division mark, kept as a literal `*` |
 
+A syllable held over a melisma keeps its hyphen until the next syllable is
+sung, and the hyphens are spread evenly over the whole passage it is held on.
+That holds whether the melisma is written as separate neumes (`lá- - - - bát.`,
+one hyphen per neume held) or as one [`/`-split neume](#neume-separator-gap-),
+which carries the syllable whatever its group count. When such a passage is
+broken across lines, the run of hyphens is broken with it and taken up again at
+the start of each line the melisma continues on.
+
 Extender underscores follow the syllable they extend: `ro_` holds `ro` over its
 own neume, `ro__` extends through the next neume, `ro___` through the next two,
 and so on. Trailing punctuation after the underscores belongs to the far end of

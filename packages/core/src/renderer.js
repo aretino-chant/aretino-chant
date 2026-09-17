@@ -840,6 +840,13 @@ export function renderAretino(source, options = {}) {
             let cursorX = staffLeftX;
             const rowLigatures = [];
             const rowBarlines = [];
+            // A row that opens with the continuation of a `/`-split neume carries
+            // no syllable of its own there: the syllable was set on the previous
+            // row and is still being sung. These hold the left edge of that
+            // continuation and the right edge of the row's last neume, so the
+            // lyric layout can carry the word's hyphen run across the break.
+            let rowCarryLeftX = null;
+            let rowLastLigRightX = null;
             // Recitation chains whose tenor notehead has already been drawn on
             // this row; the first piece of each chain per row draws the glyph,
             // giving the "repeat the note at each line start" behaviour.
@@ -1182,7 +1189,10 @@ export function renderAretino(source, options = {}) {
                     // syllable slot in the 1-ligature⇄1-syllable alignment.
                     if (!it.neumeContinuation) {
                         rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft, maxY: r.maxY });
+                    } else if (rowLigatures.length === 0 && rowCarryLeftX === null) {
+                        rowCarryLeftX = r.leftX;
                     }
+                    rowLastLigRightX = r.rightX;
                     if (parenState) {
                         if (r.minY < parenState.minY) parenState.minY = r.minY;
                         if (r.maxY > parenState.maxY) parenState.maxY = r.maxY;
@@ -1255,7 +1265,12 @@ export function renderAretino(source, options = {}) {
                     const end = isLastRow
                         ? Math.max(notes.length, ligOffset + rowLigCount)
                         : ligOffset + rowLigCount;
-                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures, rowLyricLeftLimit));
+                    // The syllable sung on the neume this row continues; while its
+                    // word goes on, the hyphen run goes on with it.
+                    const carried = rowCarryLeftX !== null && start > 0 && notes[start - 1]?.hyphenAfter
+                        ? { leftX: rowCarryLeftX, rightX: rowLastLigRightX ?? rowCarryLeftX }
+                        : null;
+                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures, rowLyricLeftLimit, carried));
                 }
             }
             let lyricY;

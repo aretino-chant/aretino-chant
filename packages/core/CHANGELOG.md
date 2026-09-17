@@ -2,6 +2,17 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-09-17
+
+- **A melisma written as one `/`-split neume keeps its hyphens.** Such a neume
+  carries one syllable however many groups it has, so a word held over it drew
+  a single hyphen beside the syllable's letters and none at all on the rows the
+  neume was broken across. The hyphen run is now spread over the whole held
+  passage and carried across each row break, as it already was for a melisma
+  written as separate neumes. A word broken at a row end also spreads its
+  trailing hyphens over the last neume instead of setting one beside the
+  letters.
+
 ### 2026-09-16
 
 - **Line breaks avoid lone syllables.** An automatic break no longer leaves one

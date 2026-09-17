@@ -509,10 +509,20 @@ function drawHyphenStrokes(gapLeft, gapRight, lyricY, g) {
 // sliding the first syllable off the centre of its notehead rather than letting it
 // hang into the margin. Later syllables are pushed along by the ordinary minimum-gap
 // rule, so the clamp cascades only as far as the row is actually tight.
-export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -Infinity) {
+// `melismaCarry` is set when the row opens inside a melisma written as one
+// `/`-split neume whose syllable was set on an earlier row: `{ leftX, rightX }`
+// give the left edge of the neume's continuation and the right edge of the row's
+// last neume. The word is still being sung, so the hyphen run is carried across
+// the row break — from `leftX` to the next syllable that has letters, or right
+// across the row when the melisma fills it and that syllable is further on.
+export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -Infinity, melismaCarry = null) {
     const ops = [];
     const spans = [];
     if (syllables.length === 0) {
+        if (melismaCarry && melismaCarry.rightX > melismaCarry.leftX + hyphenRoom(ctx)) {
+            ops.push({ op: 'hyphen', gapLeft: melismaCarry.leftX, gapRight: melismaCarry.rightX });
+            return { ops, spans, maxX: melismaCarry.rightX };
+        }
         return { ops, spans, maxX: 0 };
     }
     const fontSize = ctx.lyricSize;
@@ -538,8 +548,9 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
     // puts an empty slot on the second neume of Al's melisma. The hyphens belong
     // to the one gap between the two syllables that *do* have letters, so an empty
     // slot must not break the run into pieces spread a neume at a time. While one
-    // is pending, this holds the left edge of the gap being accumulated.
-    let pendingHyphenLeft = null;
+    // is pending, this holds the left edge of the gap being accumulated. A row
+    // opening inside a `/`-split melisma starts with the run already open.
+    let pendingHyphenLeft = melismaCarry ? melismaCarry.leftX : null;
     // Rightmost ink of the syllables themselves; hyphen and extender strokes add
     // to it as they are drawn.
     let maxX = 0;
@@ -603,16 +614,16 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
             center = left + prefixW + alignW / 2;
         }
         let hyphenGapLeft = null;
-        if (i > 0) {
-            const prevSyl = workSyllables[i - 1];
-            const needsHyphen = prevSyl.hyphenAfter;
+        if (i > 0 || pendingHyphenLeft !== null) {
+            const prevSyl = i > 0 ? workSyllables[i - 1] : null;
+            const needsHyphen = prevSyl ? prevSyl.hyphenAfter : true;
             if (needsHyphen) {
                 // Where the gap starts: the last syllable that had letters, which
                 // is the previous one unless empty melisma slots stand between.
                 const gapStart = pendingHyphenLeft ?? prevRight;
                 if (left - gapStart >= hyphenGap) {
                     hyphenGapLeft = gapStart;
-                } else if (prevSyl.hyphenMandatory || pendingHyphenLeft !== null
+                } else if (prevSyl?.hyphenMandatory || pendingHyphenLeft !== null
                         || left - gapStart > hyphenGap * 0.6) {
                     // Open a hyphen-wide gap so the hyphen sits between the
                     // syllables instead of overprinting them. This happens for a
@@ -647,7 +658,7 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
                     left = prevRight;
                     center = left + prefixW + alignW / 2;
                 }
-            } else if (left < prevRight + minGap) {
+            } else if (prevSyl && left < prevRight + minGap) {
                 left = prevRight + minGap;
                 center = left + prefixW + alignW / 2;
             }
@@ -730,13 +741,19 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
     flushExtender();
 
     // Word broken at the row boundary: render a trailing hyphen so the reader
-    // knows the syllable continues on the next row.
-    const lastSyl = workSyllables[workSyllables.length - 1];
+    // knows the syllable continues on the next row. The run reaches the right
+    // edge of the last neume it is sung on — for a melisma written as one
+    // `/`-split neume that is the whole held passage, not just the syllable's
+    // own letters, so the hyphens are spread over the notes the word is held on.
+    const lastIdx = workSyllables.length - 1;
+    const lastSyl = workSyllables[lastIdx];
     if (lastSyl && lastSyl.hyphenAfter && lastRight !== null) {
+        const lastLig = lastIdx < ligatures.length ? ligatures[lastIdx] : null;
+        const ligRight = lastLig ? (lastLig.rightX ?? lastLig.centerX) : -Infinity;
         ops.push({
             op: 'hyphen',
             gapLeft: pendingHyphenLeft ?? lastRight,
-            gapRight: lastRight + hyphenGap,
+            gapRight: Math.max(lastRight + hyphenGap, ligRight),
         });
     }
     return { ops, spans, maxX };

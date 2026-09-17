@@ -433,9 +433,11 @@ export function ligatureLowestInkY(ctx, item, staffBottomY) {
     return maxY;
 }
 
-// Lowest ink reached anywhere in a row. Used where a single answer is needed for
-// the whole row — the row-start clef/prefix decision, and as the fallback when a
-// row carries no syllables to measure against.
+// Lowest ink reached anywhere in a row. Used as the fallback when a row carries
+// no syllables to measure against, where a single answer is needed for the whole
+// row. Where one syllable's own clearance is the question — how far the first
+// lyric baseline has to drop — the ink over that syllable is what answers it
+// (see firstLyricBaselineY).
 export function rowLowestNoteY(ctx, row, staffBottomY) {
     let maxY = staffBottomY;
     for (const it of row.items) {

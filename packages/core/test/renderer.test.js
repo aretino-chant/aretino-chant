@@ -105,6 +105,26 @@ function staffLeft(svg) {
   return m ? Number(m[1]) : null;
 }
 
+function staffRight(svg) {
+  const m = svg.match(/<line[^>]* x2="([^"]+)"/);
+  return m ? Number(m[1]) : null;
+}
+
+// Horizontal extent of the row's lyrics, by measured text rather than by the
+// anchor, so an overhang past either edge of the staff shows up.
+function lyricExtent(svg) {
+  const entries = lyricTextEntries(svg);
+  if (entries.length === 0) return null;
+  const edges = entries.map(e => {
+    const w = measureTextWidth(e.text, e.fontSize, e.fontFamily);
+    return { left: e.x - w / 2, right: e.x + w / 2 };
+  });
+  return {
+    left: Math.min(...edges.map(e => e.left)),
+    right: Math.max(...edges.map(e => e.right)),
+  };
+}
+
 function firstFlatX(svg) {
   const m = svg.match(/<path d="M12 -170[^>]* transform="translate\(([^,]+),/);
   return m ? Number(m[1]) : null;
@@ -842,7 +862,7 @@ describe('renderAretino', () => {
     });
   });
 
-  describe('first-syllable clearance under a descending clef', () => {
+  describe('the start clef owns its column', () => {
     const clefRightX = svg => {
       // The start clef is the first translate+scale group in the row.
       const k = renderedStaffSpace(svg) / 591;
@@ -854,14 +874,104 @@ describe('renderAretino', () => {
       return first.x - measureTextWidth(first.text, first.fontSize, first.fontFamily) / 2;
     };
 
-    it('keeps first-syllable text right of a treble clef tail that dips into the lyric line', () => {
+    // Left edge of the chant C-clef's ink plus its glyph width; the clef is padded
+    // on both sides, so its advance reaches well past where the glyph ends.
+    const cClefInkRight = svg => {
+      const m = /<path d="M69 61[^"]*"[^>]*transform="translate\(([\d.-]+), *[\d.-]+\) scale\(([\d.-]+)/.exec(svg);
+      return Number(m[1]) + 134 * Number(m[2]);
+    };
+
+    it('starts the first syllable past the clef, not under it', () => {
       const svg = renderAretino('(g2) g g g g g\nw: Priest:~~Be-ne-di-ca-mus');
       expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(clefRightX(svg));
     });
 
-    it('still lets the prefix tuck under the clef when low notes push the lyrics below it', () => {
-      const svg = renderAretino('(g2) c d e f g\nw: Priest:~~Be-ne-di-ca-mus');
-      expect(firstTextLeft(svg)).toBeLessThan(clefRightX(svg));
+    it('owns the column whatever the notes do', () => {
+      // The clef's column is a wall, not a shape to be measured against: neither
+      // low notes pushing the lyric line down nor a bare row that leaves it high
+      // buys a syllable any room under the clef.
+      for (const src of [
+        '(g2) c d e f g\nw: Priest:~~Be-ne-di-ca-mus',
+        '(g2) g g g g g\nw: Priest:~~Be-ne-di-ca-mus',
+        '(g2) f f g\nw: 1.~Sanct-us',
+        '(g2) f f c\nw: 1.~Sanct-us',
+      ]) {
+        const svg = renderAretino(src, { width: 300 });
+        expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(clefRightX(svg) - 1e-9);
+      }
+    });
+
+    it('sets a held-back syllable flush against the clef, with no gap', () => {
+      // The wall is the clef's ink edge and nothing more: a syllable pushed off
+      // the centre of its notehead to clear the clef stops exactly there.
+      const svg = renderAretino('(g2) c d e f g\nw: Priest:~~c d e f g', { width: 300 });
+      expect(firstTextLeft(svg)).toBeCloseTo(clefRightX(svg), 6);
+    });
+
+    it('measures the C clef by its glyph, not by its advance', () => {
+      // The advance carries padding on the right, so it is not where the ink ends;
+      // the wall is the glyph's own edge, and it stands wherever the clef sits.
+      for (const src of ['(c1) f f g\nw: 1.~Sanct-us', '(c4) f f g\nw: 1.~Sanct-us']) {
+        const svg = renderAretino(src, { width: 300 });
+        expect(firstTextLeft(svg)).toBeCloseTo(cClefInkRight(svg), 6);
+      }
+    });
+
+    it('keeps the lyrics clear of the clef and inside the staff at every width', () => {
+      const sources = [
+        '(g2) g a g a g a g a g a g a g\nw: Kyrrrieeeleison e-lei-son Chris-te e-lei-son Ky-ri-e e',
+        '(g2) g a g a g a g a g a g a g a\nw: Sanc-tus Sanc-tus Do-mi-nus De-us Sa-ba-oth al-le',
+        '(c1) g a g a g a g a g a g a g\nw: Kyrrrieeeleison e-lei-son Chris-te e-lei-son Ky-ri-e e',
+      ];
+      for (const src of sources) {
+        for (let width = 240; width <= 600; width += 7) {
+          for (const row of splitRowSVGs(renderAretino(src, { width }))) {
+            const ext = lyricExtent(row);
+            if (!ext) continue;
+            expect(ext.left).toBeGreaterThanOrEqual(staffLeft(row) - 0.01);
+            expect(ext.right).toBeLessThanOrEqual(staffRight(row) + 0.01);
+          }
+        }
+      }
+    });
+
+    it('keeps a wide first syllable inside the staff when there is no clef', () => {
+      // Without a clef the first note sits close to the staff's left edge, so a
+      // syllable centred on it would otherwise hang out into the page margin.
+      const svg = renderAretino('g a ||\nw: Sanc-tus');
+      expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(staffLeft(svg) - 0.01);
+    });
+
+    it('keeps a wide first syllable of a left-aligned neume inside the staff', () => {
+      const svg = renderAretino('ga a ||\nw: Sanc-tus');
+      expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(staffLeft(svg) - 0.01);
+    });
+
+    it('keeps the lyrics between the staff edges at every page width', () => {
+      // The room the row-start gap takes from a row has to be reserved when the
+      // rows are packed: otherwise pushing the first neume right to clear the
+      // left edge simply moves the overflow to the right margin.
+      const sources = [
+        'g a g a g a g a g a g a g\nw: Kyrrrieeeleison e-lei-son Chris-te e-lei-son Ky-ri-e e',
+        'g a g a g a g a g a g a g a\nw: Sanc-tus Sanc-tus Do-mi-nus De-us Sa-ba-oth al-le',
+        'g a g a g a g a g a g\nw: Benedicamusdomino al-le-lu-ia al-le-lu-ia a men',
+      ];
+      for (const src of sources) {
+        for (let width = 200; width <= 600; width += 7) {
+          for (const row of splitRowSVGs(renderAretino(src, { width }))) {
+            const ext = lyricExtent(row);
+            if (!ext) continue;
+            expect(ext.left).toBeGreaterThanOrEqual(staffLeft(row) - 0.01);
+            expect(ext.right).toBeLessThanOrEqual(staffRight(row) + 0.01);
+          }
+        }
+      }
+    });
+
+    it('does not shift the first neume when its syllable already fits', () => {
+      const wide = renderAretino('g a ||\nw: Sanc-tus');
+      const narrow = renderAretino('g a ||\nw: i-tus');
+      expect(ligatureBoxes(narrow)[0].x).toBeLessThan(ligatureBoxes(wide)[0].x);
     });
   });
 

@@ -47,7 +47,7 @@ import {
 } from './text.js';
 import { ss } from './units.js';
 import { groupSections, flattenItems } from './items.js';
-import { trailingClef, trailingKeySig } from './clef.js';
+import { trailingClef, trailingKeySig, clefInkRightOffset } from './clef.js';
 import { layoutRowsWithCourtesyAccidentals } from './layout.js';
 import { createTransposeState, applyTranspose } from './transpose.js';
 import { measureLigature, measureLigatureVisualRight, measureBarline, rowLowestNoteY, firstLyricBaselineY, isLeveledGap, isLevelingTargetGap, gapFloor, levelingTarget, condenseGaps, condenseCaps } from './measure.js';
@@ -603,6 +603,17 @@ export function renderAretino(source, options = {}) {
                     ? maxCurrRight
                     : Math.max(maxCurrRight, visualRight);
                 ligInfo.push({ item: it, maxSylW, protectedCurrRight, isCentered, maxPrefixW, itemIdx, visualRight });
+                // How far this neume's syllable would reach left of the neume's
+                // own start if the neume began a row. The line breaker reserves
+                // whatever of it the row-start inset cannot absorb, because the
+                // renderer spends that room pushing the neume right so the
+                // syllable stays inside the staff (see the row-start left-limit
+                // block below). Mirrors the placement in layoutRowSyllables.
+                it.rowStartOverhang = isCentered
+                    ? Math.max(0, maxSylW / 2 + maxPrefixW - halfNoteW)
+                    : maxPrefixW + ctx.staffSpace * 0.1;
+                // Whether there is any lyric text here to keep clear of a clef.
+                it.rowStartHasText = maxSylW > 0 || maxPrefixW > 0;
                 // The word sung on this neume in each stanza, so the line breaker
                 // can tell a break that leaves one syllable of a word alone.
                 // Recitation pieces keep their own orphan/widow rule.
@@ -699,6 +710,13 @@ export function renderAretino(source, options = {}) {
                 if (!item.recitationGlyphless) {
                     item.syllableNeed = Math.max(currRight + nextLeftIntrusion + gap, ligInfo[i].visualRight);
                 }
+                // The tail of this neume's advance that is reserve rather than ink:
+                // room for the *following* syllable's leftward reach and the gap
+                // before it. When this neume ends a row that following syllable has
+                // wrapped away, so the reserve is free width the row can spend on
+                // its own row-start gap (see rowItemsAvailable in layout.js).
+                const inkRight = Math.max(currRight, ligInfo[i].visualRight);
+                item.rowEndSlack = Math.max(0, baseAdv + item.syllableExtra - inkRight);
             }
         }
 
@@ -827,18 +845,15 @@ export function renderAretino(source, options = {}) {
             // giving the "repeat the note at each line start" behaviour.
             const recitationGlyphDrawn = new Set();
 
-            // Bottom and visual right edge of the row's start clef — used below to
-            // keep first-syllable lyric text from running under a clef whose tail
-            // dips into the lyric band (treble clef, bottom-line C clef).
-            let rowClefBottomY = -Infinity;
+            // Right edge of the row's start clef ink — used below to keep the
+            // first syllable out of the clef's column.
             let rowClefRightX = -Infinity;
             if (row.drawStartClef) {
                 const c = drawClef(ctx, row.startClef, cursorX, staffBottomY);
                 if (c.minY < rowTopY) rowTopY = c.minY;
                 if (c.maxY > rowBottomY) rowBottomY = c.maxY;
                 parts.push(wrapSrc(row.startClefSource || {}, c.svg, 'aretino-token aretino-clef', staffBottomY, ctx.staffHeight, undefined, undefined, sourceMap));
-                rowClefBottomY = c.maxY;
-                rowClefRightX = cursorX + c.advance - clefPostGapPx;
+                rowClefRightX = cursorX + clefInkRightOffset(ctx, row.startClef);
                 cursorX += c.advance - clefPostGapPx + clefInlinePostGapPx;
             }
 
@@ -866,9 +881,27 @@ export function renderAretino(source, options = {}) {
                 cursorX += ctx.staffSpace;
             }
 
-            // For the first syllable of a row, ensure prefix text (before ~~) doesn't
-            // extend past the staff's left edge, and that no first-syllable text runs
-            // under a start clef whose tail dips into the first lyric line.
+            // When a row ends with a barline, the post-gap reserved for the
+            // FOLLOWING syllable (barlinePostExtra) is meaningless — that syllable
+            // has wrapped to the next line, so nothing follows the barline here.
+            // Drop that reserve so the final barline keeps only its normal
+            // barlinePostGap (plus any room its own centred label needs) before the
+            // right margin, instead of the next syllable's reserve surviving as a
+            // void. This makes a manual (z) break after a barline match an
+            // automatic wrap.
+            let itemsWidth = row.itemsWidth;
+            const lastItem = row.items[row.items.length - 1];
+            if (lastItem && lastItem.kind === 'barline') {
+                itemsWidth -= (lastItem.barlinePostExtra || 0);
+            }
+
+            // Leftmost x the row's first syllable may reach: the staff's left edge,
+            // or past the start clef, which owns its column. No lyric text — the
+            // centered syllable itself as much as a prefix before ~~ — may cross it.
+            // The room is taken first from the row's own slack, by pushing the first
+            // neume right; the lyric layout clamps the syllable against this limit
+            // for whatever is left.
+            let rowLyricLeftLimit = -Infinity;
             if (alignSyllables) {
                 const firstLig = row.items.find(it => it.kind === 'ligature');
                 // A neume continuation carries no syllable, so the row-start
@@ -892,41 +925,35 @@ export function renderAretino(source, options = {}) {
                             if (pW > maxPrefixW) maxPrefixW = pW;
                         }
                     }
-                    let leftLimit = maxPrefixW > 0 ? staffLeftX : -Infinity;
-                    if ((maxAlignW > 0 || maxPrefixW > 0) && rowClefBottomY > -Infinity) {
-                        const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
-                        const lyricTopY = Math.max(
-                            (lowestNoteY > staffBottomY ? lowestNoteY : staffBottomY) + ctx.lyricDistance,
-                            staffBottomY + ctx.lyricMinStaffDistance);
-                        if (rowClefBottomY > lyricTopY) {
-                            const sideGap = ctx.measureText(' ', ctx.lyricSize, ctx.textFont) || ctx.lyricSize * 0.25;
-                            leftLimit = Math.max(leftLimit, rowClefRightX + sideGap);
-                        }
+                    let leftLimit = staffLeftX;
+                    if ((maxAlignW > 0 || maxPrefixW > 0) && rowClefRightX > -Infinity) {
+                        // A start clef owns its whole column: no lyric is set under
+                        // it, whatever the glyph's shape and however far below the
+                        // staff the lyric line happens to sit on this row. So the
+                        // clef's ink edge is a wall, not a shape to be measured
+                        // against — and the syllable may start right against it,
+                        // since the two never meet at the same height.
+                        leftLimit = Math.max(leftLimit, rowClefRightX);
                     }
-                    if (leftLimit > -Infinity) {
-                        const textLeft = isCenteredFirst
-                            ? cursorX + halfNoteW - maxAlignW / 2 - maxPrefixW
-                            : cursorX - maxPrefixW;
-                        const preGap = Math.max(0, leftLimit - textLeft);
-                        cursorX += preGap;
-                    }
+                    rowLyricLeftLimit = leftLimit;
+                    // Mirrors the placement in layoutRowSyllables: a single-note
+                    // neume carries its syllable centered on the notehead, anything
+                    // else is left-aligned with the same small leftward nudge.
+                    const textLeft = isCenteredFirst
+                        ? cursorX + halfNoteW - maxAlignW / 2 - maxPrefixW
+                        : cursorX - ctx.staffSpace * 0.1 - maxPrefixW;
+                    // The line breaker packed this row against a width that did
+                    // not know about the gap, so spending more than the row's own
+                    // slack would simply move the overflow to the right margin.
+                    // Take what there is: on a maximally packed row the syllable
+                    // keeps whatever overhang cannot be paid for.
+                    const slack = Math.max(0, staffRightX - cursorX - itemsWidth);
+                    const preGap = Math.min(Math.max(0, leftLimit - textLeft), slack);
+                    cursorX += preGap;
                 }
             }
 
             const remaining = staffRightX - cursorX;
-            // When a row ends with a barline, the post-gap reserved for the
-            // FOLLOWING syllable (barlinePostExtra) is meaningless — that syllable
-            // has wrapped to the next line, so nothing follows the barline here.
-            // Drop that reserve so the final barline keeps only its normal
-            // barlinePostGap (plus any room its own centred label needs) before the
-            // right margin, instead of the next syllable's reserve surviving as a
-            // void. This makes a manual (z) break after a barline match an
-            // automatic wrap.
-            let itemsWidth = row.itemsWidth;
-            const lastItem = row.items[row.items.length - 1];
-            if (lastItem && lastItem.kind === 'barline') {
-                itemsWidth -= (lastItem.barlinePostExtra || 0);
-            }
             const extra = Math.max(0, remaining - itemsWidth);
             // A row the line breaker condensed to keep a syllable company is
             // wider than the staff: take the overflow out of its neume gaps,
@@ -1228,7 +1255,7 @@ export function renderAretino(source, options = {}) {
                     const end = isLastRow
                         ? Math.max(notes.length, ligOffset + rowLigCount)
                         : ligOffset + rowLigCount;
-                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures));
+                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures, rowLyricLeftLimit));
                 }
             }
             let lyricY;

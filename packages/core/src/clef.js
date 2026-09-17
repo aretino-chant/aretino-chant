@@ -22,6 +22,18 @@ export function clefAdvance(ctx, clef) {
     return 0;
 }
 
+// Right edge of a start clef's ink, as an offset from the staff's left edge —
+// the advance less the air drawClef leaves after the glyph.
+export function clefInkRightOffset(ctx, clef) {
+    const letter = (clef.letter || 'g').toLowerCase();
+    if (letter === 'c') {
+        // The chant C-clef is padded on both sides; only the right padding is air.
+        return chantCclefAdvance(ctx) - ss(ctx, METRICS.clefCRightPadding)
+            + ss(ctx, METRICS.clefCLeftPadding);
+    }
+    return clefAdvance(ctx, clef) - ss(ctx, METRICS.clefPostGap);
+}
+
 // The clef in effect after a run of items — used to seed the next section's
 // running clef. Falls back to the prior value when the section has no clef.
 export function trailingClef(items, fallback) {

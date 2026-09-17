@@ -502,7 +502,14 @@ function drawHyphenStrokes(gapLeft, gapRight, lyricY, g) {
 // draw operations with x positions only, so the caller can measure the row's
 // syllables (their spans and their ascents) and choose the lyric baseline before
 // anything is committed to an SVG string.
-export function layoutRowSyllables(ctx, syllables, ligatures) {
+// `rowLeftLimit` is the leftmost x the row's first syllable may reach: the staff's
+// left edge, or the right edge of a start clef whose tail dips into the lyric
+// line. The renderer pays for the overhang by pushing the first neume right where
+// the row can spare the width; whatever it could not pay for is taken here, by
+// sliding the first syllable off the centre of its notehead rather than letting it
+// hang into the margin. Later syllables are pushed along by the ordinary minimum-gap
+// rule, so the clamp cascades only as far as the row is actually tight.
+export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -Infinity) {
     const ops = [];
     const spans = [];
     if (syllables.length === 0) {
@@ -591,6 +598,10 @@ export function layoutRowSyllables(ctx, syllables, ligatures) {
         // left edge of full text: align portion starts at (center - alignW/2),
         // prefix sits to the left of it
         let left = center - alignW / 2 - prefixW;
+        if (i === 0 && left < rowLeftLimit) {
+            left = rowLeftLimit;
+            center = left + prefixW + alignW / 2;
+        }
         let hyphenGapLeft = null;
         if (i > 0) {
             const prevSyl = workSyllables[i - 1];
@@ -761,9 +772,9 @@ export function emitLaidOutSyllables(ctx, layout, lyricY) {
 
 // Lays out and renders a row's worth of syllables in one step, for callers that
 // have already settled the lyric baseline.
-export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY) {
+export function emitAlignedSyllables(ctx, syllables, ligatures, lyricY, rowLeftLimit = -Infinity) {
     if (syllables.length === 0) {
         return { svg: '', maxX: 0 };
     }
-    return emitLaidOutSyllables(ctx, layoutRowSyllables(ctx, syllables, ligatures), lyricY);
+    return emitLaidOutSyllables(ctx, layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit), lyricY);
 }

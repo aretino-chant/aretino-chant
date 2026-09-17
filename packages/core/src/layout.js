@@ -9,7 +9,7 @@ import {
     clearCourtesyAccidentals,
     annotateCourtesyAccidentals,
 } from './accidentals.js';
-import { clefAdvance } from './clef.js';
+import { clefAdvance, clefInkRightOffset } from './clef.js';
 import {
     measureItem,
     levelingNeed,
@@ -151,30 +151,82 @@ function fillRow(layout, start, bound = null) {
         return drawStartClef && clefRowsDrawn < allowedClefRows;
     }
 
-    function rowItemsAvailable() {
+    // The neume that will start this row, or null when the row opens with the
+    // continuation of a '/'-split neume, which carries no syllable of its own.
+    // `pending` is the unit about to be placed, so the row's first neume is known
+    // already on the call that decides whether it fits.
+    function rowStartLigature(pending) {
+        for (const list of pending ? [cur, pending] : [cur]) {
+            for (const it of list) {
+                if (it.kind === 'ligature') {
+                    return it.neumeContinuation ? null : it;
+                }
+            }
+        }
+        return null;
+    }
+
+    // The last neume of the candidate row, whose trailing syllable reserve is
+    // free width: the syllable it was reserved for has wrapped to the next row.
+    function rowEndLigature(pending) {
+        for (const list of pending ? [pending, cur] : [cur]) {
+            for (let i = list.length - 1; i >= 0; i--) {
+                if (list[i].kind === 'ligature') {
+                    return list[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    function rowItemsAvailable(pending = null) {
         const showClef = currentRowDrawsClef();
-        let reserved = isFirstRow ? firstRowIndentWidth : 0;
+        const indent = isFirstRow ? firstRowIndentWidth : 0;
+        // Room taken between the staff's left edge and the row's first item.
+        let inset = 0;
         const hasKeySig = rowStartKeySig.length > 0;
         if (showClef) {
             const clefSlot = hasKeySig
                 ? clefAdvance(ctx, rowStartClef) - ss(ctx, METRICS.clefPostGap) + ss(ctx, METRICS.clefInlinePostGap)
                 : clefAdvance(ctx, rowStartClef) + ss(ctx, METRICS.clefInlinePostGap);
-            reserved += clefSlot;
+            inset += clefSlot;
         }
         if (hasKeySig) {
-            reserved += keySigAdvance(ctx, rowStartKeySig);
+            inset += keySigAdvance(ctx, rowStartKeySig);
             if (!showClef) {
                 // Keep a clefless key signature off the staff's left edge, then
                 // retain the normal post-signature gap before the first note.
-                reserved += ctx.staffSpace / 2 + ss(ctx, METRICS.clefPostGap);
+                inset += ctx.staffSpace / 2 + ss(ctx, METRICS.clefPostGap);
             } else {
-                reserved += ss(ctx, 1);
+                inset += ss(ctx, 1);
             }
         }
         if (!showClef && !hasKeySig) {
-            reserved += ctx.staffSpace;
+            inset += ctx.staffSpace;
         }
-        return staffRightX - ctx.leftMargin - reserved;
+        // A row's first syllable must not hang past the staff's left edge, nor into
+        // the column a start clef owns, so the renderer
+        // opens a gap before the first neume for whatever of its leftward reach
+        // the inset cannot absorb. Reserve that gap here — a row packed to the
+        // full width has nowhere to take it from afterwards, and its last neume
+        // ends up past the right margin. The row's own trailing reserve (room for
+        // the syllable that wrapped away) pays for it first.
+        const startLig = rowStartLigature(pending);
+        const endLig = rowEndLigature(pending);
+        const preGap = Math.max(0,
+            rowStartLyricLimit(startLig) + (startLig?.rowStartOverhang ?? 0)
+            - inset - (endLig?.rowEndSlack ?? 0));
+        return staffRightX - ctx.leftMargin - indent - inset - preGap;
+    }
+
+    // Leftmost x the row's first syllable may reach, as an offset from the staff's
+    // left edge: 0 normally, or the ink edge of a start clef, which owns its whole
+    // column. Mirrors the renderer's row-start left-limit block.
+    function rowStartLyricLimit(startLig) {
+        if (!startLig || !startLig.rowStartHasText || !currentRowDrawsClef()) {
+            return 0;
+        }
+        return clefInkRightOffset(ctx, rowStartClef);
     }
 
     function finalize(justify) {
@@ -233,7 +285,7 @@ function fillRow(layout, start, bound = null) {
     // null when the ligature was placed.
     function placeLigatureWithWrapping(lig, idx) {
         const w = measureItem(ctx, lig);
-        const avail = rowItemsAvailable();
+        const avail = rowItemsAvailable([lig]);
         if (idx < forceBefore || curWidth + w + levelingNeed(ctx, [...cur, lig]) <= avail) {
             cur.push(lig);
             curWidth += w;
@@ -343,7 +395,7 @@ function fillRow(layout, start, bound = null) {
                 group.push(items[j]);
                 if (items[j].kind === 'paren-close') break;
             }
-            if (groupW <= rowItemsAvailable()) {
+            if (groupW <= rowItemsAvailable(group)) {
                 w = groupW;
                 unit = group;
             }
@@ -360,7 +412,7 @@ function fillRow(layout, start, bound = null) {
         // row plus this unit can afford it, every prefix could too, so items
         // already placed never retroactively overflow.)
         if (ii >= forceBefore && !gluedToPrev && cur.length > 0
-            && curWidth + w + levelingNeed(ctx, [...cur, ...unit]) > rowItemsAvailable()) {
+            && curWidth + w + levelingNeed(ctx, [...cur, ...unit]) > rowItemsAvailable(unit)) {
             if (item.kind === 'barline') {
                 // Barlines must not start a row — carry the preceding note/neume
                 // unit (optionally with its leading accidental) to the new row.

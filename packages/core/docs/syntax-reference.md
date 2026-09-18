@@ -538,13 +538,18 @@ of being spread across the row, even after a `(z)` break:
 ```
 
 Division marks are not lyrics for this purpose: a syllable made up only of
-`*`, `+`/`++`, `\R`, `\V`, `~` or punctuation still reserves room for itself,
+`*`, `+`/`++`, `\R`, `\V` or punctuation still reserves room for itself,
 but does not make its neume count as sung — this row stays tight:
 
 ```aretino
 (g2) g g g g a g. (z) g f g g. ||
 w: * + * \V ~ .
 ```
+
+A syllable of nothing but `~` is a special case: `~` renders a space, so such a
+syllable has no ink and reserves no room at all. It is a blank slot — the neumes
+around it are spaced exactly as if nothing were written under it. (A `~` *inside*
+a syllable, as in `unbreakable~space`, is still a real space and measures as one.)
 
 Replace those marks with sung syllables and the same row justifies:
 

@@ -312,15 +312,20 @@ export function parseSyllables(input) {
                 const sufAbsEnd = wordCharIndexes[sufEnd - 1] + 1;
                 extenderSuffixSegments = buildSegments(sufAbsStart, sufAbsEnd, s => s.replace(/~/g, ' ').replaceAll(LITERAL_HYPHEN, '-').replaceAll(LITERAL_OPEN_PAREN, '(').replaceAll(LITERAL_UNDERSCORE, '_'));
             }
+            // A syllable made of nothing but `~` spaces has no ink at all, so it
+            // reserves no room: it is a blank slot, not a syllable the width of a
+            // space. (A `~` *inside* a syllable — `unbreakable~space` — still
+            // renders and measures as a real space.)
+            const blank = text.trim() === '';
             // An extender holds the syllable over its own neume plus one per
             // *extra* underscore, so it occupies extenderCount neumes in total.
             const groupCount = isExtender ? extenderCount : Math.max(1, trailingHyphens);
             result.push({
-                text,
-                alignText,
-                segments,
-                alignSegments,
-                suffixSegments,
+                text: blank ? '' : text,
+                alignText: blank ? '' : alignText,
+                segments: blank ? [] : segments,
+                alignSegments: blank ? [] : alignSegments,
+                suffixSegments: blank ? [] : suffixSegments,
                 hyphenAfter: !isExtender && trailingHyphens > 0,
                 hyphenMandatory: !isExtender && trailingHyphens > 0 && hyphenMandatory,
                 noteGroupCount: groupCount,

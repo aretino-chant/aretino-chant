@@ -1655,6 +1655,22 @@ describe('renderAretino', () => {
       expect(marked[0]).toBeLessThan(real[0] / 4);
     });
 
+    it('gives a syllable of bare ~ spaces no width of its own', () => {
+      // '~' renders a space, so a syllable made of nothing but '~' has no ink:
+      // it must reserve no room, leaving the gap between two such neumes at the
+      // plain default advance, exactly as if nothing were written under them.
+      const tilde = rowGaps(renderAretino('(g2) g g g g\nw: mmmm ~ ~ mmmm', { width: 600 }));
+      const bare = rowGaps(renderAretino('(g2) g g g g', { width: 600 }));
+
+      expect(tilde[1]).toBeCloseTo(bare[1], 5);
+    });
+
+    it('still spaces a ~ used inside a syllable', () => {
+      const svg = renderAretino('(g2) g\nw: unbreakable~space', { width: 600 });
+
+      expect(svg).toContain('unbreakable space');
+    });
+
     it('justifies a lyric-less row when justifyWithoutLyrics is set', () => {
       const gaps = rowGaps(renderAretino('(g2) g g g g g (z) g g', {
         width: 600,

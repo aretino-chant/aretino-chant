@@ -159,7 +159,9 @@ describe('condensing primitives', () => {
 
   it('never narrows a gap below its syllable need or past its cap', () => {
     const white = ctx.singleNoteAdvance - METRICS.noteBoxWidth * ctx.staffSpace;
-    const row = [neume(0, 12, 3), neume(0, 30, 3), neume(4, 23), neume(0, 15, 2), neume(0, 10)];
+    // The middle neume's syllable asks for exactly the room the neume takes,
+    // so that gap has nothing to give.
+    const row = [neume(0, 12, 3), neume(0, 30, 3), neume(4, ctx.singleNoteAdvance + 4), neume(0, 15, 2), neume(0, 10)];
     const caps = condenseCaps(ctx, row);
     for (let i = 0; i < row.length - 1; i++) {
       expect(caps[i]).toBeLessThanOrEqual(0.25 * white + 1e-9);
@@ -217,7 +219,7 @@ describe('avoiding lone syllables at line breaks', () => {
   });
 
   it('condenses by lowering the outlier threshold without narrowing any gap (stage 1)', () => {
-    const { off, on } = both(SRC, { width: 85 });
+    const { off, on } = both(SRC, { width: 87 });
     expect(rowsText(off)).toContain(' a | kik ');
     expect(rowsText(on)).toContain(' a kik | ');
     const sp = renderStaffSpace(on);
@@ -250,7 +252,7 @@ describe('avoiding lone syllables at line breaks', () => {
   });
 
   it('keeps syllables from overlapping in condensed rows', () => {
-    for (const width of [85, 115, 357]) {
+    for (const width of [87, 115, 357]) {
       const svg = renderAretino(SRC, { width });
       for (const row of splitRowSVGs(svg)) {
         const entries = [...row.matchAll(/<text\b([^>]*)xml:space="preserve"([^>]*)>(.*?)<\/text>/g)]
@@ -279,8 +281,8 @@ describe('avoiding lone syllables at line breaks', () => {
   });
 
   it('keeps the lone syllables rather than adding a row', () => {
-    const { off, on } = both(SRC, { width: 100 });
-    const loose = renderAretino(SRC, { width: 100, wrapStretchMax: 100, wrapCondenseMin: 0 });
+    const { off, on } = both(SRC, { width: 101 });
+    const loose = renderAretino(SRC, { width: 101, wrapStretchMax: 100, wrapCondenseMin: 0 });
     expect(loneSyllables(off, LYRIC)).toBeGreaterThan(0);
     expect(rowsText(loose)).toBe(rowsText(off));
     expect(rowsText(on)).toBe(rowsText(off));
@@ -389,7 +391,7 @@ describe('lone recited words', () => {
     + 'w: szük-sé-ges vét-ke! mert Krisztus~halála~lett el-tör-lő-je';
 
   it('lets a wide word stand alone at a break', () => {
-    const { off, on } = both(RECITED, { width: 300 });
+    const { off, on } = both(RECITED, { width: 304 });
     expect(rowsText(off)).toContain(' mert | Krisztus halála lett ');
     expect(rowsText(on)).toContain(' mert Krisztus | halála lett ');
   });

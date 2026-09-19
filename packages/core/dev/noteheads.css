@@ -1,0 +1,206 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    background: #f8f7f5;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+header {
+    background: #2c2c2c;
+    color: #eee;
+    padding: 1rem 2rem;
+}
+
+header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+header p {
+    margin: 0;
+    font-size: 0.875rem;
+    opacity: 0.75;
+}
+
+header a {
+    color: #9ec5ff;
+}
+
+.layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 1.5rem 2rem 4rem;
+}
+
+/* --- Controls ---------------------------------------------------------- */
+
+#controls {
+    position: sticky;
+    top: 1rem;
+    flex: 0 0 22rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.75rem 1rem 1rem;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+button {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #f2f1ee;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #e7e5e0;
+}
+
+.group {
+    border-top: 1px solid #eee;
+    padding-top: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.group > h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #777;
+}
+
+.control {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.15rem 0.5rem;
+    margin-bottom: 0.55rem;
+}
+
+.control > label {
+    font-size: 0.85rem;
+}
+
+.control > .value {
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: #444;
+}
+
+.control > input[type="range"] {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 0;
+}
+
+.control.dirty > label {
+    font-weight: 600;
+}
+
+.control.dirty > .value {
+    color: #b3261e;
+}
+
+.control-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.control-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.55rem;
+}
+
+.control-select select,
+.control-select input[type="color"] {
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.hint {
+    font-size: 0.78rem;
+    color: #666;
+    line-height: 1.45;
+}
+
+#derived {
+    font-family: ui-monospace, monospace;
+    white-space: pre-wrap;
+    margin-bottom: 0;
+}
+
+/* --- Previews ---------------------------------------------------------- */
+
+main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.preview-section {
+    margin-bottom: 2rem;
+}
+
+.preview-section h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.preview {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.75rem;
+    overflow-x: auto;
+}
+
+.preview svg {
+    max-width: none;
+}
+
+#source {
+    display: block;
+    width: 100%;
+    margin-top: 0.75rem;
+    min-height: 9rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    resize: vertical;
+}
+
+.error {
+    color: #b3261e;
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+}

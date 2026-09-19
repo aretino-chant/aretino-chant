@@ -2,6 +2,20 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-09-19
+
+- **Redrawn noteheads.** The head is now described by the design it is drawn
+  from — a pen angle, a box, and an advance ratio — and the ellipse's radii are
+  solved from that box rather than the head being stretched after the rotation,
+  which would shear the pen angle and flatten the ends. The head it draws is
+  1.18 SS wide, the width of a standard notehead, and stands at 28.5° rather
+  than 25°, which fills out its ends. Everything measured from the head
+  follows: a ligature's notes still sit head to head, a single note's advance
+  keeps the golden ratio between the head and the white space after it, and the
+  ledger overhang, the mora gap, the plica tail and the episema keep the
+  proportions they had. Rows therefore hold slightly fewer neumes, so line
+  breaks can move.
+
 ### 2026-09-17
 
 - **A melisma written as one `/`-split neume keeps its hyphens.** Such a neume

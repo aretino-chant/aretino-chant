@@ -24,17 +24,100 @@
 // Coordinate convention: callers pass `staffBottomY` = y of the bottom
 // staff line (line 1). Higher pitches → smaller y values.
 
+// The notehead is a rotated ellipse, and stays one: it is never stretched
+// after the rotation, which would shear the pen angle and flatten the ends.
+// Instead the ellipse's own radii are solved from the box it has to fill.
+// For a tilt of θ the bounding box of an ellipse with radii (rx, ry) is
+//
+//   W = 2·sqrt((rx·cos θ)² + (ry·sin θ)²)
+//   H = 2·sqrt((rx·sin θ)² + (ry·cos θ)²)
+//
+// which is a linear system in rx², ry²; inverting it gives the radii for a
+// wanted (W, H) at a fixed θ. The box is one staff space tall and as wide as a
+// standard notehead, laid back a little from the angle such a head is drawn at,
+// which fills out its ends. `widen` can push the box wider than the ellipse it
+// was measured from, at the same height and the same tilt, so the head gains
+// width without gaining height or leaning differently. Everything measured
+// from the head follows: a ligature step and a single note's advance are taken
+// from noteBoxWidth, and the paddings around the head (ledger overhang, mora
+// gap, plica tail) move out half of any widening, i.e. with the head's edge.
+// The advance keeps the golden ratio between the head and the white space
+// after it.
+
+// The tunable design of the notehead and of everything measured from it.
+// `applyNoteheadDesign` folds these back into METRICS, so a host (the
+// dev/noteheads.html playground) can retune the head at runtime and re-render
+// without the derived metrics drifting apart.
+export const NOTEHEAD_DESIGN = {
+    rotationDeg: -28.5,            // tilt of the pen axis
+    baseBoxWidth: 1.18,            // box width, a standard notehead's own
+    boxHeight: 1.0,                // the head is exactly one staff space tall
+    stemStroke: 0.14,              // thickness of a virga stem
+    widen: 0,                      // horizontal-only widening of the head
+    advanceRatio: 1.618034,        // single-note advance / head box width
+    ledgerHalfExtent: 0.81,        // the paddings below are measured from the
+    moraOffsetX: 0.9,              // *unwidened* head; each one moves out with
+    episemaWidth: 0.65,            // the head's edge when `widen` grows (or,
+    plicaAnchorX: 0.2,             // for the episema, scales with the width)
+};
+
+// Radii of the rotated ellipse whose bounding box is w x h at tilt θ.
+export function ellipseRadiiForBox(w, h, rotationDeg) {
+    const θ = rotationDeg * Math.PI / 180;
+    const c = Math.cos(θ) ** 2;
+    const s = Math.sin(θ) ** 2;
+    const det = c * c - s * s;         // = cos 2θ, non-zero away from ±45°
+    const W = (w / 2) ** 2;
+    const H = (h / 2) ** 2;
+    return { rx: Math.sqrt((W * c - H * s) / det), ry: Math.sqrt((H * c - W * s) / det) };
+}
+
+// The METRICS keys that follow from the design above:
+//   noteheadRx/Ry        pre-rotation radii of the ellipse
+//   noteheadRotationDeg  its tilt
+//   noteheadWiden        how much wider than the base ellipse the head is
+//   noteBoxWidth/Height  the head's bounding box, and so its layout footprint
+//   singleNoteAdvance    one note's advance, ratio × the box width
+//   ligatureStepAdvance  one step inside a ligature, exactly the box width
+//   stemStroke           virga stem thickness
+//   ledgerHalfExtent, moraOffsetX, episemaWidth, plicaAnchorX
+//                        paddings that follow the head's edge
+function deriveNoteheadMetrics(d) {
+    const boxWidth = d.baseBoxWidth + d.widen;
+    const { rx, ry } = ellipseRadiiForBox(boxWidth, d.boxHeight, d.rotationDeg);
+    return {
+        noteheadRx: rx,
+        noteheadRy: ry,
+        noteheadRotationDeg: d.rotationDeg,
+        noteheadWiden: d.widen,
+        noteBoxWidth: boxWidth,
+        noteBoxHeight: d.boxHeight,
+        singleNoteAdvance: boxWidth * d.advanceRatio,
+        ligatureStepAdvance: boxWidth,
+        stemStroke: d.stemStroke,
+        ledgerHalfExtent: d.ledgerHalfExtent + d.widen / 2,
+        moraOffsetX: d.moraOffsetX + d.widen / 2,
+        episemaWidth: d.episemaWidth * boxWidth / d.baseBoxWidth,
+        plicaAnchorX: d.plicaAnchorX + d.widen / 2,
+    };
+}
+
+// Retune the head at runtime: merges `patch` into NOTEHEAD_DESIGN and writes
+// the metrics that follow from it back into METRICS. Returns the design in
+// force after the patch.
+export function applyNoteheadDesign(patch = {}) {
+    Object.assign(NOTEHEAD_DESIGN, patch);
+    Object.assign(METRICS, deriveNoteheadMetrics(NOTEHEAD_DESIGN));
+    return { ...NOTEHEAD_DESIGN };
+}
+
 export const METRICS = {
-    // --- Notehead (rotated filled oval) -----------------------------------
-    noteheadRx: 0.61,                  // pre-rotation horizontal radius
-    noteheadRy: 0.47271,                  // pre-rotation vertical radius
-    noteheadRotationDeg: -25,
-    noteBoxWidth: 1.1749,                // layout/bounding-box width  2*sqrt((rx*cos θ)²+(ry*sin θ)²)
-    noteBoxHeight: 1.0,                // layout/bounding-box height
+    // --- Notehead, advances and the paddings around the head --------------
+    // All of these come from NOTEHEAD_DESIGN via deriveNoteheadMetrics(); see
+    // the list there. applyNoteheadDesign() rewrites them in place.
+    ...deriveNoteheadMetrics(NOTEHEAD_DESIGN),
 
     // --- Horizontal advances ----------------------------------------------
-    singleNoteAdvance: 1.9,           // use the golden ratio (the spaces between noteheads vs the noteheads)
-    ligatureStepAdvance: 1.1749,         // added per extra note in a ligature
     expanderWidth: 0.75,               // intrinsic width of '*' expander
     neumeGapAdvance: 0.71/2,           // extra space per '/' between neume groups
     gapOutlierThreshold: 2.0,          // gap floors wider than this are outliers: they keep their own width instead of driving the unified neume gap
@@ -49,13 +132,11 @@ export const METRICS = {
     staffLineStrokeMinPx: 0.6,
 
     // --- Ledger lines -----------------------------------------------------
-    ledgerHalfExtent: 0.81,            // extent on each side of notehead center
     ledgerLineSpacing: 1.0,            // distance between successive ledgers
     ledgerStroke: 0.09,
     ledgerStrokeMinPx: 0.6,
 
     // --- Stems (virga & tenor side strokes) -------------------------------
-    stemStroke: 0.14,
     stemStrokeMinPx: 0.8,
     virgaStemLength: 2.75,              // default descent of virga stem
     virgaStemDescentBelowPrev: 2.25,    // descent past a lower preceding note
@@ -77,11 +158,9 @@ export const METRICS = {
     smallNoteScale: 0.7,               // scale factor for small noteheads
 
     // --- Mora dot ---------------------------------------------------------
-    moraOffsetX: 0.9,                // horizontal distance from notehead center
     moraRadius: 0.125,
 
     // --- Episema (horizontal mark above note) -----------------------------
-    episemaWidth: 0.65,
     episemaStroke: 0.12,
     episemaStrokeMinPx: 0.8,
 
@@ -91,7 +170,6 @@ export const METRICS = {
     ictusStrokeMinPx: 0.8,
 
     // --- Notehead plica (right-parenthesis tail beside the notehead) ----------
-    plicaAnchorX: 0.2,            // x offset of both endpoints from notehead center
     plicaTopY: 0.4,               // y offset above center (top-right corner of head)
     plicaBottomY: 0.8,           // y offset below center (under bottom-right corner)
     plicaBulge: 0.6,              // outward push of control points → curve depth

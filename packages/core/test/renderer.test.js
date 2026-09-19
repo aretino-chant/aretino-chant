@@ -419,7 +419,7 @@ describe('renderAretino', () => {
 
     it('repeats a preceding accidental before the first affected neume after an automatic wrap', () => {
       const source = '(g2) (b) b b b b b b b b b b b b b b b b | b b';
-      const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
+      const svg = renderAretino(source, { width: 175, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
@@ -432,7 +432,7 @@ describe('renderAretino', () => {
 
     it('matches active accidentals by staff position after an automatic wrap', () => {
       const source = '(b)b b b b b b b b b b b b b b b b b b |';
-      const svg = renderAretino(source, { width: 150, hideRepeatClef: true });
+      const svg = renderAretino(source, { width: 175, hideRepeatClef: true });
 
       expect(courtesyAccidentalCount(svg)).toBe(1);
     });
@@ -930,7 +930,9 @@ describe('renderAretino', () => {
 
     it('starts the first syllable past the clef, not under it', () => {
       const svg = renderAretino('(g2) g g g g g\nw: Priest:~~Be-ne-di-ca-mus');
-      expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(clefRightX(svg));
+      // Flush against the clef counts as past it, so allow for the two sides
+      // being reached by different arithmetic (as 'owns the column' does).
+      expect(firstTextLeft(svg)).toBeGreaterThanOrEqual(clefRightX(svg) - 1e-9);
     });
 
     it('owns the column whatever the notes do', () => {

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aretino — Notehead Playground</title>
+    <link rel="stylesheet" href="../../core/dev/noteheads.css" />
+</head>
+<body>
+    <header>
+        <h1>Notehead Playground</h1>
+        <p>Retune the head and everything measured from it, and see the score
+           re-engraved at once. <a href="./">← back to demo</a></p>
+    </header>
+
+    <div class="layout">
+        <aside id="controls">
+            <div class="panel-actions">
+                <button id="reset-all" type="button">Reset all</button>
+                <button id="copy-design" type="button">Copy design</button>
+            </div>
+            <div id="presets"></div>
+            <div id="control-groups"></div>
+            <p class="hint" id="derived"></p>
+        </aside>
+
+        <main>
+            <section class="preview-section">
+                <h2>Head detail</h2>
+                <div class="preview" id="detail"></div>
+                <p class="hint">A single head, a mora, a virga and a three-note
+                   ligature, drawn large. The reference glyph is laid over each
+                   head, centred on it.</p>
+            </section>
+
+            <section class="preview-section">
+                <h2>Score</h2>
+                <div class="preview" id="score"></div>
+                <textarea id="source" spellcheck="false"></textarea>
+            </section>
+        </main>
+    </div>
+
+    <!-- The playground itself lives in core/dev; this page only publishes it with the demo. -->
+    <script type="module" src="../../core/dev/noteheads.js"></script>
+</body>
+</html>

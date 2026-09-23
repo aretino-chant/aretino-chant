@@ -14,6 +14,7 @@ export default defineConfig({
             input: {
                 main: resolve(__dirname, 'dev/index.html'),
                 'test-cases': resolve(__dirname, 'dev/test-cases.html'),
+                noteheads: resolve(__dirname, 'dev/noteheads.html'),
             },
             // editor/package.json declares sideEffects:false for library consumers,
             // but the demo relies on the customElements.define side effect inside

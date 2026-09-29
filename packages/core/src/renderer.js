@@ -1284,8 +1284,30 @@ export function renderAretino(source, options = {}) {
                 lyricY = lyricTopY + fallbackAscent;
             }
 
+            // A stanza with nothing to show on this row — only blank `~` slots, or
+            // no syllables at all — takes no line of its own when no later stanza
+            // on the row has ink either: trailing empty stanzas are dropped, so a
+            // row sung by the first verse alone is as tight as a one-verse piece.
+            // An empty stanza *between* inked ones keeps its line, so each verse
+            // stays at its own height.
+            let inkedVerseCount = 0;
             if (alignSyllables) {
                 for (let v = 0; v < verseCount; v++) {
+                    const hasInk = verseLayouts[v].ops.some(op => op.op !== 'syllable'
+                        || op.syl.segments?.some(seg => seg.glyph || seg.text))
+                        || rowBarlines.some(rb => verseBarlineMaps[v].has(rb.globalIdx));
+                    if (hasInk) inkedVerseCount = v + 1;
+                }
+            }
+
+            if (alignSyllables && inkedVerseCount === 0) {
+                ligOffset += rowLigCount;
+                y = staffBottomY;
+                sectionContentBottom = y;
+                contentBottom = Math.max(contentBottom, y);
+                prevRowBottom = staffBottomY;
+            } else if (alignSyllables) {
+                for (let v = 0; v < inkedVerseCount; v++) {
                     const aligned = emitLaidOutSyllables(ctx, verseLayouts[v], lyricY);
                     parts.push(aligned.svg);
                     if (aligned.maxX > maxRenderedX) maxRenderedX = aligned.maxX;

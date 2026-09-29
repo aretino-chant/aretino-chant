@@ -1667,6 +1667,18 @@ describe('renderAretino', () => {
       expect(tilde[1]).toBeCloseTo(bare[1], 5);
     });
 
+    it('gives a stanza of bare ~ spaces no line of its own on a row', () => {
+      // The second stanza has only blank slots under the first row, so that row
+      // must be exactly as tall as it would be with a single stanza.
+      const rowTops = svg => [...svg.matchAll(/aretino-row \d+ ([\d.]+)/g)].map(m => +m[1]);
+      const blank = rowTops(renderAretino('(g2) c d (z) g a b || c d\nw: Sin-gle Glo-ri-a\nw: ~ ~ Glo-ri-a', { width: 600 }));
+      const single = rowTops(renderAretino('(g2) c d (z) g a b || c d\nw: Sin-gle Glo-ri-a', { width: 600 }));
+      const full = rowTops(renderAretino('(g2) c d (z) g a b || c d\nw: Sin-gle Glo-ri-a\nw: Ab Cd Glo-ri-a', { width: 600 }));
+
+      expect(blank[1]).toBeCloseTo(single[1], 5);
+      expect(full[1]).toBeGreaterThan(blank[1]);
+    });
+
     it('still spaces a ~ used inside a syllable', () => {
       const svg = renderAretino('(g2) g\nw: unbreakable~space', { width: 600 });
 

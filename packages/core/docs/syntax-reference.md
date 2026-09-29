@@ -551,6 +551,12 @@ syllable has no ink and reserves no room at all. It is a blank slot — the neum
 around it are spaced exactly as if nothing were written under it. (A `~` *inside*
 a syllable, as in `unbreakable~space`, is still a real space and measures as one.)
 
+The same holds vertically: when a stanza has nothing but `~` slots on a row, and
+no stanza below it has anything there either, it takes no lyric line on that row.
+A later verse that joins mid-piece (`w: ~ ~ Glo-ri-a`) leaves the rows before it
+as tight as a single-verse piece. An empty stanza between two sung ones keeps its
+line, so each verse stays at its own height.
+
 Replace those marks with sung syllables and the same row justifies:
 
 ```aretino

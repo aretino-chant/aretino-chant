@@ -37,6 +37,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
     let lastNoteCx = null;
     let allNotesMinY = Infinity;
     let allNotesMaxY = -Infinity;
+    // Each notehead's own ink box, so a syllable is cleared only from the notes
+    // it actually sits under rather than from the whole neume's lowest point.
+    const inks = [];
 
     for (const acc of leadingCourtesyAccidentals) {
         const accX = groupStartX + courtesyAdvance;
@@ -174,6 +177,11 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             const bounds = noteInkBounds(ctx, drawnNote, p.cy, staffBottomY, prevCy);
             if (bounds.minY < allNotesMinY) allNotesMinY = bounds.minY;
             if (bounds.maxY > allNotesMaxY) allNotesMaxY = bounds.maxY;
+            const halfBox = ss(ctx, METRICS.noteBoxWidth) * 0.5;
+            const inkRight = p.note.modifiers.includes('mora')
+                ? p.cx + ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
+                : p.cx + halfBox;
+            inks.push({ leftX: p.cx - halfBox, rightX: inkRight, maxY: bounds.maxY });
             const noteParts = [drawNoteHead(ctx, drawnNote, p.cx, p.cy, staffBottomY, prevCy)];
             const modifierSpans = p.note.modifierSpans ?? [];
             for (let mi = 0; mi < p.note.modifiers.length; mi++) {
@@ -197,6 +205,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
                         const r = ss(ctx, METRICS.moraRadius);
                         if (targetDotY - r < allNotesMinY) allNotesMinY = targetDotY - r;
                         if (targetDotY + r > allNotesMaxY) allNotesMaxY = targetDotY + r;
+                        inks.push({ leftX: drawCx, rightX: drawCx + ss(ctx, METRICS.moraOffsetX) + r, maxY: targetDotY + r });
                     }
                     glyph = drawMora(ctx, drawCx, moraCy, onLine);
                 } else if (mod === 'ictus') {
@@ -252,5 +261,5 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
         ? lastNoteCx + ss(ctx, hasMora ? METRICS.moraOffsetX + METRICS.moraRadius : METRICS.noteBoxWidth * 0.5)
         : x + advance;
 
-    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY, firstNoteCx, lastNoteCx };
+    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY, inks, firstNoteCx, lastNoteCx };
 }

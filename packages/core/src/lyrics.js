@@ -520,10 +520,18 @@ function drawHyphenStrokes(gapLeft, gapRight, lyricY, g) {
 // last neume. The word is still being sung, so the hyphen run is carried across
 // the row break — from `leftX` to the next syllable that has letters, or right
 // across the row when the melisma fills it and that syllable is further on.
-export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -Infinity, melismaCarry = null) {
+// When the held syllable is an extender, `melismaCarry.extender` is that syllable
+// and `melismaCarry.endX` the right edge of the continuation: the prolongation
+// line is carried across instead, and ends there if the syllable is held on
+// that neume alone.
+// `heldOver` is set when the row's last neume goes on past the row break: the
+// extender sung on it is not finished here, so its line runs to the row's end
+// and its trailing punctuation waits for the row where the neume ends.
+export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -Infinity, melismaCarry = null, heldOver = false) {
     const ops = [];
     const spans = [];
-    if (syllables.length === 0) {
+    const carriedExtender = melismaCarry?.extender ?? null;
+    if (syllables.length === 0 && !carriedExtender) {
         if (melismaCarry && melismaCarry.rightX > melismaCarry.leftX + hyphenRoom(ctx)) {
             ops.push({ op: 'hyphen', gapLeft: melismaCarry.leftX, gapRight: melismaCarry.rightX });
             return { ops, spans, maxX: melismaCarry.rightX };
@@ -555,7 +563,7 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
     // slot must not break the run into pieces spread a neume at a time. While one
     // is pending, this holds the left edge of the gap being accumulated. A row
     // opening inside a `/`-split melisma starts with the run already open.
-    let pendingHyphenLeft = melismaCarry ? melismaCarry.leftX : null;
+    let pendingHyphenLeft = melismaCarry && !carriedExtender ? melismaCarry.leftX : null;
     // Rightmost ink of the syllables themselves; hyphen and extender strokes add
     // to it as they are drawn.
     let maxX = 0;
@@ -587,6 +595,42 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
         extTextRightX = null;
         return drewLine;
     };
+    // Ends the line in progress at `targetRight`, the right edge of the extender's
+    // last neume, setting its trailing punctuation ("ro_.") there; `textRight` is
+    // where the punctuation goes instead when the line is too short to draw.
+    const finishExtender = (syl, targetRight, textRight) => {
+        const suf = syl.extenderSuffixSegments || [];
+        const sufW = measureSegmentsWidth(suf, fontSize, fontFamily, measureFn);
+        if (sufW > 0) {
+            extEndX = targetRight - sufW - extenderGap;
+        }
+        const drewLine = flushExtender();
+        if (suf.length) {
+            const sx = drewLine ? targetRight : (textRight ?? targetRight);
+            const anchor = drewLine ? 'end' : 'start';
+            ops.push({ op: 'suffix', x: sx, anchor, segments: suf });
+            const suffixRight = drewLine ? sx : sx + sufW;
+            if (suffixRight > maxX) maxX = suffixRight;
+        }
+    };
+    const isLastExtenderSlot = syl => (syl.extenderCount || 0) > 0 ? syl.extenderCount === 1 : syl.extenderLast;
+    if (carriedExtender) {
+        // The row opens on the continuation of the neume the extender is held on.
+        extStartX = melismaCarry.leftX;
+        if (syllables.length === 0) {
+            // The continuation fills the row.
+            extEndX = melismaCarry.rightX;
+            if (!heldOver && isLastExtenderSlot(carriedExtender)) {
+                finishExtender(carriedExtender, extEndX, null);
+            }
+            flushExtender();
+            return { ops, spans, maxX };
+        }
+        extEndX = melismaCarry.endX ?? melismaCarry.leftX;
+        if (isLastExtenderSlot(carriedExtender)) {
+            finishExtender(carriedExtender, extEndX, null);
+        }
+    }
 
     for (let i = 0; i < workSyllables.length; i++) {
         let syl = workSyllables[i];
@@ -718,23 +762,11 @@ export function layoutRowSyllables(ctx, syllables, ligatures, rowLeftLimit = -In
                 extStartX = lig ? lig.leftX : left;
             }
             extEndX = ligRight;
-            const isLast = isExtenderHead ? syl.extenderCount === 1 : syl.extenderLast;
-            if (isLast) {
-                const suf = syl.extenderSuffixSegments || [];
-                const targetRight = extEndX;
-                const sufW = measureSegmentsWidth(suf, fontSize, fontFamily, measureFn);
-                if (sufW > 0 && targetRight !== null) {
-                    extEndX = targetRight - sufW - extenderGap;
-                }
-                const textRight = extTextRightX;
-                const drewLine = flushExtender();
-                if (suf.length) {
-                    const sx = drewLine ? targetRight : (textRight ?? targetRight ?? right);
-                    const anchor = drewLine ? 'end' : 'start';
-                    ops.push({ op: 'suffix', x: sx, anchor, segments: suf });
-                    const suffixRight = drewLine ? sx : sx + sufW;
-                    if (suffixRight > maxX) maxX = suffixRight;
-                }
+            // The row's last neume going on past the break holds the syllable
+            // over; the next row finishes the line.
+            const heldPastRow = heldOver && i === workSyllables.length - 1;
+            if (isLastExtenderSlot(syl) && !heldPastRow) {
+                finishExtender(syl, extEndX, extTextRightX);
             }
         }
         prevRight = right;

@@ -254,6 +254,14 @@ describe('renderAretino', () => {
       expect(tallOverStem).toBeGreaterThan(shortOverStem);
     });
 
+    it('pairs a syllable with the notes over it, not its whole neume', () => {
+      // A `/`-split neume and the same notes as two neumes carry the same
+      // syllables under the same notes: the low note far from `Á` must not
+      // push it down just because the neume that holds it is one ligature.
+      expect(drop('(g2) e_g_age/cdc c. ||\nw: Á-men.'))
+        .toBeCloseTo(drop('(g2) e_g_age cdc c. ||\nw: Á--men.'), 5);
+    });
+
     it('keeps every syllable of a row on one baseline', () => {
       const svg = renderAretino("c c A' c\nw: mi se Ám re", { width: 400 });
       const ys = new Set(lyricTextEntries(svg).map(l => l.y));
@@ -757,6 +765,58 @@ describe('renderAretino', () => {
         const svg = renderAretino('(c4) g\nw: a\\_b', { width: 600 });
         expect(extenderLines(svg).length).toBe(0);
         expect(lyricTextEntries(svg).map(l => l.text).join('')).toContain('a_b');
+      });
+
+      describe('held on a /-split neume broken across rows', () => {
+        // The long first neume fills most of the row, so the row breaks at the
+        // `/` of the neume "b" is held on and its tail opens the next row.
+        const head = '(g2) cdedcdedcedcedcedcecdedcedcedcedcedcecdeededededcececdc ';
+        const split = 'defedfedf/dfefdfaef';
+        const allLines = svg => [...svg.matchAll(/<line class="aretino-lyric-extender"([^>]*)\/>/g)]
+          .map(m => ({
+            x1: parseFloat(/x1="([^"]+)"/.exec(m[1])[1]),
+            x2: parseFloat(/x2="([^"]+)"/.exec(m[1])[1]),
+            y: parseFloat(/y1="([^"]+)"/.exec(m[1])[1]),
+          }));
+
+        it('continues the line over the continuation on the next row', () => {
+          const svg = renderAretino(`${head}${split}\nw: a b_`, { width: 600 });
+          const b = lyricTextEntries(svg).find(l => l.text === 'b');
+          const lines = allLines(svg);
+          expect(lines.length).toBe(2);
+          expect(lines[0].y).toBeCloseTo(b.y, 5);
+          expect(lines[1].y).toBeGreaterThan(b.y);
+          expect(lines[1].x1).toBeLessThan(b.x);
+        });
+
+        it('sets the trailing punctuation where the neume ends, not at the break', () => {
+          const svg = renderAretino(`${head}${split}\nw: a b_.`, { width: 600 });
+          const b = lyricTextEntries(svg).find(l => l.text === 'b');
+          const dot = lyricTextEntries(svg).find(l => l.text === '.');
+          const lines = allLines(svg);
+          expect(dot.y).toBeGreaterThan(b.y);
+          expect(dot.y).toBeCloseTo(lines[1].y, 5);
+          expect(dot.x).toBeGreaterThan(lines[1].x2);
+        });
+
+        it('runs on into the next held neume after the continuation', () => {
+          const svg = renderAretino(`${head}${split} g a\nw: a b__ c`, { width: 600 });
+          const c = lyricTextEntries(svg).find(l => l.text === 'c');
+          const [, second] = allLines(svg);
+          expect(second.y).toBeCloseTo(c.y, 5);
+          // Past the continuation, up to the neume "c" is sung on.
+          expect(second.x2).toBeGreaterThan(c.x - c.fontSize * 2);
+          expect(second.x2).toBeLessThan(c.x);
+        });
+
+        it('draws the line on a row the continuation fills', () => {
+          const long = Array.from({ length: 5 }, () => split).join('/');
+          const svg = renderAretino(`${head}${long} g\nw: a b_. c`, { width: 600 });
+          const ys = [...new Set(allLines(svg).map(l => l.y))];
+          expect(ys.length).toBe(3);
+          const c = lyricTextEntries(svg).find(l => l.text === 'c');
+          expect(ys[2]).toBeCloseTo(c.y, 5);
+        });
       });
     });
   });

@@ -846,6 +846,7 @@ export function renderAretino(source, options = {}) {
             // continuation and the right edge of the row's last neume, so the
             // lyric layout can carry the word's hyphen run across the break.
             let rowCarryLeftX = null;
+            let rowCarryRightX = null;
             let rowLastLigRightX = null;
             // Recitation chains whose tenor notehead has already been drawn on
             // this row; the first piece of each chain per row draws the glyph,
@@ -1188,9 +1189,10 @@ export function renderAretino(source, options = {}) {
                     // to this row) carries no syllable, so it must not consume a
                     // syllable slot in the 1-ligature⇄1-syllable alignment.
                     if (!it.neumeContinuation) {
-                        rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft, maxY: r.maxY });
-                    } else if (rowLigatures.length === 0 && rowCarryLeftX === null) {
-                        rowCarryLeftX = r.leftX;
+                        rowLigatures.push({ centerX: r.centerX, leftX: r.leftX, rightX: r.rightX, shouldAlignLeft: r.shouldAlignLeft, maxY: r.maxY, inks: r.inks });
+                    } else if (rowLigatures.length === 0) {
+                        if (rowCarryLeftX === null) rowCarryLeftX = r.leftX;
+                        rowCarryRightX = r.rightX;
                     }
                     rowLastLigRightX = r.rightX;
                     if (parenState) {
@@ -1250,6 +1252,9 @@ export function renderAretino(source, options = {}) {
             }
 
             const isLastRow = rowIdx === rows.length - 1;
+            // The row's last neume is `/`-split and goes on at the next row's start.
+            const rowHeldOver = !isLastRow
+                && rows[rowIdx + 1].items.find(it => it.kind === 'ligature')?.neumeContinuation === true;
             const rowLigCount = rowLigatures.length;
             const lowestNoteY = rowLowestNoteY(ctx, row, staffBottomY);
 
@@ -1267,10 +1272,18 @@ export function renderAretino(source, options = {}) {
                         : ligOffset + rowLigCount;
                     // The syllable sung on the neume this row continues; while its
                     // word goes on, the hyphen run goes on with it.
-                    const carried = rowCarryLeftX !== null && start > 0 && notes[start - 1]?.hyphenAfter
-                        ? { leftX: rowCarryLeftX, rightX: rowLastLigRightX ?? rowCarryLeftX }
+                    // An extender held on it carries its prolongation line instead.
+                    const heldSyl = rowCarryLeftX !== null && start > 0 ? notes[start - 1] : null;
+                    const heldExtender = heldSyl && ((heldSyl.extenderCount || 0) > 0 || heldSyl.extender) ? heldSyl : null;
+                    const carried = heldSyl && (heldSyl.hyphenAfter || heldExtender)
+                        ? {
+                            leftX: rowCarryLeftX,
+                            rightX: rowLastLigRightX ?? rowCarryLeftX,
+                            endX: rowCarryRightX,
+                            extender: heldExtender,
+                        }
                         : null;
-                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures, rowLyricLeftLimit, carried));
+                    verseLayouts.push(layoutRowSyllables(ctx, notes.slice(start, end), rowLigatures, rowLyricLeftLimit, carried, rowHeldOver));
                 }
             }
             let lyricY;

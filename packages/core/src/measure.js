@@ -461,7 +461,9 @@ export function rowLowestNoteY(ctx, row, staffBottomY) {
 // there, not between the ink and an em box mostly full of air.
 //
 // `spans` are `{ leftX, rightX, ascent }` for the syllables, `inkSpans` are
-// `{ leftX, rightX, maxY }` for the drawn ligatures. `fallbackAscent` answers for
+// `{ leftX, rightX, maxY }` for the drawn ligatures, each optionally carrying
+// `inks` — the same boxes per notehead — so a syllable under one end of a long
+// neume clears only the notes it meets. `fallbackAscent` answers for
 // a row with no syllables to measure.
 export function firstLyricBaselineY(ctx, spans, inkSpans, staffBottomY, rowLowestY, fallbackAscent) {
     const floor = staffBottomY + ctx.lyricMinStaffDistance;
@@ -474,11 +476,13 @@ export function firstLyricBaselineY(ctx, spans, inkSpans, staffBottomY, rowLowes
     let baseline = -Infinity;
     for (const span of spans) {
         let ink = staffBottomY;
-        for (const s of inkSpans) {
-            if (s.rightX < span.leftX || s.leftX > span.rightX) {
-                continue;
+        for (const lig of inkSpans) {
+            for (const s of lig.inks ?? [lig]) {
+                if (s.rightX < span.leftX || s.leftX > span.rightX) {
+                    continue;
+                }
+                if (s.maxY > ink) ink = s.maxY;
             }
-            if (s.maxY > ink) ink = s.maxY;
         }
         const top = Math.max(ink + ctx.lyricDistance, floor);
         const need = top + span.ascent;

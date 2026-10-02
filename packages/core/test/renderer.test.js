@@ -165,6 +165,20 @@ describe('renderAretino', () => {
     expect(circles[0]).not.toBeCloseTo(circles[1], 1);
   });
 
+  it('leaves more room after an internal mora dot than before it', () => {
+    // fg.a: one dot's width between g and its dot, two between the dot and a.
+    const svg = renderAretino('(g2) fg.a');
+    const heads = [...svg.matchAll(/<ellipse cx="([^"]+)"/g)].map(m => parseFloat(m[1]));
+    const [dotX, r] = svg.match(/<circle cx="([^"]+)"[^>]*r="([^"]+)"/).slice(1).map(parseFloat);
+    const unit = r / METRICS.moraRadius;
+    const halfBox = METRICS.noteBoxWidth * 0.5;
+    const before = (dotX - r - heads[1]) / unit - halfBox;
+    const after = (heads[2] - dotX - r) / unit - halfBox;
+    expect(before).toBeCloseTo(2 * METRICS.moraRadius, 6);
+    expect(after).toBeCloseTo(METRICS.moraInnerTrailGap, 6);
+    expect(after).toBeGreaterThan(before);
+  });
+
   it('sizes lyricless row splits to include below-staff ligature ink', () => {
     const row = splitRowSVGs(renderAretino('(g2) A\'_-', { width: 600 }))?.[0];
     expect(row).toBeTruthy();

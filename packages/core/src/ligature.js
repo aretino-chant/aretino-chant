@@ -22,7 +22,7 @@ import {
 } from './glyphs.js';
 import { ss } from './units.js';
 import { accidentalSymbolAdvance, accidentalAdvance } from './accidentals.js';
-import { splitGroupsAtInternalMora, measureSplitLigature } from './measure.js';
+import { splitGroupsAtInternalMora, measureSplitLigature, moraOverhang } from './measure.js';
 import { wrapSrc } from './svg.js';
 
 export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCourtesyAccidentals = []) {
@@ -230,11 +230,9 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             const slashCount = typeof gapType === 'number' ? gapType : 0;
             const lastNote = notes[notes.length - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
-            const moraOverhang = hasMora
-                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
-                : 0;
+            const moraExtra = hasMora ? moraOverhang(ctx, gapType) : 0;
             const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
-            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
+            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraExtra + accExtra;
         }
     }
 

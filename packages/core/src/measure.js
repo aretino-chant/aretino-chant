@@ -49,6 +49,17 @@ export function splitGroupsAtInternalMora(groups, gaps = []) {
     return { groups: resultGroups, gaps: resultGaps };
 }
 
+// How far past a group's last head box the next group starts when that group
+// ends in a mora dot. After an internal-mora split the next head follows the
+// dot at moraInnerTrailGap; otherwise the full dot offset is added and any
+// '/' gap comes on top of it.
+export function moraOverhang(ctx, gapType) {
+    const trail = gapType === 'mora'
+        ? METRICS.moraInnerTrailGap - METRICS.noteBoxWidth * 0.5
+        : 0;
+    return ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius + trail);
+}
+
 // A plica on a non-final note within a group acts like an explicit '/' cut: the
 // note is liquescent and the neume breaks after it, so the remaining notes form
 // a new group separated by a normal neume gap. This makes a plica note behave
@@ -118,11 +129,11 @@ export function measureLigatureVisualRight(ctx, groups, gaps = []) {
             const lastNote = notes[notes.length - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
             const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
-            const moraOverhang = (hasMora || moraNoteCount >= 2)
-                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
+            const moraExtra = (hasMora || moraNoteCount >= 2)
+                ? moraOverhang(ctx, gapType)
                 : 0;
             const accExtra = notes.reduce((sum, note) => sum + (note.accidental ? accidentalSymbolAdvance(ctx, note.accidental.symbol) : 0), 0);
-            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
+            groupStartX += ss(ctx, METRICS.noteBoxWidth) + (notes.length - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraExtra + accExtra;
         }
     }
 
@@ -155,10 +166,10 @@ export function measureSplitLigature(ctx, groups, gaps) {
             // whether the gap after it is an explicit '/' or an implicit mora split.
             // For multi-mora groups, the dot is drawn after the last notehead even if it
             // doesn't itself carry a mora.
-            const moraOverhang = (hasMora || moraNoteCount >= 2)
-                ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius)
+            const moraExtra = (hasMora || moraNoteCount >= 2)
+                ? moraOverhang(ctx, gapType)
                 : 0;
-            total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraOverhang + accExtra;
+            total += ss(ctx, METRICS.noteBoxWidth) + (n - 1) * ctx.ligatureStepAdvance + slashCount * ctx.neumeGapAdvance + moraExtra + accExtra;
         } else {
             const lastNote = notes[n - 1];
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');

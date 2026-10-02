@@ -56,7 +56,7 @@ export const NOTEHEAD_DESIGN = {
     widen: 0,                      // horizontal-only widening of the head
     advanceRatio: 1.618034,        // single-note advance / head box width
     ledgerHalfExtent: 0.81,        // the paddings below are measured from the
-    moraOffsetX: 0.975,            // *unwidened* head; each one moves out with
+    moraOffsetX: 1.19,             // *unwidened* head; each one moves out with
     episemaWidth: 0.65,            // the head's edge when `widen` grows (or,
     plicaAnchorX: 0.2,             // for the episema, scales with the width)
 };
@@ -158,8 +158,14 @@ export const METRICS = {
     smallNoteScale: 0.7,               // scale factor for small noteheads
 
     // --- Mora dot ---------------------------------------------------------
-    // Bravura's augmentationDot (U+E1E7) is 0.4 SS across.
+    // Bravura's augmentationDot (U+E1E7) is 0.4 SS across. moraOffsetX (in
+    // NOTEHEAD_DESIGN) leaves one dot's width between the head's box and it:
+    // 0.59 half-box + 0.4 gap + 0.2 radius = 1.19.
     moraRadius: 0.2,
+    // Inside a neume (`fg.a`), the space from the dot to the next head's box:
+    // two dots, so the gap after the dot clearly outweighs the one before it
+    // and shows the lengthening the dot stands for.
+    moraInnerTrailGap: 0.8,
 
     // --- Episema (horizontal mark above note) -----------------------------
     episemaStroke: 0.12,

@@ -239,14 +239,18 @@ export const METRICS = {
     overbraceStroke:        0.2,
     overbraceStrokeMinPx:   0.75,
     overarcBulge:           0.75,    // upward arc height in SS
-    overarcStroke:          0.09,
+    overarcStroke:          0.09,    // \line{ } stroke
     overarcStrokeMinPx:     0.75,
+    overarcEndThickness:    0.08,    // \arc{ } thickness at its tips (SS)
+    overarcMidThickness:    0.18,    // \arc{ } thickness at its middle (SS)
 
     // --- Slur (downward arc below notes) ----------------------------------
     slurGap:          0.3,    // gap below bottom of note bounding box
     slurBulge:        0.9,   // downward arc depth in SS
     slurStroke:       0.12,
     slurStrokeMinPx:  0.75,
+    slurEndThickness: 0.1,    // solid slur thickness at its tips (SS)
+    slurMidThickness: 0.22,   // solid slur thickness at its middle (SS)
     slurDashLen:      0.5,    // dash length in SS (dashed slur)
     slurDashGap:      0.5,    // gap length in SS (dashed slur)
     slurStubWidth:    2.0,    // width of line-break stub arcs
@@ -1055,12 +1059,52 @@ export function drawOverbrace(ctx, x1, x2, y, isStart = true, isEnd = true) {
     return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
-// Draws a simple upward-bowing arc from x1 to x2 with ends at y.
+// Draws an engraved arc: a filled crescent around the centerline bezier
+// (x1,y1) C (c1x,c1y) (c2x,c2y) (x2,y2), tapering from midThick in the middle
+// to endThick at the tips. The crescent's two edges have their control points
+// spread along the unit normal (nx,ny); the outline stroke of endThick rounds
+// the tips.
+function drawTaperedArc(ctx, x1, y1, c1x, c1y, c2x, c2y, x2, y2, nx, ny, endThick, midThick, minPx) {
+    const sw = Math.max(minPx, ss(ctx, endThick));
+    // At t=0.5 a symmetric cubic is displaced by 3/4 of its control-point
+    // offset, so spreading the control points by (4/3)·Δ widens the middle by Δ.
+    const half = Math.max(0, ss(ctx, midThick) - sw) * (2 / 3);
+    const ox = nx * half, oy = ny * half;
+    const d = `M ${x1} ${y1} ` +
+              `C ${c1x + ox} ${c1y + oy} ${c2x + ox} ${c2y + oy} ${x2} ${y2} ` +
+              `C ${c2x - ox} ${c2y - oy} ${c1x - ox} ${c1y - oy} ${x1} ${y1} Z`;
+    return `<path d="${d}" fill="#000" stroke="#000" stroke-width="${sw}" stroke-linejoin="round"/>`;
+}
+
+// Control points of a cubic approximating a circular arc from (x1,y1) to
+// (x2,y2) that bows `depth` away from the chord along the unit normal (nx,ny).
+// A circular arc bends evenly along its length, so the curve has no tight turn
+// at its ends. Depth is capped at half the chord (a semicircle).
+function circularArcControls(x1, y1, x2, y2, nx, ny, depth) {
+    const chord = Math.hypot(x2 - x1, y2 - y1);
+    const ux = (x2 - x1) / chord, uy = (y2 - y1) / chord;
+    const h = Math.min(depth, chord / 2);
+    if (h <= 0) return [x1, y1, x2, y2];
+    const r = (chord * chord / 4 + h * h) / (2 * h);
+    // Half the angle the arc subtends; the tangent at each end leans this
+    // far from the chord, and the handle length k is the standard cubic
+    // fit to a circular arc, (4/3)·tan(θ/4)·r.
+    const halfAngle = Math.asin(Math.min(1, chord / (2 * r)));
+    const k = (4 / 3) * Math.tan(halfAngle / 2) * r;
+    const cu = Math.cos(halfAngle) * k, cn = Math.sin(halfAngle) * k;
+    return [
+        x1 + ux * cu + nx * cn, y1 + uy * cu + ny * cn,
+        x2 - ux * cu + nx * cn, y2 - uy * cu + ny * cn,
+    ];
+}
+
+// Draws an upward-bowing engraved arc from x1 to x2 with ends at y.
 export function drawOverarc(ctx, x1, x2, y) {
-    const sw = stroke(ctx, METRICS.overarcStroke, METRICS.overarcStrokeMinPx);
-    const bulge = ss(ctx, METRICS.overarcBulge);
-    const d = `M ${x1} ${y} C ${x1} ${y - bulge} ${x2} ${y - bulge} ${x2} ${y}`;
-    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>`;
+    // 3/4 of the bulge: the height the earlier bezier reached at its middle.
+    const depth = ss(ctx, METRICS.overarcBulge) * 0.75;
+    const [c1x, c1y, c2x, c2y] = circularArcControls(x1, y, x2, y, 0, -1, depth);
+    return drawTaperedArc(ctx, x1, y, c1x, c1y, c2x, c2y, x2, y, 0, -1,
+        METRICS.overarcEndThickness, METRICS.overarcMidThickness, METRICS.overarcStrokeMinPx);
 }
 
 // Draws a simple horizontal line from x1 to x2 at y.
@@ -1072,7 +1116,6 @@ export function drawOverline(ctx, x1, x2, y) {
 // Draws a downward-bowing slur arc below notes from x1 to x2, with ends at y1 and y2.
 // isStart/isEnd: false on line-break continuation — draws a short stub arc instead.
 export function drawSlur(ctx, x1, x2, y1, y2, dashed, isStart = true, isEnd = true) {
-    const sw = stroke(ctx, METRICS.slurStroke, METRICS.slurStrokeMinPx);
     const fullBulge = ss(ctx, METRICS.slurBulge);
     const stubWidth = ss(ctx, METRICS.slurStubWidth);
 
@@ -1085,22 +1128,27 @@ export function drawSlur(ctx, x1, x2, y1, y2, dashed, isStart = true, isEnd = tr
         return '';
     }
 
-    const span = ax2 - ax1;
-    const avgY = (y1 + y2) / 2;
-    const verticalDiff = Math.abs(y2 - y1);
-    const spanFactor = Math.min(1, span / (stubWidth * 1.5));
-    const baseBulge = fullBulge * spanFactor;
-    const bulge = baseBulge + verticalDiff * 0.33 * spanFactor;
-    const d = `M ${ax1} ${y1} C ${ax1} ${avgY + bulge} ${ax2} ${avgY + bulge} ${ax2} ${y2}`;
-
-    let dashAttr = '';
-    if (dashed) {
-        const dl = ss(ctx, METRICS.slurDashLen);
-        const dg = ss(ctx, METRICS.slurDashGap);
-        dashAttr = ` stroke-dasharray="${dl},${dg}"`;
+    // Bow the slur away from the chord joining its ends, not straight down:
+    // between notes far apart in pitch, control points dropped vertically
+    // would sit beyond the lower end and hook the curve under it. The normal
+    // (nx,ny) is the chord's perpendicular on the downward side.
+    const dx = ax2 - ax1, dy = y2 - y1;
+    const chord = Math.hypot(dx, dy);
+    if (chord === 0) return '';
+    const nx = -dy / chord, ny = dx / chord;
+    const bulge = fullBulge * Math.min(1, chord / (stubWidth * 1.5));
+    // 3/4 of the bulge: the depth the earlier bezier reached at its middle.
+    const [c1x, c1y, c2x, c2y] = circularArcControls(ax1, y1, ax2, y2, nx, ny, bulge * 0.75);
+    if (!dashed) {
+        return drawTaperedArc(ctx, ax1, y1, c1x, c1y, c2x, c2y, ax2, y2, nx, ny,
+            METRICS.slurEndThickness, METRICS.slurMidThickness, METRICS.slurStrokeMinPx);
     }
 
-    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/>`;
+    const sw = stroke(ctx, METRICS.slurStroke, METRICS.slurStrokeMinPx);
+    const d = `M ${ax1} ${y1} C ${c1x} ${c1y} ${c2x} ${c2y} ${ax2} ${y2}`;
+    const dl = ss(ctx, METRICS.slurDashLen);
+    const dg = ss(ctx, METRICS.slurDashGap);
+    return `<path d="${d}" fill="none" stroke="#000" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${dl},${dg}"/>`;
 }
 
 export function escapeText(s) {

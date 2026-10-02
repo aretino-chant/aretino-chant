@@ -90,7 +90,7 @@ export const NOTEHEAD_PRESETS = [
             advanceRatio: 1.618034,
             ledgerHalfExtent: 0.81,
             moraOffsetX: 1.19,
-            episemaWidth: 0.65,
+            episemaWidth: 0.75,
             plicaAnchorX: 0.2,
         },
     },

@@ -57,7 +57,7 @@ export const NOTEHEAD_DESIGN = {
     advanceRatio: 1.618034,        // single-note advance / head box width
     ledgerHalfExtent: 0.81,        // the paddings below are measured from the
     moraOffsetX: 1.19,             // *unwidened* head; each one moves out with
-    episemaWidth: 0.65,            // the head's edge when `widen` grows (or,
+    episemaWidth: 0.75,            // the head's edge when `widen` grows (or,
     plicaAnchorX: 0.2,             // for the episema, scales with the width)
 };
 
@@ -173,12 +173,12 @@ export const METRICS = {
     moraInnerTrailGap: 0.8,
 
     // --- Episema (horizontal mark above note) -----------------------------
-    episemaStroke: 0.12,
+    episemaStroke: 0.14,           // slightly thicker than a staff line, so it reads as a mark, not a line
     episemaStrokeMinPx: 0.8,
 
     // --- Ictus (vertical mark above note) --------------------------------
     ictusHeight: 0.25,
-    ictusStroke: 0.12,
+    ictusStroke: 0.14,             // matches the episema
     ictusStrokeMinPx: 0.8,
 
     // --- Notehead plica (right-parenthesis tail beside the notehead) ----------

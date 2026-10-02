@@ -40,6 +40,8 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
     // Each notehead's own ink box, so a syllable is cleared only from the notes
     // it actually sits under rather than from the whole neume's lowest point.
     const inks = [];
+    // Labels attached to single notes, centred above each note.
+    const noteLabels = [];
 
     for (const acc of leadingCourtesyAccidentals) {
         const accX = groupStartX + courtesyAdvance;
@@ -65,6 +67,7 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
             }
             const cy = pitchY(ctx, note, staffBottomY);
             positions.push({ note, cx, cy });
+            if (note.label != null) noteLabels.push({ label: note.label, cx });
             if (firstNoteCx === null) {
                 firstNoteCx = cx;
             }
@@ -259,5 +262,5 @@ export function emitLigature(ctx, groups, x, staffBottomY, gaps = [], leadingCou
         ? lastNoteCx + ss(ctx, hasMora ? METRICS.moraOffsetX + METRICS.moraRadius : METRICS.noteBoxWidth * 0.5)
         : x + advance;
 
-    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY, inks, firstNoteCx, lastNoteCx };
+    return { svg: parts.join(''), advance, centerX, leftX, rightX, shouldAlignLeft, minY: allNotesMinY, maxY: allNotesMaxY, inks, noteLabels, firstNoteCx, lastNoteCx };
 }

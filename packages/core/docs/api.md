@@ -395,7 +395,7 @@ offsets (the same values surfaced as `data-src-*` in the SVG).
 | `barline` | `kind: ',' \| ';' \| '\|' \| '\|\|' \| '\|\|\|' \| ':\|' \| ':\|:' \| '\|:' \| "'"` | bar/divider glyphs |
 | `spacer` | `multiplier: number` | `=`-runs or `(spN)` manual spacing |
 | `expander` | — | `*` (justification expander) |
-| `ligature` | `groups: Note[][]`, `gaps: ('neume')[]` | one or more note-groups joined by `/` |
+| `ligature` | `groups: Note[][]`, `gaps: ('neume')[]`, `label?: string` | one or more note-groups joined by `/`; `label` is a `"…"` written before the neume |
 
 **Note shape** (inside a ligature group):
 
@@ -407,6 +407,7 @@ offsets (the same values surfaced as `data-src-*` in the SVG).
   shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
   modifiers: Array<'episema'|'mora'|'plica'|'ictus'|'small'>,
   accidental?: { pitch: string, symbol: 'x'|'y'|'#' },  // inline (fb)/(fn)/(f#); symbol x=flat y=natural #=sharp
+  label?: string,                    // "…" written right after the note, drawn centred above it
   srcStart: number, srcEnd: number
 }
 ```

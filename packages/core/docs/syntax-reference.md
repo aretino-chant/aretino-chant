@@ -749,7 +749,24 @@ W: + dagger ++ double~dagger (unbreakable~space)
 
 ## 17. Labels
 
-You can add labels above notes with the syntax `f"Label"`. Formatting tags are supported as well.
+A label in double quotes is drawn above the staff. Where it is written decides
+where it goes:
+
+| Syntax | Placement |
+|---|---|
+| `"Label:"cde` | Left-aligned above the whole neume |
+| `c"Label:"de` | Centred above the `c` |
+| `cde"Label:"` | Centred above the `e` |
+
+A label before a neume must touch its first note; one followed by anything else
+is dropped. Formatting tags are supported as well.
+
+```aretino
+(c4) "1."cde f"<ad lib.>"g h
+```
+
+In the AST, a label before the neume is the ligature token's `label`; a label
+after a note is that note's `label`.
 
 ## 18. Embedding in Markdown
 

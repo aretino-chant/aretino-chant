@@ -2,6 +2,15 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-10-02
+
+- **A label's place in a neume decides where it is drawn.** A label written
+  before the neume (`"Label:"cde`) is drawn left-aligned above the whole neume,
+  where `cde"Label:"` used to put it. A label written after a note is now drawn
+  centred above that note: `c"Label:"de` over the `c`, and `cde"Label:"` over
+  the `e`. In the AST a leading label stays the ligature token's `label`; a
+  label after a note becomes that note's `label`.
+
 ### 2026-09-19
 
 - **Redrawn noteheads.** The head is now described by the design it is drawn

@@ -1177,11 +1177,18 @@ export function renderAretino(source, options = {}) {
                     let ligSvg = r.svg;
                     if (r.minY < rowTopY) rowTopY = r.minY;
                     if (r.maxY > rowBottomY) rowBottomY = r.maxY;
-                    if (it.label != null && r.minY < Infinity) {
+                    if ((it.label != null || r.noteLabels.length > 0) && r.minY < Infinity) {
                         const fontSize = ctx.lyricSize * 0.8;
                         const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
                         const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        ligSvg += renderMixedLabel(parseFormattingToSegments(it.label), r.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
+                        // A neume label sits left-aligned over the neume; a note
+                        // label is centred over its note.
+                        if (it.label != null) {
+                            ligSvg += renderMixedLabel(parseFormattingToSegments(it.label), r.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
+                        }
+                        for (const nl of r.noteLabels) {
+                            ligSvg += renderMixedLabel(parseFormattingToSegments(nl.label), nl.cx, labelY, fontSize, ctx.textFont, 'middle', ctx.measureText);
+                        }
                         if (labelY - fontSize < rowTopY) rowTopY = labelY - fontSize;
                     }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));

@@ -334,6 +334,18 @@ function peekInlineAccidental(line, pos) {
 
 // Parses a sequence of note groups separated by '/' within line[i..limit).
 // Returns { groups, gaps, newI }. Used by both plain-ligature and [..] paths.
+// A double-quoted label starting at line[i] (which must be '"'). An unclosed
+// quote takes the label up to the next space or the limit.
+function readQuotedLabel(line, i, limit) {
+    const closeIdx = line.indexOf('"', i + 1);
+    if (closeIdx >= 0 && closeIdx < limit) {
+        return { label: line.slice(i + 1, closeIdx), end: closeIdx + 1 };
+    }
+    let spaceIdx = line.indexOf(' ', i + 1);
+    if (spaceIdx === -1 || spaceIdx > limit) spaceIdx = limit;
+    return { label: line.slice(i + 1, spaceIdx), end: spaceIdx };
+}
+
 function parseNoteGroupSequence(line, i, lineStart, limit) {
     const groups = [];
     const gaps = [];
@@ -388,6 +400,12 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
             }
             note.srcStart = lineStart + noteStart;
             note.srcEnd = lineStart + i;
+            // A label right after a note is drawn centred above that note.
+            if (i < limit && line[i] === '"') {
+                const r = readQuotedLabel(line, i, limit);
+                note.label = r.label;
+                i = r.end;
+            }
             group.push(note);
         }
         if (group.length) groups.push(group);
@@ -565,24 +583,19 @@ function tokenizeMusicLine(line, lineStart = 0) {
             i = endI;
             continue;
         }
+        // A label before a neume ("Label"cde) is drawn left-aligned above the
+        // whole neume. One not followed directly by a note is dropped.
+        let label = null;
+        if (ch === '"') {
+            const r = readQuotedLabel(line, i, len);
+            i = r.end;
+            if (octaveShiftAt(line, i, len) === null) continue;
+            label = r.label;
+        }
         if (octaveShiftAt(line, i, len) !== null) {
             const r = parseNoteGroupSequence(line, i, lineStart, len);
             i = r.newI;
             if (r.groups.length) {
-                let label = null;
-                if (i < len && line[i] === '"') {
-                    const closeIdx = line.indexOf('"', i + 1);
-                    if (closeIdx >= 0) {
-                        label = line.slice(i + 1, closeIdx);
-                        i = closeIdx + 1;
-                    } else {
-                        // Take label up to next space or end of line
-                        let spaceIdx = line.indexOf(' ', i + 1);
-                        if (spaceIdx === -1) spaceIdx = len;
-                        label = line.slice(i + 1, spaceIdx);
-                        i = spaceIdx;
-                    }
-                }
                 tokens.push({ type: 'ligature', groups: r.groups, gaps: r.gaps, ...(label !== null ? { label } : {}), srcStart: lineStart + tokStart, srcEnd: lineStart + i });
             }
             continue;

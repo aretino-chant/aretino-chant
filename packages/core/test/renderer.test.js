@@ -1820,5 +1820,27 @@ describe('renderAretino', () => {
     });
   });
 
+  describe('note and neume labels', () => {
+    const labelText = (svg) => svg.match(/<text[^>]*text-anchor="([^"]+)"[^>]*>Label:<\/text>/);
+    const labelX = (svg) => parseFloat(svg.match(/<text[^>]*x="([^"]+)"[^>]*>Label:<\/text>/)[1]);
+    const noteCenters = (svg) => [...svg.matchAll(/class="aretino-note"[^>]*data-bbox-x="([^"]+)"[^>]*data-bbox-width="([^"]+)"/g)]
+      .map(m => parseFloat(m[1]) + parseFloat(m[2]) / 2);
+
+    it('left-aligns a label written before the neume', () => {
+      const svg = renderAretino('(c4) "Label:"cde');
+      expect(labelText(svg)[1]).toBe('start');
+    });
+
+    it('centres a label over the note it follows', () => {
+      const first = renderAretino('(c4) c"Label:"de');
+      const last = renderAretino('(c4) cde"Label:"');
+      expect(labelText(first)[1]).toBe('middle');
+      expect(labelText(last)[1]).toBe('middle');
+      expect(labelX(last)).toBeGreaterThan(labelX(first));
+      expect(labelX(first)).toBeCloseTo(noteCenters(first)[0], 5);
+      expect(labelX(last)).toBeCloseTo(noteCenters(last)[2], 5);
+    });
+  });
+
   // TODO: snapshot a known sample once examples/sample.aretino is filled in.
 });

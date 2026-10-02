@@ -287,4 +287,35 @@ describe('W: text blocks', () => {
   it('does not treat a lowercase w( line as a styled text block', () => {
     expect(verses('w(prose): szöveg')).toHaveLength(0);
   });
+
+  describe('labels', () => {
+    const lig = (src) => parseAretino(src).lines[0].tokens.find(t => t.type === 'ligature');
+
+    it('attaches a label before a neume to the neume', () => {
+      const t = lig('"Label:"cde');
+      expect(t.label).toBe('Label:');
+      expect(t.groups[0].map(n => n.label)).toEqual([undefined, undefined, undefined]);
+      expect(t.srcStart).toBe(0);
+    });
+
+    it('attaches a label after a note to that note', () => {
+      const t = lig('c"Label:"de');
+      expect(t.label).toBeUndefined();
+      expect(t.groups[0].map(n => n.pitch)).toEqual(['c', 'd', 'e']);
+      expect(t.groups[0].map(n => n.label)).toEqual(['Label:', undefined, undefined]);
+    });
+
+    it('attaches a trailing label to the last note', () => {
+      const t = lig('cde"Label:" f');
+      expect(t.label).toBeUndefined();
+      expect(t.groups[0].map(n => n.label)).toEqual([undefined, undefined, 'Label:']);
+    });
+
+    it('drops a leading label that is not followed by a note', () => {
+      const tokens = parseAretino('"Label:" cde').lines[0].tokens;
+      expect(tokens.filter(t => t.type === 'ligature')).toHaveLength(1);
+      expect(tokens[0].label).toBeUndefined();
+      expect(tokens[0].groups[0]).toHaveLength(3);
+    });
+  });
 });

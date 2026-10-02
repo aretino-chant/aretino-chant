@@ -559,6 +559,11 @@ A span crossing a row break continues on the next row:
 (g2) c"<Label:>" d e f g | a
 ```
 
+Label placement — before the neume (left-aligned over it), after its first note, after its last note:
+```aretino
+(g2) "Label:"cde | c"Label:"de | cde"Label:" | a
+```
+
 Inline accidental glyphs in labels (`\b` flat, `\n` natural, `\#` sharp):
 ```aretino
 (g2) c"! \b ! \n ? \# ." d e f | a

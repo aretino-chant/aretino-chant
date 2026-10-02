@@ -42,6 +42,7 @@ const ICONS = {
     'modifier-mora': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><circle cx="20" cy="15" r="1.5" fill="currentColor"/>'),
     'modifier-ictus': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><line x1="12" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="2"/>'),
     'modifier-plica': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.9 0.9)"/><path d="M15 9 Q20 13 14 21" fill="none" stroke="currentColor" stroke-width="2" transform="translate(0, 2)" />'),
+    'modifier-open': I('<ellipse cx="12" cy="13" rx="5.7" ry="4.5" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-25, 12, 13)"/>'),
     'modifier-small': I('<ellipse cx="12" cy="16" rx="5.7" ry="4.5" fill="currentColor" stroke="currentColor" stroke-width="1" transform="rotate(-25, 12, 13) scale(0.7 0.7)"/>'),
 
     'accidental-flat': drawToolbarGlyphIcon('accidental-flat'),
@@ -338,6 +339,7 @@ function makeModifiersGroup(view, ctx) {
             mod('modifier-ictus',   'Ictus',   'ictus',   '-', 'Ictus'),
             mod('modifier-plica',   'Plica',   'plica',   '~', 'Plica'),
             mod('modifier-small',   'Small',   'small',   's', 'Small notehead'),
+            mod('modifier-open',    'Open',    'open',    'o', 'Open (half-note) notehead'),
         ],
     };
 }

@@ -236,7 +236,7 @@ function token(stream, state) {
     if (ch === '~') { stream.next(); return 'punctuation'; }
     if (/[a-gA-G]/.test(ch)) {
         stream.next();
-        stream.eatWhile(/['._\-~wts]/);
+        stream.eatWhile(/['._\-~wtso]/);
         return 'atom';
     }
     if (ch === '"') {
@@ -371,7 +371,7 @@ function scanBigJumps(text) {
                 const pp = atomPitchPos(ch);
                 const from = i;
                 i++;
-                while (i < lineText.length && /['._\-~wts`]/.test(lineText[i])) i++;
+                while (i < lineText.length && /['._\-~wtso`]/.test(lineText[i])) i++;
                 if (lastPP !== null && pp !== null && Math.abs(pp - lastPP) > 4) {
                     out.push({ line: ln, start: from, end: i });
                 }

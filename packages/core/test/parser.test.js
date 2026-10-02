@@ -319,3 +319,33 @@ describe('W: text blocks', () => {
     });
   });
 });
+
+describe('open noteheads (o)', () => {
+  const firstNotes = src => parseAretino(src).lines[0].tokens[0].groups[0];
+
+  it('marks a plain note as open', () => {
+    const [n] = firstNotes('do');
+    expect(n.shape).toBe('punctum');
+    expect(n.modifiers).toEqual(['open']);
+  });
+
+  it('combines with the tenor shape in either order', () => {
+    for (const src of ['dto', 'dot']) {
+      const [n] = firstNotes(src);
+      expect(n.shape).toBe('tenor');
+      expect(n.modifiers).toEqual(['open']);
+    }
+  });
+
+  it('combines with a virga', () => {
+    const [n] = firstNotes("do'");
+    expect(n.virga).toBe(true);
+    expect(n.modifiers).toEqual(['open']);
+  });
+
+  it('does not swallow the next pitch of a ligature', () => {
+    const notes = firstNotes('dog');
+    expect(notes.map(n => n.pitch)).toEqual(['d', 'g']);
+    expect(notes[1].modifiers).toEqual([]);
+  });
+});

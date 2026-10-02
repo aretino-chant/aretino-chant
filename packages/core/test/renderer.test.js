@@ -863,6 +863,27 @@ describe('renderAretino', () => {
       expect(lyricTextEntries(svg).map(l => l.text)).toEqual(['solo']);
     });
 
+    it('wraps an open tenor (to) like a barred one', () => {
+      const barred = renderAretino(`at\nw: ${PHRASE}`, { width: 200 });
+      const open = renderAretino(`ato\nw: ${PHRASE}`, { width: 200 });
+      expect(tenorGlyphCount(open)).toBe(tenorGlyphCount(barred));
+      expect(lyricTextEntries(open).map(l => l.text)).toEqual(PHRASE.split('~'));
+    });
+
+    it('draws an open tenor without the side bars', () => {
+      const lines = svg => (svg.match(/<line /g) || []).length;
+      expect(lines(renderAretino('at', { width: 600 })) - lines(renderAretino('ato', { width: 600 }))).toBe(2);
+    });
+
+    it('draws an open note as a hollow oval instead of a filled head', () => {
+      const ellipses = svg => (svg.match(/<ellipse /g) || []).length;
+      const paths = svg => (svg.match(/<path /g) || []).length;
+      const plain = renderAretino('a', { width: 600 });
+      const open = renderAretino('ao', { width: 600 });
+      expect(ellipses(plain) - ellipses(open)).toBe(1);
+      expect(paths(open) - paths(plain)).toBe(1);
+    });
+
     it('renders following notes after a wrapped recitation', () => {
       const svg = renderAretino(`at b |\nw: ${PHRASE}`, { width: 200 });
       const lyr = lyricTextEntries(svg);

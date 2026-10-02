@@ -175,8 +175,9 @@ export function measureSplitLigature(ctx, groups, gaps) {
             const hasMora = lastNote.modifiers && lastNote.modifiers.includes('mora');
             const moraNoteCount = notes.filter(note => note.modifiers && note.modifiers.includes('mora')).length;
             const moraExtra = (hasMora || moraNoteCount >= 2) ? ss(ctx, METRICS.moraOffsetX + METRICS.moraRadius) : 0;
-            const hasTenor = notes.some(n => n.shape === 'tenor');
-            const tenorExtra = hasTenor ? ss(ctx, METRICS.tenorAdvanceExtra) : 0;
+            // An open tenor (`to`) has no side bars, so it is no wider than a normal note.
+            const hasBarredTenor = notes.some(n => n.shape === 'tenor' && !n.modifiers?.includes('open'));
+            const tenorExtra = hasBarredTenor ? ss(ctx, METRICS.tenorAdvanceExtra) : 0;
             total += ctx.singleNoteAdvance + (n - 1) * ctx.ligatureStepAdvance + moraExtra + accExtra + tenorExtra;
         }
     }

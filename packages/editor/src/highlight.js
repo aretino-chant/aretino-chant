@@ -191,7 +191,7 @@ const aretinoStreamParser = {
         if (ch === '~') { stream.next(); return 'punctuation'; }
         if (/[a-gA-G]/.test(ch)) {
             stream.next();
-            stream.eatWhile(/['._\-~wts]/);
+            stream.eatWhile(/['._\-~wtso]/);
             return 'atom';
         }
         if (ch === '"') {
@@ -282,7 +282,7 @@ function buildBigJumpDecorations(doc) {
                 const pp = atomPitchPos(ch);
                 const from = line.from + i;
                 i++;
-                while (i < text.length && /['._\-~wts`]/.test(text[i])) i++;
+                while (i < text.length && /['._\-~wtso`]/.test(text[i])) i++;
                 if (lastPP !== null && pp !== null && Math.abs(pp - lastPP) > 4) {
                     builder.add(from, line.from + i, bigJumpMark);
                 }

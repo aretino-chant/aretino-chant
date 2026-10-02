@@ -36,7 +36,7 @@
 //       virga: boolean,                  — uppercase letter
 //       noVirga: boolean,                — backtick ` suppresses auto-virga
 //       shape: 'punctum' | 'virga' | 'quilisma' | 'tenor',
-//       modifiers: Array<'episema'|'mora'|'plica'|'ictus'>,
+//       modifiers: Array<'episema'|'mora'|'plica'|'ictus'|'small'|'open'>,
 //   }
 
 function sourceMapForText(text, srcStart) {
@@ -396,6 +396,7 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 if (m === 'w') { note.shape = 'quilisma'; i++; continue; }
                 if (m === 't') { note.shape = 'tenor'; i++; continue; }
                 if (m === 's') { note.modifiers.push('small'); note.modifierSpans.push(span); i++; continue; }
+                if (m === 'o') { note.modifiers.push('open'); note.modifierSpans.push(span); i++; continue; }
                 break;
             }
             note.srcStart = lineStart + noteStart;

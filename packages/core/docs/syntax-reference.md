@@ -249,6 +249,16 @@ w:   punctum virga quilisma tenor small
 The `s` suffix marks a **small** (cue-sized) note. It is technically a modifier
 (see below) rather than a shape, so it combines with any shape.
 
+The `o` suffix draws an **open** (half-note) head, as some editions do. It is a
+modifier too: `do` is an ordinary note with an open head, and `dto` is a tenor
+(recitation) note drawn as an open head, without the side bars, which keeps
+every tenor behaviour.
+
+```aretino
+(g2) d do do' dt dto
+w:   punctum open open~virga tenor open~tenor
+```
+
 ---
 
 ## 6. Modifiers
@@ -263,6 +273,7 @@ they accumulate in order.
 | `-` | ictus | Vertical ictus stroke |
 | `~` | plica | small plica added |
 | `s` | small | Cue-sized note |
+| `o` | open | Open (half-note) head |
 
 ```aretino
 (g2) d d. d_ d- d~

@@ -154,6 +154,11 @@ export const METRICS = {
     tenorCalligraphyOuterRotationDeg: 25, // tilt of the outer (silhouette) ellipse relative to the normal notehead rotation; rotates the whole open oval
     tenorCalligraphyInnerRotationDeg: 40, // tilt of the inner (hole) ellipse relative to the outer; offsets the swell toward one diagonal end for a hand-traced look
 
+    // --- Open (half-note) head: the hole's radii as fractions of the head's;
+    // the hole shares the head's tilt, so the ring is thin at the two ends
+    openHoleScaleX: 0.8,
+    openHoleScaleY: 0.5,
+
     // --- Small notehead (optional psalm-tone notes) ----------------------
     smallNoteScale: 0.7,               // scale factor for small noteheads
 
@@ -350,7 +355,7 @@ function calligraphicOval(ctx, cx, cy, opts = {}) {
     const ry = opts.ry ?? ss(ctx, METRICS.noteheadRy);
     const fill = opts.fill ?? '#000';
     // Outer (silhouette) ellipse: normal notehead tilt plus an optional tenor-specific offset.
-    const θ = (METRICS.noteheadRotationDeg + METRICS.tenorCalligraphyOuterRotationDeg) * Math.PI / 180;
+    const θ = (METRICS.noteheadRotationDeg + (opts.outerRotationDeg ?? METRICS.tenorCalligraphyOuterRotationDeg)) * Math.PI / 180;
     const N = 64;
     const ringPath = (dir, sx, sy, φ) => {
         const cosφ = Math.cos(φ), sinφ = Math.sin(φ);
@@ -364,13 +369,25 @@ function calligraphicOval(ctx, cx, cy, opts = {}) {
         }
         return d + 'Z';
     };
-    const innerX = METRICS.tenorCalligraphyInnerScaleX;
-    const innerY = METRICS.tenorCalligraphyInnerScaleY;
+    const innerX = opts.innerScaleX ?? METRICS.tenorCalligraphyInnerScaleX;
+    const innerY = opts.innerScaleY ?? METRICS.tenorCalligraphyInnerScaleY;
     // Tilt the inner ellipse a touch off the outer's axis so the calligraphic
     // swell is asymmetric — thicker toward one diagonal end, like a real nib.
-    const innerθ = θ + METRICS.tenorCalligraphyInnerRotationDeg * Math.PI / 180;
+    const innerθ = θ + (opts.innerRotationDeg ?? METRICS.tenorCalligraphyInnerRotationDeg) * Math.PI / 180;
     const path = ringPath(1, 1, 1, θ) + ringPath(-1, innerX, innerY, innerθ);
     return `<path d="${path}" fill="${fill}"/>`;
+}
+
+// Open (half-note) head: the filled head's ellipse with a hole cut along the
+// same axis, so the ring is thin at the ends and thick on the long sides.
+function openHead(ctx, cx, cy, opts = {}) {
+    return calligraphicOval(ctx, cx, cy, {
+        ...opts,
+        outerRotationDeg: 0,
+        innerRotationDeg: 0,
+        innerScaleX: METRICS.openHoleScaleX,
+        innerScaleY: METRICS.openHoleScaleY,
+    });
 }
 
 function ledgerLines(ctx, cx, cy, staffBottomY) {
@@ -408,6 +425,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
 
     const isSmall = note.modifiers && note.modifiers.includes('small');
     const scale = isSmall ? METRICS.smallNoteScale : 1;
+    const isOpen = note.modifiers && note.modifiers.includes('open');
     // Small noteheads are centered on the same cx as the big notehead.
     const headCx = cx;
 
@@ -437,6 +455,9 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
         }
         path += 'Z';
         parts.push(`<path d="${path}" fill="#000"/>`);
+    } else if (isOpen) {
+        // An open head, tenor or not, is a half-note head with no side bars.
+        parts.push(openHead(ctx, headCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale }));
     } else if (note.shape === 'tenor') {
         const sideSW = stroke(ctx, METRICS.tenorSideStroke, METRICS.tenorSideStrokeMinPx);
         const sideX = (noteW / 2 + ss(ctx, METRICS.tenorSideStrokeOffset)) * scale;
@@ -499,7 +520,7 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
     let minY = cy - halfNoteH;
     let maxY = cy + halfNoteH;
 
-    if (note.shape === 'tenor') {
+    if (note.shape === 'tenor' && !note.modifiers?.includes('open')) {
         const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
         minY = Math.min(minY, cy - halfH);
         maxY = Math.max(maxY, cy + halfH);

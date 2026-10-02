@@ -36,11 +36,12 @@ w:   A B c d e f g a b C D E F G
 
 ## Notehead Types
 
-Punctum, virga (uppercase), quilisma (`w` suffix), tenor note (`t` suffix):
+Punctum, virga (uppercase), quilisma (`w` suffix), tenor note (`t` suffix),
+open heads (`o` suffix):
 
 ```aretino
-(g2) d d' dw dt ds
-w:   punctum virga quilisma tenor~text~for~multiple~syllables small
+(g2) d d' dw dt ds do dto
+w:   punctum virga quilisma tenor~text~for~multiple~syllables small open open~tenor
 ```
 
 ---

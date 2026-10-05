@@ -123,7 +123,7 @@ Unknown keys are stored in the AST `header` object but not drawn. The `%%`
 marker is optional but recommended once a header is present, to separate it
 unambiguously from the body.
 
-Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, avoidLoneSyllables, gapOutlierThresholdMin, wrapCondenseMin, wrapStretchMax, lyricDistance, lyricMinStaffDistance, hideRepeatClef, justifyWithoutLyrics, canvasHeight, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
+Currently supported options: dpi, staffSpaceMm, lyricSize, textFont, noteSpacing, gapOutlierThreshold, avoidLoneSyllables, gapOutlierThresholdMin, wrapCondenseMin, wrapStretchMax, lyricDistance, lyricMinStaffDistance, hideRepeatClef, justifyWithoutLyrics, canvasHeight, leftMargin, rightMargin, staffGap, virgaStemLength, virgaStemDescentBelowPrev, virgaMaxBelowBottom, textStyle, textMaxIndent, textMarkerAlign
 
 ---
 

@@ -298,8 +298,8 @@ export function renderAretino(source, options = {}) {
         Number.isFinite(options.wrapStretchMax) ? options.wrapStretchMax : METRICS.wrapStretchMax);
     ctx.recitationLoneWordMin = Math.max(0,
         Number.isFinite(options.recitationLoneWordMin) ? options.recitationLoneWordMin : METRICS.recitationLoneWordMin);
-    ctx.leftMargin = ss(ctx, METRICS.leftMargin);
-    ctx.rightMargin = ss(ctx, METRICS.rightMargin);
+    ctx.leftMargin = ss(ctx, Number.isFinite(options.leftMargin) ? Math.max(0, options.leftMargin) : METRICS.leftMargin);
+    ctx.rightMargin = ss(ctx, Number.isFinite(options.rightMargin) ? Math.max(0, options.rightMargin) : METRICS.rightMargin);
     ctx.staffGap = ss(ctx, options.staffGap ?? METRICS.staffGap);
     ctx.lyricDistance = ss(ctx, options.lyricDistance ?? METRICS.lyricDistance);
     ctx.lyricMinStaffDistance = ss(ctx, options.lyricMinStaffDistance ?? METRICS.lyricMinStaffDistance);

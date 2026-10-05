@@ -26,6 +26,8 @@ export const RENDERER_OPTIONS = [
     { name: 'wrapCondenseMin', type: 'number', detail: 'minimum condense ratio allowed when wrapping', default: 0.75 },
     { name: 'wrapStretchMax', type: 'number',  detail: 'maximum stretch ratio allowed when wrapping', default: 2 },
     { name: 'recitationLoneWordMin', type: 'number', detail: 'minimum word count before recitation may end on a lone word', default: 2.25 },
+    { name: 'leftMargin',    type: 'number',  detail: 'left page margin (staff-spaces)', default: 1 },
+    { name: 'rightMargin',   type: 'number',  detail: 'right page margin (staff-spaces)', default: 1 },
     { name: 'staffGap',       type: 'number',  detail: 'gap between staves', default: 2.5 },
     { name: 'lyricDistance',  type: 'number',  detail: 'distance from lowest note to lyrics', default: 0.5 },
     { name: 'lyricMinStaffDistance', type: 'number', detail: 'minimum distance from bottom staff line to lyrics', default: 0.75 },

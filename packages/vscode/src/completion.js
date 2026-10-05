@@ -63,6 +63,8 @@ const OPTION_VALUE_OPTIONS = [
     { label: 'wrapCondenseMin', detail: 'number — minimum condense ratio allowed when wrapping (default: 0.75)', section: SECTION.rendererOptions },
     { label: 'wrapStretchMax', detail: 'number — maximum stretch ratio allowed when wrapping (default: 2)', section: SECTION.rendererOptions },
     { label: 'recitationLoneWordMin', detail: 'number — minimum word count before recitation may end on a lone word (default: 2.25)', section: SECTION.rendererOptions },
+    { label: 'leftMargin', detail: 'number — left page margin (staff-spaces) (default: 1)', section: SECTION.rendererOptions },
+    { label: 'rightMargin', detail: 'number — right page margin (staff-spaces) (default: 1)', section: SECTION.rendererOptions },
     { label: 'staffGap', detail: 'number — gap between staves (default: 2.5)', section: SECTION.rendererOptions },
     { label: 'lyricDistance', detail: 'number — distance from lowest note to lyrics (default: 0.5)', section: SECTION.rendererOptions },
     { label: 'lyricMinStaffDistance', detail: 'number — minimum distance from bottom staff line to lyrics (default: 0.75)', section: SECTION.rendererOptions },

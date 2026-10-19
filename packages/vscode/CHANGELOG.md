@@ -3,6 +3,16 @@
 All notable changes to the Aretino Chant Tools extension are documented here.
 This project adheres to [Semantic Versioning](https://semver.org).
 
+## [0.4.0] — 2026-10-15
+
+- **Bundles @aretino-chant/core 0.28.1** (0.3.0 shipped 0.21.0). The preview
+  picks up the renderer changes since then: redrawn noteheads, open (`o`)
+  noteheads, label placement by position in the neume, lone-syllable-aware line
+  breaks, hyphens across `/`-split melismas, neume-gap justification only around
+  lyrics, and the `leftMargin` / `rightMargin` options.
+- **Renderer-option completion** — `%option:` autocomplete is derived from
+  core's option registry, so it lists every option the bundled core accepts.
+
 ## [0.1.0] — 2026-05-31
 
 Initial release.

@@ -82,12 +82,19 @@ Every attribute has a matching JavaScript property of the same name.
 |---|---|---|
 | `caret` | number | Primary CodeMirror caret offset in the source string. Setting it moves the caret, scrolls it into view, and focuses the editor. |
 | `selection` | object | Primary CodeMirror selection as `{ anchor, head, from, to }`. |
+| `player` | `AretinoPlayer` | The player behind `play()`, created on first access. Listen to its `noteon`, `syllable`, `tick`… events to follow playback in your own UI. |
+| `playing` | boolean | Whether playback is running. |
+| `playbackState` | string | `'stopped'`, `'playing'` or `'paused'`. |
+| `playbackOptions` | object | Options handed to `buildPlayback()` on every `play()`: `tempo`, `transpose`, `stanza`, `rhythm`, `pauses`… Defaults to `{}`, so a `%tempo:` header in the source sets the speed. |
+| `playerOptions` | object | Options for the `AretinoPlayer` constructor (`timbre`, `volume`, `audioContext`); read when the player is first created. |
 
 ## Editor Methods
 
 | Method | Returns | Description |
 |---|---|---|
 | `focus()` | — | Focuses the CodeMirror editor. |
+| `play(options?)` | Promise | Plays the source from the start, or resumes a paused playback. `play({ fromCaret: true })` starts at the first note at or after the caret. Must be called from a user gesture the first time (browser autoplay policy). See [Playback](#playback). |
+| `pause()` / `stop()` / `togglePlayback()` | — | Transport controls. Pause keeps the position; stop returns to the start. |
 | `getSourceHtml(from, to)` | string | Returns syntax-highlighted HTML for the source range `[from, to)`. Multi-line content is flattened to a single line with a space at each line boundary, which is appropriate for inline snippet displays. Returns an empty string when the editor is not yet mounted or `from >= to`. Falls back to HTML-escaped plain text if the DOM range cannot be constructed. |
 
 ## Events
@@ -96,6 +103,7 @@ Every attribute has a matching JavaScript property of the same name.
 |---|---|---|---|
 | `change` | yes / yes | `{ value: string, caret: number, selection: object }` | Fired on every document change, including every keystroke. |
 | `selectionchange` | yes / yes | `{ caret: number, selection: object }` | Fired when the primary selection changes. |
+| `playbackstatechange` | yes / yes | `{ state: 'stopped' \| 'playing' \| 'paused' }` | Fired when playback starts, pauses, stops or ends. |
 
 ## Pasting Rich Text
 
@@ -294,6 +302,64 @@ The styled HTML produced by `getSourceHtml()` references CodeMirror's CSS, which
 
 ```js
 myTooltipShadow.adoptedStyleSheets = Array.from(editor.shadowRoot.adoptedStyleSheets);
+```
+
+## Playback
+
+The toolbar ends with play/pause and stop buttons, and Ctrl+Space (Cmd+Space)
+toggles playback from the keyboard. While a note sounds its notehead in the
+built-in preview turns blue, the syllable being sung is coloured too, and the
+pane scrolls to keep the sounding row visible. Editing the text stops
+playback, since the schedule was built for the old text.
+
+The rhythm and pitch rules live in `@aretino-chant/core` — see section 10 of
+its API reference for the pulse model and the `%tempo:` header. The editor
+only wires them up:
+
+```js
+const editor = document.querySelector('aretino-editor');
+
+editor.playbackOptions = { tempo: 120, transpose: -2 };
+await editor.play();                     // from a click handler
+editor.play({ fromCaret: true });        // start at the caret
+
+editor.addEventListener('playbackstatechange', e => console.log(e.detail.state));
+editor.player.addEventListener('syllable', e => status.textContent = e.detail.text);
+editor.player.tempo = 100;               // live tempo change
+```
+
+### `attachPlaybackHighlight(player, preview, options?)`
+
+Hosts that render their own preview (see
+[Custom Preview Integration](#custom-preview-integration)) get the same
+follow-along highlighting with this helper. It listens to the player and
+toggles classes on the rendered SVG; call the function it returns to detach.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `player` | `AretinoPlayer` | The player to follow. |
+| `preview` | `Element` or `() => Element` | Element holding the rendered SVG, or a function returning it (handy when the preview is re-rendered). |
+| `options.playingClass` | string | Class put on each sounding `.aretino-note` group. Default `aretino-playing`. |
+| `options.syllableClass` | string or null | Class put on the `.aretino-syllable` being sung. Default `aretino-playing-syllable`; `null` disables it. |
+| `options.scrollIntoView` | boolean | Keep the sounding note visible. Default `true`. |
+
+The classes carry no styling of their own; add `PLAYBACK_HIGHLIGHT_STYLE`
+(exported, blue noteheads and syllable) to your page or write your own rules.
+`clearPlaybackHighlight(preview, options?)` removes any leftover classes.
+
+```js
+import { AretinoPlayer } from '@aretino-chant/core';
+import { attachPlaybackHighlight, PLAYBACK_HIGHLIGHT_STYLE } from '@aretino-chant/editor';
+
+document.head.insertAdjacentHTML('beforeend', `<style>${PLAYBACK_HIGHLIGHT_STYLE}</style>`);
+const player = new AretinoPlayer();
+const detach = attachPlaybackHighlight(player, () => document.querySelector('#preview'));
+
+playButton.onclick = async () => {
+  if (player.state === 'playing') { player.pause(); return; }
+  if (player.state === 'stopped') player.load(editor.value);
+  await player.play();
+};
 ```
 
 ## CSS Customisation

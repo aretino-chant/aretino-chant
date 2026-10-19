@@ -4,9 +4,10 @@
 
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
-import { renderAretino, parseAretino } from '@aretino-chant/core';
+import { renderAretino, parseAretino, AretinoPlayer } from '@aretino-chant/core';
 import { aretino } from './highlight.js';
 import { highlightAtSelection, sourceSpanFromPreviewClick } from './caret.js';
+import { attachPlaybackHighlight, PLAYBACK_HIGHLIGHT_STYLE } from './playback.js';
 import { buildToolbarState, resolveContext } from './toolbar.js';
 import { convertHtmlPaste } from './clipboard.js';
 
@@ -141,7 +142,19 @@ const STYLE = `
   height: 18px;
   display: block;
 }
+
+.toolbar-group.playback {
+  margin-left: auto;
+  border-right: none;
+}
+${PLAYBACK_HIGHLIGHT_STYLE}
 `;
+
+const PLAY_ICONS = {
+    play: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>',
+    pause: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+    stop: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
+};
 
 function hasMusicContent(ast) {
     if (Object.keys(ast.header).length > 0) return true;
@@ -170,6 +183,9 @@ class AretinoEditor extends HTMLElement {
         this._toolbarEl = null;
         this._resizeObserver = null;
         this._handlePreviewClick = this._handlePreviewClick.bind(this);
+        this._player = null;
+        this._detachPlayback = null;
+        this._playbackOptions = {};
     }
 
     connectedCallback() {
@@ -209,6 +225,14 @@ class AretinoEditor extends HTMLElement {
                     }),
                     EditorView.domEventHandlers({
                         paste: (event, view) => this._handlePaste(event, view),
+                        keydown: (event) => {
+                            if (event.key === ' ' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+                                event.preventDefault();
+                                this.togglePlayback().catch(err => console.error(err));
+                                return true;
+                            }
+                            return false;
+                        },
                     }),
                 ],
             }),
@@ -220,6 +244,7 @@ class AretinoEditor extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this._player?.stop();
         this._view?.destroy();
         this._view = null;
         this._contentEl = null;
@@ -304,6 +329,59 @@ class AretinoEditor extends HTMLElement {
         this._view?.focus();
     }
 
+    // --- Playback ------------------------------------------------------------
+
+    // The AretinoPlayer behind play(); created on first use, so an editor
+    // that never plays never touches Web Audio. Hosts may listen to its
+    // events directly or hand it a shared AudioContext via playerOptions.
+    get player() {
+        if (!this._player) {
+            this._player = new AretinoPlayer(this._playerOptions || {});
+            this._detachPlayback = attachPlaybackHighlight(this._player, () => this._previewEl);
+            this._player.addEventListener('statechange', e => {
+                this._renderToolbar();
+                this.dispatchEvent(new CustomEvent('playbackstatechange', {
+                    bubbles: true,
+                    composed: true,
+                    detail: { state: e.detail.state },
+                }));
+            });
+        }
+        return this._player;
+    }
+
+    // Options for the AretinoPlayer constructor (timbre, volume, audioContext);
+    // only effective when set before the first play().
+    get playerOptions() { return this._playerOptions || {}; }
+    set playerOptions(v) { this._playerOptions = v || {}; }
+
+    // Options passed to buildPlayback() on every play(): tempo, transpose,
+    // stanza, rhythm, pauses… (see the core API reference, section 10).
+    get playbackOptions() { return this._playbackOptions; }
+    set playbackOptions(v) { this._playbackOptions = v || {}; }
+
+    get playing() { return this._player?.state === 'playing'; }
+    get playbackState() { return this._player?.state ?? 'stopped'; }
+
+    // Plays the current source from the start (or from where it was paused).
+    // With `fromCaret`, starts at the first note at or after the caret.
+    play({ fromCaret = false } = {}) {
+        const player = this.player;
+        if (player.state === 'stopped' || fromCaret) {
+            player.load(this.value, this._playbackOptions);
+            if (fromCaret) player.seekToSource(this.caret);
+        }
+        return player.play();
+    }
+
+    pause() { this._player?.pause(); }
+    stop() { this._player?.stop(); }
+
+    togglePlayback() {
+        if (this.playing) { this.pause(); return Promise.resolve(); }
+        return this.play();
+    }
+
     getToolbarState() {
         return this._computeToolbarState();
     }
@@ -360,6 +438,9 @@ class AretinoEditor extends HTMLElement {
     }
 
     _handleChange() {
+        // The schedule was built for the old text: its source spans no longer
+        // match, so playback stops rather than highlighting the wrong notes.
+        if (this._player && this._player.state !== 'stopped') this._player.stop();
         this._renderPreview();
         this.dispatchEvent(new CustomEvent('change', {
             bubbles: true,
@@ -433,6 +514,30 @@ class AretinoEditor extends HTMLElement {
             }
             this._toolbarEl.appendChild(groupEl);
         }
+        this._toolbarEl.appendChild(this._renderPlaybackGroup());
+    }
+
+    _renderPlaybackGroup() {
+        const groupEl = document.createElement('span');
+        groupEl.className = 'toolbar-group playback';
+        groupEl.setAttribute('part', 'playback');
+        const playing = this.playing;
+        const state = this.playbackState;
+        const playBtn = document.createElement('button');
+        playBtn.className = 'toolbar-btn' + (playing ? ' active' : '');
+        playBtn.title = playing ? 'Pause (Ctrl+Space)' : (state === 'paused' ? 'Resume (Ctrl+Space)' : 'Play (Ctrl+Space)');
+        playBtn.innerHTML = playing ? PLAY_ICONS.pause : PLAY_ICONS.play;
+        playBtn.addEventListener('click', () => {
+            this.togglePlayback().catch(err => console.error(err));
+        });
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'toolbar-btn';
+        stopBtn.title = 'Stop';
+        stopBtn.disabled = state === 'stopped';
+        stopBtn.innerHTML = PLAY_ICONS.stop;
+        stopBtn.addEventListener('click', () => { this.stop(); this._view?.focus(); });
+        groupEl.append(playBtn, stopBtn);
+        return groupEl;
     }
 
     _syncPreviewPane() {

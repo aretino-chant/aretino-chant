@@ -81,6 +81,8 @@ w: O Lord, hear my hum-ble call to you!
 | `caption` | Italic heading, right-aligned |
 | `indent` | Mode/incipit label drawn in the first-line indent |
 | `transpose` | — | Transpose the rendered score by a signed number of semitones |
+| `tempo` | — | Playback speed in pulses (puncta) per minute; default 180 |
+| `language` | — | `hu` or `la`: how playback breaks the lyrics into syllables and finds word accents; detected from the text when absent |
 | `option` | — | Renderer option, one per line; repeatable |
 
 `option` headers set renderer options from the source. Write one option per
@@ -117,6 +119,15 @@ ledger lines using the [octave-shift markers](#octave-shift-markers-notes-above-
 %%
 (g2) c d e f g          % rendered a whole tone higher, in D major
 w:   trans-posed up
+```
+
+`tempo` sets the speed of [playback](./api.md#10-playback) — not drawn, but
+kept with the piece so every host plays it at the pace the editor chose:
+
+```aretino
+%tempo: 112
+%%
+(g2) g a b C b a g.
 ```
 
 Unknown keys are stored in the AST `header` object but not drawn. The `%%`

@@ -2,6 +2,19 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-10-19
+
+- **Playback.** `buildPlayback(source, options)` turns a score into a timed
+  list of notes and pauses — a steady pulse per note, mora, episema, quilisma,
+  plica, tenor recitations (one pulse per syllable of the text under the
+  note) and bar-line pauses included — and `AretinoPlayer` plays it through
+  Web Audio with events for following the sounding note. The pulse is shaded
+  by the text (word accents, word ends, punctuation), the neumes (ictus,
+  flow, peak, repose) and the phrase (contour, ritardando), with
+  `expression: false` for the bare pulse. New `%tempo:` and `%language:`
+  headers store the speed and the lyric language with the piece. See the API
+  reference, section 10.
+
 ### 2026-10-02
 
 - **A label's place in a neume decides where it is drawn.** A label written

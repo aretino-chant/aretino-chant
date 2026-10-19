@@ -349,3 +349,22 @@ describe('open noteheads (o)', () => {
     expect(notes[1].modifiers).toEqual([]);
   });
 });
+
+describe('accidental glued after a note', () => {
+  it('becomes a standalone directive before the next neume instead of being dropped', () => {
+    const tokens = parseAretino('(g2) a(bb) b').lines[0].tokens;
+    expect(tokens.map(t => t.type)).toEqual(['directive', 'ligature', 'directive', 'ligature']);
+    expect(tokens[1].srcEnd).toBe('(g2) a'.length);
+    expect(tokens[2]).toMatchObject({ value: 'bb', srcStart: '(g2) a'.length, srcEnd: '(g2) a(bb)'.length });
+    expect(tokens[3].groups[0][0].accidental).toBeUndefined();
+  });
+});
+
+describe('accidental before a / cut', () => {
+  it('stays inside the neume and attaches to the note after the cut', () => {
+    const tokens = parseAretino('(g2) a(bb)/b').lines[0].tokens;
+    expect(tokens.map(t => t.type)).toEqual(['directive', 'ligature']);
+    expect(tokens[1].groups.length).toBe(2);
+    expect(tokens[1].groups[1][0].accidental).toMatchObject({ pitch: 'b', symbol: 'x' });
+  });
+});

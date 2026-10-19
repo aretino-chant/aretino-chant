@@ -8,3 +8,6 @@ export { transposeSource } from './transpose.js';
 export { parseHeaderRendererOptions, RENDERER_OPTIONS } from './options.js';
 export { drawToolbarGlyphIcon } from './glyphs.js';
 export { TEXT_STYLE_PRESETS, DEFAULT_TEXT_STYLE } from './verse.js';
+export { buildPlayback, countSyllables, midiToFrequency, DEFAULT_RHYTHM, DEFAULT_PAUSES, DEFAULT_TEMPO, DEFAULT_EXPRESSION, detectLanguage, splitSyllables, syllabifyWord, accentIndex } from './playback.js';
+export { applyExpression } from './expression.js';
+export { AretinoPlayer } from './player.js';

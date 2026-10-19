@@ -6,3 +6,4 @@ export { AretinoEditor } from './editor.js';
 export { completionSections } from './autocomplete.js';
 export { highlightAtCaret, highlightAtSelection, sourceSpanFromPreviewClick, caretAnchorInfo } from './caret.js';
 export { buildToolbarState } from './toolbar.js';
+export { attachPlaybackHighlight, clearPlaybackHighlight, PLAYBACK_HIGHLIGHT_STYLE } from './playback.js';

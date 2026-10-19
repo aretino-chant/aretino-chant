@@ -349,9 +349,12 @@ function readQuotedLabel(line, i, limit) {
 function parseNoteGroupSequence(line, i, lineStart, limit) {
     const groups = [];
     const gaps = [];
+    // An accidental read ahead of its note. It survives a `/` cut (`a(bb)/b`
+    // flattens the b) and is handed back to the tokenizer when no note follows
+    // in the neume at all (`a(bb) b`), so it applies to the next neume's note.
+    let pendingAcc = null;
     while (true) {
         const group = [];
-        let pendingAcc = null;
         while (i < limit && (octaveShiftAt(line, i, limit) !== null || (line[i] === '(' && peekInlineAccidental(line, i) !== null))) {
             if (line[i] === '(') {
                 const accStart = i;
@@ -422,6 +425,10 @@ function parseNoteGroupSequence(line, i, lineStart, limit) {
                 gaps.push(slashCount);
                 continue;
             }
+        }
+        if (pendingAcc) {
+            i = pendingAcc.srcStart - lineStart;
+            pendingAcc = null;
         }
         break;
     }

@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import { renderAretino, splitRowSVGs, renderFirstRow } from '../src/index.js';
+import { renderAretino, splitRowSVGs, renderFirstRow, AretinoPlayer } from '../src/index.js';
 import testCasesSrc from './test-cases.md?raw';
 
 // On-screen magnification for the editor preview. The physical staff space
@@ -69,6 +69,11 @@ const renderer = {
             return `
 <div class="aretino-block">
   <div class="aretino-preview" id="preview-${id}"></div>
+  <div class="aretino-bar">
+    <button class="aretino-play" id="play-${id}" title="Play / pause (the schedule is rebuilt from the text on every start)">▶</button>
+    <button class="aretino-stop" id="stop-${id}" title="Stop" disabled>■</button>
+    <label>tempo <input class="aretino-tempo" id="tempo-${id}" type="number" min="30" max="300" step="4" value="180"></label>
+  </div>
   <textarea class="aretino-editor" id="editor-${id}" spellcheck="false">${escapeHtml(text)}</textarea>
   <div class="aretino-error" id="error-${id}" hidden></div>
 </div>`;
@@ -134,11 +139,82 @@ function renderBlock(id, source) {
 // Render markdown and inject into the page.
 document.getElementById('app').innerHTML = marked.parse(testCasesSrc);
 
+// One player for the page: starting a block stops whatever else was playing.
+const player = new AretinoPlayer();
+let playingId = null;
+const PLAYING_CLASS = 'aretino-playing';
+
+function previewNotes(id, ev) {
+    const preview = document.getElementById(`preview-${id}`);
+    if (!preview) return [];
+    return [...preview.querySelectorAll('.aretino-note[data-src-start]')].filter(el => {
+        const s = Number(el.dataset.srcStart);
+        const e = Number(el.dataset.srcEnd);
+        return s < ev.srcEnd && e > ev.srcStart;
+    });
+}
+
+player.addEventListener('noteon', e => {
+    if (playingId === null) return;
+    for (const el of previewNotes(playingId, e.detail)) el.classList.add(PLAYING_CLASS);
+});
+player.addEventListener('noteoff', e => {
+    if (playingId === null) return;
+    for (const el of previewNotes(playingId, e.detail)) el.classList.remove(PLAYING_CLASS);
+});
+player.addEventListener('statechange', e => {
+    const state = e.detail.state;
+    if (playingId === null) return;
+    const playBtn = document.getElementById(`play-${playingId}`);
+    const stopBtn = document.getElementById(`stop-${playingId}`);
+    if (playBtn) playBtn.textContent = state === 'playing' ? '❚❚' : '▶';
+    if (stopBtn) stopBtn.disabled = state === 'stopped';
+    if (state !== 'playing') {
+        document.querySelectorAll(`#preview-${playingId} .${PLAYING_CLASS}`).forEach(el => el.classList.remove(PLAYING_CLASS));
+    }
+});
+
+function wirePlayback(id) {
+    const playBtn = document.getElementById(`play-${id}`);
+    const stopBtn = document.getElementById(`stop-${id}`);
+    const tempoInput = document.getElementById(`tempo-${id}`);
+    playBtn.addEventListener('click', async () => {
+        if (playingId === id && player.state === 'playing') {
+            player.pause();
+            return;
+        }
+        if (playingId !== id) {
+            player.stop();
+            playingId = id;
+            player.load(blockSources.get(id) ?? '', { tempo: Number(tempoInput.value) || undefined });
+        } else if (player.state === 'stopped') {
+            player.load(blockSources.get(id) ?? '', { tempo: Number(tempoInput.value) || undefined });
+        }
+        try {
+            await player.play();
+        } catch (err) {
+            const errorEl = document.getElementById(`error-${id}`);
+            errorEl.textContent = err.message;
+            errorEl.hidden = false;
+        }
+    });
+    stopBtn.addEventListener('click', () => {
+        if (playingId === id) player.stop();
+    });
+    tempoInput.addEventListener('change', () => {
+        if (playingId === id) player.tempo = Number(tempoInput.value) || 180;
+    });
+}
+
 // Wire up each aretino block with live preview.
 for (const { id, source } of pendingBlocks) {
     renderBlock(id, source);
     const textarea = document.getElementById(`editor-${id}`);
-    textarea.addEventListener('input', () => renderBlock(id, textarea.value));
+    textarea.addEventListener('input', () => {
+        if (playingId === id) player.stop();
+        renderBlock(id, textarea.value);
+    });
+    wirePlayback(id);
 }
 
 // Reflow all previews when the window width changes.

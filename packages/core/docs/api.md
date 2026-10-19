@@ -21,6 +21,7 @@ use `@aretino-chant/editor`.
 7. [Interactive rendering notes](#7-interactive-rendering-notes) — error handling and source maps
 8. [`parseAretino(source)`](#8-parsearetinosource) — the AST
 9. [Quick reference tables](#9-quick-reference-tables)
+10. [Playback](#10-playback) — `buildPlayback` and `AretinoPlayer`
 
 ---
 
@@ -444,6 +445,198 @@ silently rather than throwing, so a half-typed source still parses.
 | staff gap | 2.5 staff-spaces |
 | zoom | 1 |
 | highlight colour | `#ea580c` |
+
+---
+
+## 10. Playback
+
+The package can also *sound* a score. Two layers are exported:
+
+| Export | What it is |
+|---|---|
+| `buildPlayback(source, options?)` | Pure function: the score as a list of timed notes and pauses. No audio, no DOM — usable in Node, a worker, a MIDI exporter or a test. |
+| `AretinoPlayer` | Web Audio player over that schedule: play / pause / stop / seek, a soft voice-like tone, and events to follow the sounding note. |
+
+Lyrics are not sung; the rhythm is what playback is for. It follows the steady
+pulse of practical chant singing: every ordinary note is one pulse and the few
+marks that change the pace scale it.
+
+### 10.1 The rhythm model
+
+| Notation | Pulses | Option (`rhythm`) |
+|---|---|---|
+| punctum, virga | 1 | — |
+| mora `d.` | ×2 | `mora: 2` |
+| episema `d_` | ×1.5 | `episema: 1.5` |
+| ictus `d-` | 1 (stress only) | — |
+| quilisma `dw` | 0.75, and the note before it is lengthened to 1.5 | `quilisma: 0.75`, `beforeQuilisma: 1.5` |
+| tenor `dt` with text under it | one pulse **per syllable** of the recited text, on one breath, each softly re-articulated | — (`countSyllables`) |
+| tenor `dt` without text | 2 | `tenor: 2` |
+| plica `d~` | 1, the last 30 % a soft liquescent step below | `plica: 1`, `plicaShare: 0.3` |
+| repeated pitch inside a neume `gg` | held as one sound of 2 | `tieRepeats: true` |
+| undotted note before `\|`, `\|\|`, `\|\|\|` | ×1.25 (cadence) | `cadence: 1.25` |
+| small `ds` | 1, softer | `small: 1` |
+
+Pauses after bar lines, in pulses (option `pauses`):
+
+| `,` | `'` | `~` | `;` | `\|` | `\|0` | `\|\|` | `\|\|\|` | between sections |
+|---|---|---|---|---|---|---|---|---|
+| 0.5 | 0.5 | 0.5 | 1 | 2 | 2 | 3 | 3 | 3 (`section`) |
+
+A standalone `~` divides like a quarter bar.
+
+The pulse length comes from the tempo in pulses per minute: the `tempo`
+option, else a `%tempo:` header, else 180.
+
+Pitch is read from the clef: a G clef puts G4 on its line, a C clef middle C,
+an F clef F3. Key signatures apply to their staff letter in every octave;
+inline accidentals to that staff position until the next bar line, as the
+renderer draws them. A `%transpose:` header transposes the sound too, and the
+`transpose` option adds further semitones (for a comfortable singing pitch).
+
+### 10.2 `buildPlayback(source, options?)`
+
+`source` is a source string or a parsed AST.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `tempo` | header or 180 | pulses per minute |
+| `transpose` | 0 | semitones added to the `%transpose:` header |
+| `stanza` | 0 | which `w:` line's text drives tenor recitations and the `syllable` fields |
+| `rhythm` | see above | partial override of the pulse multipliers |
+| `pauses` | see above | partial override of the bar-line pauses, keyed by bar-line symbol |
+| `tieRepeats` | `true` | hold a repeated pitch inside a neume as one sound |
+| `plicaStep` | `-1` | staff steps from a plica's note to its liquescent tail |
+| `language` | `%language:` header or detected | `'hu'` or `'la'`: syllable breaking and word accents (see 10.4) |
+| `accent` | built-in | `(syllables: string[], language) => index` of the accented syllable, or −1 |
+| `countSyllables` | built-in | `(text) => number`, syllables in a recited phrase; replaces the built-in syllabifier (and its accents) |
+| `expression` | on | `false` for the bare mechanical pulse, or an object overriding [10.4](#104-expression) |
+
+The built-in syllabifier breaks Hungarian and Latin words (digraphs, Latin
+diphthongs, *qu*, stop + liquid) and is exact enough for counting and
+accents; pass your own for other languages.
+
+Returns:
+
+```js
+{
+  tempo, unit,            // pulses per minute, seconds per pulse
+  duration,               // seconds, pauses included
+  events: [
+    { type: 'note', time, duration, units,
+      midi, frequency, pitch, octaveShift, shape, modifiers,
+      srcStart, srcEnd,   // the note's own source span (matches data-src-* in the SVG)
+      ligStart, ligEnd,   // its neume's span
+      legato,             // true when the next note is sung on the same neume group
+      gain,               // 0–1, softer for small notes and liquescents
+      syllable,           // { text, srcStart, srcEnd } sung here, or null
+      recitation?, recitationCount?, tied?, liquescent? },
+    { type: 'rest', time, duration, units, srcStart, srcEnd, barline },
+  ],
+  syllables: [ { time, duration, text, srcStart, srcEnd } ],
+}
+```
+
+Events are in time order. A tenor recitation appears as `recitationCount`
+consecutive note events (one per syllable) that all share the tenor note's
+source span. The `syllables` list gives each sung syllable's start and how
+long it is held, melismas included.
+
+Each note also says where it stands: `word` is `{ pos, len, accented, punct }`
+for its syllable's place in the word, `neume` is `{ pos, len }` within its
+neume group (a mora inside a neume closes a group, as the engraving shows),
+`sylPos` is `'first' | 'mid' | 'last' | 'only'` among the notes of its
+syllable, and `expression` lists the shaping tags applied (below).
+
+### 10.3 `AretinoPlayer`
+
+```js
+import { AretinoPlayer } from '@aretino-chant/core';
+
+const player = new AretinoPlayer();          // { timbre, volume, audioContext, tickInterval }
+player.load(source, { tempo: 120 });         // same options as buildPlayback
+player.addEventListener('noteon', e => highlight(e.detail.srcStart, e.detail.srcEnd));
+player.addEventListener('noteoff', e => unhighlight(e.detail.srcStart));
+player.addEventListener('end', () => button.textContent = '▶');
+await player.play();                         // must follow a user gesture (browser autoplay policy)
+```
+
+| Member | Description |
+|---|---|
+| `load(source, options?)` | Builds (and returns) the schedule. Stops any playback. |
+| `play(from?)` | Starts at `from` seconds, or where it was paused. Creates the `AudioContext` on first use and resumes it, so call it from a click handler. Returns a promise. |
+| `pause()` / `stop()` / `toggle()` | Pause keeps the position; stop returns to the start. |
+| `seek(seconds)` / `seekToSource(offset)` | Move, also while playing. `seekToSource` goes to the first note at or after a source offset (an editor caret) and returns that event. |
+| `state` | `'stopped'`, `'playing'` or `'paused'` |
+| `currentTime` / `duration` | seconds |
+| `tempo` | get/set pulses per minute; setting rebuilds the schedule and keeps the place in the score |
+| `volume` | 0–1 |
+| `timbre` | `'voice'` (default), `'organ'` or `'sine'`; `AretinoPlayer.timbres` lists them |
+| `playback` | the current schedule |
+| `audioContext` | the context in use (null until the first `play()`) |
+| `dispose()` | Stops and closes a context the player created itself. |
+
+Events are `CustomEvent`s with the payload in `detail`:
+
+| Event | `detail` |
+|---|---|
+| `load` | the schedule |
+| `statechange` | `{ state }` |
+| `noteon`, `noteoff` | the note event |
+| `syllable` | the syllable event |
+| `tick` | `{ time }`, every `tickInterval` ms while playing (30 by default) |
+| `end` | — |
+
+Notes sung on one neume group are played legato by a single oscillator that
+steps between pitches without re-attacking (and without sliding); a new
+group, a new syllable or a repeated pitch is re-articulated with a short
+attack. The syllables of a recitation stay on one breath and are
+re-articulated softly, by a brief dip of the level, as an event marked
+`rearticulate`. Pass your own `audioContext` to share one with the rest of
+an app; the player then never closes it.
+
+To highlight notes in a rendered SVG, match the event's `srcStart` against
+the `data-src-start` attribute of the `.aretino-note` groups (see
+[section 6](#6-the-svg-output-contract)). `@aretino-chant/editor` ships this
+as `attachPlaybackHighlight()` and a play button in its toolbar.
+
+### 10.4 Expression
+
+The pulse of 10.1 is what a metronome would sing. On top of it, unless
+`expression: false`, the schedule is shaded the way a singer shapes chant,
+reading the text, the neumes and the phrase. Every factor is an option of the
+`expression` object; the defaults are `DEFAULT_EXPRESSION`.
+
+| Reading | What happens | Tag | Options |
+|---|---|---|---|
+| word accent | the accented syllable's first note is lifted: a little louder, not longer | `accent` | `accentGain: 0.12` |
+| word end | the last note of a word's last syllable relaxes: it eases off through its length, not slower | `thesis` | `thesisStretch: 1`, `thesisGain: -0.08` |
+| punctuation | nothing by default: bar lines drive the pauses. A syllable ending in `,` or in `. ; : ! ?` can be given a hold and a breath (none when a bar line follows) | `punct` | `comma: { stretch: 1, breath: 0 }`, `stop: { stretch: 1, breath: 0 }` |
+| neume | the first note of a neume touches down (ictus), the middle notes flow a little faster, the last reposes, a shade softer and barely longer; the melodic peak of a neume of three or more is lifted | `ictic`, `flow`, `repose`, `peak` | `neumeFirstGain: 0.04`, `neumeMiddle: 0.96`, `neumeLastStretch: 1.03`, `neumeLastGain: -0.04`, `peakGain: 0.05` |
+| written ictus `-` | a touch of weight and length | `ictus` | `ictusGain: 0.04`, `ictusStretch: 1.05` |
+| quilisma | lighter | `light` | `quilismaGain: -0.06` |
+| contour | higher notes of a phrase (between bar lines) are a little louder, lower ones softer | — | `contourGain: 0.012` per semitone, clipped ±0.08 |
+| cadence | the last three notes before any bar line ritard and the last one eases off; the pause after the bar is what differs by its weight | `rit`, `cadence` | `ritardando: { '\|': [1, 1.1, 1.04], ';': [1.25, 1.1, 1.04], ',': [1.25, 1.1, 1.04] }` (last note first; the full-bar last note has `rhythm.cadence`), `cadenceGain: -0.075` |
+| recitation | the unaccented inner syllables of a recited phrase move on a little | `flow` | `recitationFlow: 0.94` |
+| humanity | a seeded jitter of timing and loudness | — | `humanize: 0.03`, `seed: 1` |
+
+A relaxation (`thesis`, `repose`, `punct`, `cadence`) is not a lighter note
+but an easing off: the event gets a `gainStart`, the level it begins at, and
+the player diminishes it to `gain` through the note's length. Every other
+note holds one level.
+
+Word accents come from the language: Hungarian stresses the first syllable;
+Latin takes a printed acute (`Dómine`), else the penult of a two-syllable
+word, else the penult when it is closed and the antepenult otherwise, with
+monosyllables unaccented. The language is read from a `%language:` header,
+the `language` option, or detected from the lyrics (Hungarian letters and
+digraphs). Recited text on a tenor note is accented word by word the same way.
+
+```js
+buildPlayback(src, { expression: false });                       // metronomic
+buildPlayback(src, { expression: { humanize: 0, accentGain: 0.2 } });
+buildPlayback(src, { language: 'la', accent: (syls) => syls.length - 2 });
+```
 
 ---
 

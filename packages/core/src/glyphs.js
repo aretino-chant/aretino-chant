@@ -192,13 +192,16 @@ export const METRICS = {
     ligatureConnectorStroke: 0.11,
     ligatureConnectorStrokeMinPx: 0.1,
 
-    // --- Quilisma (saw-tooth notehead) ------------------------------------
-    quilismaTeeth: 4,
-    quilismaPeakUp: 0.5,              // × noteBoxHeight
-    quilismaLowerY: 0,
-    quilismaTrough: 0.5,
-    quilismaSlope: 0.4,               // total upward rise left→right, × noteBoxHeight
-    quilismaOffsetY: 0.3,             // downward shift of entire glyph, × noteBoxHeight
+    // --- Quilisma (a punctum with a saw-tooth cut into it) -----------------
+    // The head's own ellipse is the silhouette; inside it a zigzag band runs
+    // along the head's axis, with the teeth cut straight down (vertical cuts),
+    // so the glyph keeps the punctum's footprint, tilt and weight.
+    quilismaTeeth: 3,                 // teeth across the head's width
+    quilismaCore: 0.15,               // half-thickness of the uncut spine along the axis, × noteBoxHeight
+    quilismaAmplitude: 0.8,           // tooth tip's distance from the axis, × noteBoxHeight; tips beyond the ellipse are clipped
+    quilismaStagger: 0.5,             // bottom teeth shifted by this many teeth: 0.5 zigzags, 0 makes diamonds
+    quilismaGapMinPx: 1.5,            // a notch stays at least this wide in rendered px, as a flat floor down to the spine
+    quilismaToothMinPx: 1.5,          // a tooth stays at least this wide; fewer teeth (never below 2) when the head is too narrow
 
     // --- Clefs ------------------------------------------------------------
     clefCLeftPadding: 0.15,            // gap before C-clef body
@@ -390,6 +393,70 @@ function openHead(ctx, cx, cy, opts = {}) {
     });
 }
 
+// Quilisma: the punctum's ellipse with a saw-tooth band cut out of it. The
+// band's centre line is the ellipse's major axis; its upper and lower edges
+// are triangle waves (the lower one shifted by quilismaStagger teeth) whose
+// tips reach past the ellipse, so wherever a tooth would stick out the
+// ellipse wins and the silhouette stays a punctum. The teeth are cut
+// vertically, not perpendicular to the tilted axis, which keeps them upright
+// on the staff. Sampled column by column: at each x the ink is the overlap of
+// the ellipse's vertical extent and the band's, which never empties because
+// both always contain the axis.
+function quilismaHead(ctx, cx, cy, scale = 1) {
+    const rx = ss(ctx, METRICS.noteheadRx) * scale;
+    const ry = ss(ctx, METRICS.noteheadRy) * scale;
+    const θ = METRICS.noteheadRotationDeg * Math.PI / 180;
+    const cosθ = Math.cos(θ), sinθ = Math.sin(θ);
+    const halfW = ss(ctx, METRICS.noteBoxWidth) * scale / 2;
+    const noteH = ss(ctx, METRICS.noteBoxHeight) * scale;
+    const core = noteH * METRICS.quilismaCore;
+    const amp = noteH * METRICS.quilismaAmplitude;
+    const stagger = METRICS.quilismaStagger;
+    // Small sizes: the zigzag has to survive the pixel grid, like a stroke's
+    // minimum width. Fewer teeth when a tooth plus a gap no longer fit the
+    // head, and a flat floor in each notch so the white gap never closes.
+    // Unlike stroke(), the minimum is in *rendered* pixels: the layout is done
+    // at zoom 1 and magnified, and a zoomed-in head should get its teeth back.
+    const zoom = ctx.zoom || 1;
+    const gapMin = METRICS.quilismaGapMinPx / zoom, toothMin = METRICS.quilismaToothMinPx / zoom;
+    const teeth = Math.max(2, Math.min(METRICS.quilismaTeeth, Math.floor(halfW * 2 / (gapMin + toothMin))));
+    const pitch = halfW * 2 / teeth;
+    const floorHalf = Math.max(0, Math.min(gapMin, pitch - toothMin) / 2);
+    const slope = Math.tan(θ);
+    // Vertical extent of the tilted ellipse at horizontal offset u from its centre.
+    const A = sinθ * sinθ / (rx * rx) + cosθ * cosθ / (ry * ry);
+    const Bu = 2 * cosθ * sinθ * (1 / (rx * rx) - 1 / (ry * ry));
+    const Cu = cosθ * cosθ / (rx * rx) + sinθ * sinθ / (ry * ry);
+    // Triangle wave: 0 at a tooth's notch, 1 at its tip, period one tooth.
+    const tri = (f) => Math.abs(((f % 1) + 1) % 1 - 0.5) * 2;
+    const N = 48 * teeth;
+    const top = [], bottom = [];
+    for (let k = 0; k <= N; k++) {
+        const u = -halfW + 2 * halfW * k / N;
+        const B = Bu * u, C = Cu * u * u - 1;
+        const disc = B * B - 4 * A * C;
+        if (disc < 0) continue;
+        const r = Math.sqrt(disc);
+        const eTop = (-B - r) / (2 * A), eBottom = (-B + r) / (2 * A);
+        const axis = u * slope;
+        const f = (u + halfW) / pitch;
+        // Upper notches sit at the tooth borders f = 0..teeth, lower ones `stagger` teeth later.
+        const fLower = f + stagger;
+        const nearestUpper = Math.round(f), nearestLower = Math.round(fLower);
+        const inUpperFloor = nearestUpper > 0 && nearestUpper < teeth && Math.abs(f - nearestUpper) * pitch < floorHalf;
+        const inLowerFloor = nearestLower > 0 && nearestLower < teeth && Math.abs(fLower - nearestLower) * pitch < floorHalf;
+        const upper = inUpperFloor ? core : core + (amp - core) * tri(f + 0.5);
+        const lower = inLowerFloor ? core : core + (amp - core) * tri(fLower + 0.5);
+        const yTop = Math.max(eTop, axis - upper);
+        const yBottom = Math.min(eBottom, axis + lower);
+        if (yBottom <= yTop) continue;
+        top.push(`${(cx + u).toFixed(3)} ${(cy + yTop).toFixed(3)}`);
+        bottom.push(`${(cx + u).toFixed(3)} ${(cy + yBottom).toFixed(3)}`);
+    }
+    const d = 'M' + top.concat(bottom.reverse()).join('L') + 'Z';
+    return `<path d="${d}" fill="#000"/>`;
+}
+
 function ledgerLines(ctx, cx, cy, staffBottomY) {
     // Draw ledger lines above/below the staff for notes outside line 1..line 5.
     const top = staffBottomY - (METRICS.staffLineCount - 1) * ctx.staffSpace;
@@ -430,31 +497,7 @@ export function drawNoteHead(ctx, note, cx, cy, staffBottomY, prevCy = null) {
     const headCx = cx;
 
     if (note.shape === 'quilisma') {
-        const teeth = METRICS.quilismaTeeth;
-        const dx = noteW / teeth;
-        const totalRise = noteH * METRICS.quilismaSlope;
-        const offsetY = noteH * METRICS.quilismaOffsetY;
-        const baseY = (f) => cy + offsetY - f * totalRise;
-        let path = `M ${cx - noteW / 2} ${baseY(0)} `;
-        for (let t = 0; t < teeth; t++) {
-            const xa = cx - noteW / 2 + t * dx;
-            const xb = xa + dx / 2;
-            const xc = xa + dx;
-            const fPeak = (t + 0.5) / teeth;
-            const fBase = (t + 1) / teeth;
-            path += `L ${xb} ${baseY(fPeak) - noteH * METRICS.quilismaPeakUp} L ${xc} ${baseY(fBase)} `;
-        }
-        path += `L ${cx + noteW / 2} ${baseY(1) + noteH * METRICS.quilismaLowerY} `;
-        for (let t = teeth - 1; t >= 0; t--) {
-            const xa = cx - noteW / 2 + t * dx + dx;
-            const xb = xa - dx / 2;
-            const xc = xa - dx;
-            const fTrough = (t + 0.5) / teeth;
-            const fBase = t / teeth;
-            path += `L ${xb} ${baseY(fTrough) + noteH * METRICS.quilismaTrough} L ${xc} ${baseY(fBase) + noteH * METRICS.quilismaLowerY} `;
-        }
-        path += 'Z';
-        parts.push(`<path d="${path}" fill="#000"/>`);
+        parts.push(quilismaHead(ctx, headCx, cy, scale));
     } else if (isOpen) {
         // An open head, tenor or not, is a half-note head with no side bars.
         parts.push(openHead(ctx, headCx, cy, { rx: ss(ctx, METRICS.noteheadRx) * scale, ry: ss(ctx, METRICS.noteheadRy) * scale }));
@@ -524,14 +567,6 @@ export function noteInkBounds(ctx, note, cy, staffBottomY, prevCy = null) {
         const halfH = ss(ctx, METRICS.tenorSideStrokeHalfHeight) * scale;
         minY = Math.min(minY, cy - halfH);
         maxY = Math.max(maxY, cy + halfH);
-    }
-
-    if (note.shape === 'quilisma') {
-        const noteH = ss(ctx, METRICS.noteBoxHeight);
-        const totalRise = noteH * METRICS.quilismaSlope;
-        const offsetY = noteH * METRICS.quilismaOffsetY;
-        minY = Math.min(minY, cy + offsetY - totalRise - noteH * METRICS.quilismaPeakUp);
-        maxY = Math.max(maxY, cy + offsetY + noteH * METRICS.quilismaTrough);
     }
 
     if (note.shape === 'virga' || note.virga) {

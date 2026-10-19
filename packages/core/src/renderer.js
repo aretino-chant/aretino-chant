@@ -276,6 +276,7 @@ export function renderAretino(source, options = {}) {
     const ctx = {
         staffSpace: staffSpacePx,
         sourceMap,
+        zoom,   // for glyph details that must survive the *rendered* pixel grid
     };
     ctx.pitchStep = ctx.staffSpace / 2;
     ctx.staffHeight = (METRICS.staffLineCount - 1) * ctx.staffSpace;

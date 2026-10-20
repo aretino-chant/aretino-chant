@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableComHosting>true</EnableComHosting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AretinoChant.Preview</RootNamespace>
+    <AssemblyName>AretinoPreview</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+  </ItemGroup>
+
+  <!-- The page WebView2 loads: built by `npm run build -w packages/windows-preview`.
+       The fonts are the ones the VS Code extension bundles. -->
+  <ItemGroup>
+    <Content Include="..\web\index.html;..\web\preview.css;..\web\dist\preview.js"
+             Link="web\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\vscode\media\fonts\*.ttf;..\..\vscode\media\fonts\OFL.txt"
+             Link="web\fonts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- The WebView2 package references its WPF control unconditionally; this is a
+       WinForms-only DLL, so drop it (it also drags in a WindowsBase conflict). -->
+  <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CheckWebBundle" BeforeTargets="Build" Condition="!Exists('..\web\dist\preview.js')">
+    <Error Text="web/dist/preview.js is missing. Run 'npm run build -w packages/windows-preview' first." />
+  </Target>
+
+</Project>

@@ -1,0 +1,17 @@
+{
+  "name": "@aretino-chant/windows-preview",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Windows Explorer preview handler for Aretino chant source files.",
+  "type": "module",
+  "license": "MPL-2.0",
+  "author": "Bertalan Fodor",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "build:production": "node esbuild.mjs --production"
+  },
+  "devDependencies": {
+    "@aretino-chant/core": "*",
+    "esbuild": "^0.21.0"
+  }
+}

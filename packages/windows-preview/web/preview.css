@@ -1,0 +1,87 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('fonts/EBGaramond-Variable.ttf') format('truetype-variations');
+    font-weight: 400 800;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('fonts/EBGaramond-Italic-Variable.ttf') format('truetype-variations');
+    font-weight: 400 800;
+    font-style: italic;
+    font-display: block;
+}
+
+:root {
+    color-scheme: light dark;
+    --pane-bg: #ffffff;
+    --muted: #666;
+    --error-fg: #b3261e;
+    --error-bg: rgba(179, 38, 30, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --pane-bg: #202020;
+        --muted: #aaa;
+        --error-fg: #f2b8b5;
+        --error-bg: rgba(242, 184, 181, 0.1);
+    }
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--pane-bg);
+}
+
+#error {
+    color: var(--error-fg);
+    background: var(--error-bg);
+    padding: 6px 10px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    font-family: Consolas, monospace;
+}
+
+#scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+/* The notation is drawn in black, so it always sits on a white "page", even
+   when Explorer's preview pane is dark. */
+#page {
+    background: #ffffff;
+    padding: 12px 14px;
+    border-radius: 3px;
+}
+
+#content svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.empty {
+    color: var(--muted);
+    font-style: italic;
+    padding: 8px;
+}

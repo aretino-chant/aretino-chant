@@ -160,6 +160,26 @@ function expandTenorRecitations(items, verseNotes) {
     }
 }
 
+// The labels over a drawn ligature: a neume label left-aligned over the
+// neume, a note label centred over its note. Returns their SVG and the top of
+// the highest one, so the row can grow to hold them.
+function labelLigature(ctx, it, drawn, staffBottomY) {
+    if ((it.label == null && drawn.noteLabels.length === 0) || drawn.minY === Infinity) {
+        return { svg: '', topY: Infinity };
+    }
+    const fontSize = ctx.lyricSize * 0.8;
+    const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
+    const labelY = Math.min(drawn.minY, staffTopY) - fontSize * 0.15;
+    let svg = '';
+    if (it.label != null) {
+        svg += renderMixedLabel(parseFormattingToSegments(it.label), drawn.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
+    }
+    for (const nl of drawn.noteLabels) {
+        svg += renderMixedLabel(parseFormattingToSegments(nl.label), nl.cx, labelY, fontSize, ctx.textFont, 'middle', ctx.measureText);
+    }
+    return { svg, topY: labelY - fontSize };
+}
+
 const MM_PER_INCH = 25.4;
 const DEFAULT_DPI = 96;
 // True (print) staff-space size for prepared choral scores,
@@ -1163,8 +1183,15 @@ export function renderAretino(source, options = {}) {
                     lastNote = it.groups[0][0];
                     if (!recitationGlyphDrawn.has(it.recitationChainId)) {
                         const g = emitLigature(ctx, it.groups, cursorX, staffBottomY, [], []);
-                        parts.push(wrapSrc(it, g.svg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, g.leftX, g.rightX - g.leftX, sourceMap));
+                        // The labels belong to the note as written, so they go
+                        // over the first notehead only, not over the ones
+                        // repeated where the phrase wraps.
+                        const labelled = it.recitationChainIndex === 0
+                            ? labelLigature(ctx, it, g, staffBottomY)
+                            : { svg: '', topY: Infinity };
+                        parts.push(wrapSrc(it, g.svg + labelled.svg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, g.leftX, g.rightX - g.leftX, sourceMap));
                         if (g.minY < rowTopY) rowTopY = g.minY;
+                        if (labelled.topY < rowTopY) rowTopY = labelled.topY;
                         if (g.maxY > rowBottomY) rowBottomY = g.maxY;
                         recitationGlyphDrawn.add(it.recitationChainId);
                     }
@@ -1175,23 +1202,11 @@ export function renderAretino(source, options = {}) {
                     const lastGroup = it.groups[it.groups.length - 1];
                     lastNote = lastGroup[lastGroup.length - 1];
                     const r = emitLigature(ctx, it.groups, cursorX, staffBottomY, it.gaps ?? [], it.leadingCourtesyAccidentals ?? []);
-                    let ligSvg = r.svg;
+                    const labelled = labelLigature(ctx, it, r, staffBottomY);
+                    const ligSvg = r.svg + labelled.svg;
                     if (r.minY < rowTopY) rowTopY = r.minY;
+                    if (labelled.topY < rowTopY) rowTopY = labelled.topY;
                     if (r.maxY > rowBottomY) rowBottomY = r.maxY;
-                    if ((it.label != null || r.noteLabels.length > 0) && r.minY < Infinity) {
-                        const fontSize = ctx.lyricSize * 0.8;
-                        const staffTopY = staffBottomY - 4 * ctx.staffSpace - ctx.lyricSize * 0.16;
-                        const labelY = Math.min(r.minY, staffTopY) - fontSize * 0.15;
-                        // A neume label sits left-aligned over the neume; a note
-                        // label is centred over its note.
-                        if (it.label != null) {
-                            ligSvg += renderMixedLabel(parseFormattingToSegments(it.label), r.leftX, labelY, fontSize, ctx.textFont, 'start', ctx.measureText);
-                        }
-                        for (const nl of r.noteLabels) {
-                            ligSvg += renderMixedLabel(parseFormattingToSegments(nl.label), nl.cx, labelY, fontSize, ctx.textFont, 'middle', ctx.measureText);
-                        }
-                        if (labelY - fontSize < rowTopY) rowTopY = labelY - fontSize;
-                    }
                     parts.push(wrapSrc(it, ligSvg, 'aretino-token aretino-ligature', staffBottomY, ctx.staffHeight, r.leftX, r.rightX - r.leftX, sourceMap));
                     // A neume continuation (the tail of a '/'-split neume wrapped
                     // to this row) carries no syllable, so it must not consume a

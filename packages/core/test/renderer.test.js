@@ -1882,6 +1882,19 @@ describe('renderAretino', () => {
       expect(labelX(first)).toBeCloseTo(noteCenters(first)[0], 5);
       expect(labelX(last)).toBeCloseTo(noteCenters(last)[2], 5);
     });
+
+    it('labels a tenor that recites several words', () => {
+      expect(labelText(renderAretino('(c4) "Label:"at g\nw: Dicsőség~az~Atyának a'))[1]).toBe('start');
+      expect(labelText(renderAretino('(c4) a"Label:"t g\nw: Dicsőség~az~Atyának a'))[1]).toBe('middle');
+    });
+
+    it('labels a wrapping recitation once, not at every repeated tenor', () => {
+      const phrase = Array.from({ length: 40 }, () => 'szó').join('~');
+      const svg = renderAretino(`(c4) "Label:"at g\nw: ${phrase} a`, { width: 200 });
+
+      expect(splitRowSVGs(svg).length).toBeGreaterThan(1);
+      expect(svg.match(/>Label:<\/text>/g)).toHaveLength(1);
+    });
   });
 
   // TODO: snapshot a known sample once examples/sample.aretino is filled in.

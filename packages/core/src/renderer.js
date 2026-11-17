@@ -1394,20 +1394,18 @@ export function renderAretino(source, options = {}) {
 
         if (sec.verses && sec.verses.length > 0) {
             const verseResult = renderVerseLines(ctx, sec.verses, ctx.leftMargin, staffRightX, sectionContentBottom);
-            if (rows.length === 0) {
-                // A section of pure text produces no staff row, so without this
-                // the score would carry no row markers at all and could neither
-                // be split for an incipit nor paginated. Each text block is its
-                // own row; when the section does have staff rows the text
-                // belongs to the last of them and stays inside it.
-                let rowPrev = prevRowBottom;
-                for (const block of verseResult.blocks) {
-                    parts.push(`<!-- aretino-row ${globalRowIdx++} ${block.top.toFixed(3)} ${rowPrev.toFixed(3)} ${block.top.toFixed(3)} -->`);
-                    parts.push(block.svg);
-                    rowPrev = block.bottom;
-                }
-            } else {
-                parts.push(verseResult.svg);
+            // Every display line of the text is a row of its own, after staff
+            // rows as much as in a section of pure text. A psalm's verses run
+            // on for a page or more under a single line of tone, and a booklet
+            // or a deck that could only cut where the music does would have to
+            // carry all of them over to the next page with it. Each marker's
+            // previous-bottom is the row above it, so a split row still reaches
+            // down to wherever the ink above it ends.
+            let rowPrev = prevRowBottom;
+            for (const line of verseResult.lines) {
+                parts.push(`<!-- aretino-row ${globalRowIdx++} ${line.top.toFixed(3)} ${rowPrev.toFixed(3)} ${line.top.toFixed(3)} -->`);
+                parts.push(line.svg);
+                rowPrev = line.bottom;
             }
             y = verseResult.bottom + ctx.staffGap;
             contentBottom = Math.max(contentBottom, verseResult.bottom);

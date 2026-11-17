@@ -2,6 +2,15 @@
 
 Important (probably breaking) changes are listed here.
 
+### 2026-11-17
+
+- **Verse text splits a line at a time.** `splitRowSVGs` now returns every
+  display line of `W:` text as a row of its own, also when the text follows
+  staff rows — before, it stayed inside the last staff row, and a text-only
+  section split only between its blocks. A page or a slide can therefore end
+  between any two lines of a psalm. `renderVerseLines` returns `lines` (one
+  extent per display line) instead of `blocks`. The drawing is unchanged.
+
 ### 2026-10-19
 
 - **Playback.** `buildPlayback(source, options)` turns a score into a timed

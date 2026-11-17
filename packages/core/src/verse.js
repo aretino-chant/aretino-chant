@@ -327,9 +327,10 @@ function groupRuns(blocks, ctx) {
 
 // Renders all W: text blocks for a section.
 // verses: the section's verse items (see normaliseVerses for accepted shapes).
-// Returns { svg, bottom, blocks } where bottom is the y-coordinate of the last
-// line's descender and blocks carries each block's SVG with its own ink extent,
-// so a text-only score can still be split into rows.
+// Returns { svg, bottom, lines } where bottom is the y-coordinate of the last
+// line's descender and lines carries each display line's SVG with its own ink
+// extent, so the text can be split into rows a line at a time: a page or a
+// slide may end between any two lines of a psalm, not only between verses.
 export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
     const fontSize = ctx.lyricSize;
     const fontFamily = ctx.textFont;
@@ -337,7 +338,7 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
     const sourceMap = ctx.sourceMap !== false;
     const runs = groupRuns(normaliseVerses(verses), ctx);
     const parts = [];
-    const blockExtents = [];
+    const lineExtents = [];
 
     let y = startY;
     let first = true;
@@ -396,7 +397,6 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                 : lines.map((text, li) => ({ text, span: block.spans[li] ?? {} }));
 
             const blockParts = [];
-            let blockTop = null;
             for (let li = 0; li < inputs.length; li++) {
                 const firstX = li === 0 ? blockFirstX : breakX;
                 const displayLines = wrapVerseText(inputs[li].text, firstX, breakX, wrapX, rightX, styleSize, fontFamily, measureFn);
@@ -413,7 +413,6 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                     } else {
                         y += style.lineHeight * styleSize;
                     }
-                    if (blockTop === null) blockTop = y - styleSize;
                     first = false;
                     let lineSvg = renderDisplayLine(displayLines[di], y, styleSize, fontFamily, style.color, justify, measureFn);
                     if (isBlockFirst && markerSegments) {
@@ -422,20 +421,20 @@ export function renderVerseLines(ctx, verses, leftX, rightX, startY) {
                             + lineSvg;
                     }
                     if (lineSvg !== '') {
-                        blockParts.push(wrapSrc(inputs[li].span, lineSvg,
+                        const wrapped = wrapSrc(inputs[li].span, lineSvg,
                             `aretino-verse aretino-verse-line aretino-verse-${run.name}`,
-                            undefined, undefined, undefined, undefined, sourceMap));
+                            undefined, undefined, undefined, undefined, sourceMap);
+                        blockParts.push(wrapped);
+                        lineExtents.push({ svg: wrapped, top: y - styleSize, bottom: y + styleSize * 0.3 });
                     }
                 }
             }
-            const blockSvg = blockParts.join('');
-            parts.push(blockSvg);
-            blockExtents.push({ svg: blockSvg, top: blockTop ?? y, bottom: y + styleSize * 0.3 });
+            parts.push(blockParts.join(''));
             prevStyle = style;
             prevName = run.name;
         }
     }
 
     const lastSize = prevStyle ? fontSize * prevStyle.size : fontSize;
-    return { svg: parts.join(''), bottom: y + lastSize * 0.3, blocks: blockExtents };
+    return { svg: parts.join(''), bottom: y + lastSize * 0.3, lines: lineExtents };
 }

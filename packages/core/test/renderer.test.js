@@ -1221,7 +1221,28 @@ describe('renderAretino', () => {
       const source = readFileSync(new URL('./fixtures/psalm-verse.aretino', import.meta.url), 'utf8');
       const expected = readFileSync(new URL('./fixtures/psalm-verse.svg', import.meta.url), 'utf8');
 
-      expect(renderAretino(source, { width: 700, sourceMap: false })).toBe(expected);
+      // The drawing, that is: the row markers between the lines are where a
+      // consumer may cut the score, which is not what this pins down.
+      const drawing = svg => svg.replace(/<!-- aretino-row [^>]*-->/g, '');
+
+      expect(drawing(renderAretino(source, { width: 700, sourceMap: false }))).toBe(drawing(expected));
+    });
+
+    it('splits the text under the music into a row per line, so a page can end between any two', () => {
+      const source = readFileSync(new URL('./fixtures/psalm-verse.aretino', import.meta.url), 'utf8');
+      const rows = splitRowSVGs(renderAretino(source, { width: 700, sourceMap: false }));
+      const texts = row => [...row.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map(m => m[1]);
+
+      // The staff with its lyrics, then the two verses' four display lines.
+      expect(rows).toHaveLength(5);
+      expect(texts(rows[0])).toContain('nak.');
+      expect(texts(rows[0]).join(' ')).not.toContain('Dicsőség');
+      expect(rows.slice(1).map(texts)).toEqual([
+        ['Dicsőség az Atyának és Fiúnak * és Szentlélek Istennek,'],
+        ['miképpen kezdetben, most és mindenkor * és mindörökkön örökké. Ámen.'],
+        ['Boldog ember, aki nem jár a gonoszok tanácsa szerint, és nem áll a bűnösök útjára, és nem ül'],
+        ['a csúfolódók székébe.'],
+      ]);
     });
 
     describe('defects', () => {
